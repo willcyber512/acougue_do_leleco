@@ -17,6 +17,14 @@ class AppTheme {
         secondary: AppColors.wine700,
         surface: AppColors.lightSurface,
       ),
+      cardTheme: CardThemeData(
+        color: AppColors.lightSurface,
+        elevation: 0,
+        margin: EdgeInsets.zero,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(24),
+        ),
+      ),
     );
   }
 
@@ -31,6 +39,14 @@ class AppTheme {
         primary: AppColors.beige100,
         secondary: AppColors.beige300,
         surface: AppColors.darkSurface,
+      ),
+      cardTheme: CardThemeData(
+        color: AppColors.darkSurface,
+        elevation: 0,
+        margin: EdgeInsets.zero,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(24),
+        ),
       ),
     );
   }
