@@ -16,3 +16,10 @@ extension ProductUnitLabel on ProductUnit {
     }
   }
 }
+
+ProductUnit productUnitFromName(String? value) {
+  return ProductUnit.values.firstWhere(
+    (unit) => unit.name == value,
+    orElse: () => ProductUnit.kg,
+  );
+}

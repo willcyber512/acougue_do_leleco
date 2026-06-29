@@ -34,6 +34,42 @@ class Product {
 
   bool get isLowStock => stockQuantity <= minStock;
 
+  Map<String, dynamic> toMap() {
+    return {
+      'id': id,
+      'code': code,
+      'name': name,
+      'category': category.name,
+      'unit': unit.name,
+      'salePrice': salePrice,
+      'costPrice': costPrice,
+      'stockQuantity': stockQuantity,
+      'minStock': minStock,
+      'favorite': favorite,
+      'imagePath': imagePath,
+      'createdAt': createdAt.toIso8601String(),
+      'updatedAt': updatedAt.toIso8601String(),
+    };
+  }
+
+  factory Product.fromMap(Map<String, dynamic> map) {
+    return Product(
+      id: map['id']?.toString() ?? '',
+      code: map['code']?.toString() ?? '',
+      name: map['name']?.toString() ?? '',
+      category: productCategoryFromName(map['category']?.toString()),
+      unit: productUnitFromName(map['unit']?.toString()),
+      salePrice: _toDouble(map['salePrice']),
+      costPrice: _toDouble(map['costPrice']),
+      stockQuantity: _toDouble(map['stockQuantity']),
+      minStock: _toDouble(map['minStock']),
+      favorite: _toBool(map['favorite']),
+      imagePath: map['imagePath']?.toString(),
+      createdAt: _toDate(map['createdAt']),
+      updatedAt: _toDate(map['updatedAt']),
+    );
+  }
+
   Product copyWith({
     String? id,
     String? code,
@@ -64,5 +100,22 @@ class Product {
       createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
     );
+  }
+
+  static double _toDouble(dynamic value) {
+    if (value is num) return value.toDouble();
+
+    final text = value?.toString().replaceAll(',', '.') ?? '';
+    return double.tryParse(text) ?? 0;
+  }
+
+  static bool _toBool(dynamic value) {
+    if (value is bool) return value;
+
+    return value?.toString().toLowerCase() == 'true';
+  }
+
+  static DateTime _toDate(dynamic value) {
+    return DateTime.tryParse(value?.toString() ?? '') ?? DateTime.now();
   }
 }

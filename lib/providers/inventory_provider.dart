@@ -1,4 +1,7 @@
+import 'dart:convert';
+
 import 'package:flutter/material.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 import '../models/product.dart';
 import '../models/product_category.dart';
@@ -6,14 +9,18 @@ import '../models/product_unit.dart';
 
 class InventoryProvider extends ChangeNotifier {
   InventoryProvider() {
-    _loadMockProducts();
+    _loadProducts();
   }
+
+  static const String _storageKey = 'leleco_inventory_products_v1';
 
   final List<Product> _products = [];
 
+  bool _isLoading = true;
   String _searchTerm = '';
   ProductCategory? _selectedCategory;
 
+  bool get isLoading => _isLoading;
   String get searchTerm => _searchTerm;
   ProductCategory? get selectedCategory => _selectedCategory;
 
@@ -38,6 +45,7 @@ class InventoryProvider extends ChangeNotifier {
       if (a.favorite != b.favorite) {
         return a.favorite ? -1 : 1;
       }
+
       return a.name.compareTo(b.name);
     });
 
@@ -46,11 +54,13 @@ class InventoryProvider extends ChangeNotifier {
 
   int get totalProducts => _products.length;
 
-  int get lowStockCount =>
-      _products.where((product) => product.isLowStock).length;
+  int get lowStockCount {
+    return _products.where((product) => product.isLowStock).length;
+  }
 
-  int get favoriteCount =>
-      _products.where((product) => product.favorite).length;
+  int get favoriteCount {
+    return _products.where((product) => product.favorite).length;
+  }
 
   double get stockValue {
     return _products.fold(
@@ -71,7 +81,7 @@ class InventoryProvider extends ChangeNotifier {
 
   void addProduct(Product product) {
     _products.insert(0, product);
-    notifyListeners();
+    _saveAndNotify();
   }
 
   void updateProduct(Product product) {
@@ -80,7 +90,7 @@ class InventoryProvider extends ChangeNotifier {
     if (index == -1) return;
 
     _products[index] = product.copyWith(updatedAt: DateTime.now());
-    notifyListeners();
+    _saveAndNotify();
   }
 
   void toggleFavorite(String productId) {
@@ -95,7 +105,7 @@ class InventoryProvider extends ChangeNotifier {
       updatedAt: DateTime.now(),
     );
 
-    notifyListeners();
+    _saveAndNotify();
   }
 
   void replenishProduct(String productId, double quantity) {
@@ -112,7 +122,59 @@ class InventoryProvider extends ChangeNotifier {
       updatedAt: DateTime.now(),
     );
 
+    _saveAndNotify();
+  }
+
+  Future<void> _loadProducts() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final savedProducts = prefs.getString(_storageKey);
+
+      if (savedProducts == null || savedProducts.trim().isEmpty) {
+        _loadMockProducts();
+        await _saveProducts();
+      } else {
+        final decoded = jsonDecode(savedProducts);
+
+        if (decoded is List) {
+          _products
+            ..clear()
+            ..addAll(
+              decoded.whereType<Map>().map(
+                    (item) => Product.fromMap(
+                      Map<String, dynamic>.from(item),
+                    ),
+                  ),
+            );
+        }
+
+        if (_products.isEmpty) {
+          _loadMockProducts();
+          await _saveProducts();
+        }
+      }
+    } catch (_) {
+      _products.clear();
+      _loadMockProducts();
+    } finally {
+      _isLoading = false;
+      notifyListeners();
+    }
+  }
+
+  Future<void> _saveProducts() async {
+    final prefs = await SharedPreferences.getInstance();
+
+    final encoded = jsonEncode(
+      _products.map((product) => product.toMap()).toList(),
+    );
+
+    await prefs.setString(_storageKey, encoded);
+  }
+
+  void _saveAndNotify() {
     notifyListeners();
+    _saveProducts();
   }
 
   void _loadMockProducts() {

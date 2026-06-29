@@ -31,3 +31,10 @@ extension ProductCategoryLabel on ProductCategory {
     }
   }
 }
+
+ProductCategory productCategoryFromName(String? value) {
+  return ProductCategory.values.firstWhere(
+    (category) => category.name == value,
+    orElse: () => ProductCategory.outros,
+  );
+}
