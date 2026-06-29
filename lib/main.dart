@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 
 import 'app.dart';
 import 'providers/inventory_provider.dart';
+import 'providers/sales_provider.dart';
 import 'providers/theme_provider.dart';
 
 void main() {
@@ -11,6 +12,7 @@ void main() {
       providers: [
         ChangeNotifierProvider(create: (_) => ThemeProvider()),
         ChangeNotifierProvider(create: (_) => InventoryProvider()),
+        ChangeNotifierProvider(create: (_) => SalesProvider()),
       ],
       child: const LelecoApp(),
     ),
