@@ -4,6 +4,7 @@ import '../../core/constants/app_colors.dart';
 import '../../widgets/leleco_sidebar.dart';
 import '../../widgets/leleco_top_bar.dart';
 import '../home/home_dashboard_screen.dart';
+import '../inventory/inventory_screen.dart';
 
 class DesktopShellScreen extends StatefulWidget {
   const DesktopShellScreen({super.key});
@@ -76,6 +77,10 @@ class _DesktopShellScreenState extends State<DesktopShellScreen> {
   Widget _buildPage(int index) {
     if (index == 0) {
       return const HomeDashboardScreen();
+    }
+
+    if (index == 2) {
+      return const InventoryScreen();
     }
 
     return _ModulePage(title: labels[index], icon: icons[index]);
