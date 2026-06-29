@@ -2,9 +2,11 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import '../../core/constants/app_colors.dart';
+import '../../models/customer.dart';
 import '../../models/product.dart';
 import '../../models/product_category.dart';
 import '../../models/product_unit.dart';
+import '../../providers/customers_provider.dart';
 import '../../providers/inventory_provider.dart';
 import '../../providers/sales_provider.dart';
 
@@ -262,9 +264,22 @@ class _CartPanel extends StatelessWidget {
                       flex: 2,
                       child: FilledButton.icon(
                         onPressed: sales.hasItems
-                            ? () {
+                            ? () async {
                                 final inventory =
                                     context.read<InventoryProvider>();
+                                final customersProvider =
+                                    context.read<CustomersProvider>();
+
+                                Customer? selectedCustomer;
+
+                                if (sales.paymentMethod == PaymentMethod.fiado) {
+                                  selectedCustomer =
+                                      await _selectCustomerForFiado(context);
+
+                                  if (selectedCustomer == null) {
+                                    return;
+                                  }
+                                }
 
                                 final validationError =
                                     inventory.validateSaleItems(sales.items);
@@ -274,7 +289,10 @@ class _CartPanel extends StatelessWidget {
                                   return;
                                 }
 
-                                final sale = sales.createSaleRecord();
+                                final sale = sales.createSaleRecord(
+                                  customerId: selectedCustomer?.id,
+                                  customerName: selectedCustomer?.name,
+                                );
 
                                 if (sale == null) {
                                   _showMessage(
@@ -296,6 +314,14 @@ class _CartPanel extends StatelessWidget {
                                 }
 
                                 sales.completeSale(sale);
+
+                                if (sale.paymentMethod == PaymentMethod.fiado &&
+                                    selectedCustomer != null) {
+                                  customersProvider.registerPurchase(
+                                    sale,
+                                    selectedCustomer,
+                                  );
+                                }
 
                                 _showMessage(
                                   context,
@@ -530,6 +556,86 @@ Product? _findByCodeOrName(List<Product> products, String value) {
   } catch (_) {
     return null;
   }
+}
+
+
+Future<Customer?> _selectCustomerForFiado(BuildContext context) async {
+  return showDialog<Customer>(
+    context: context,
+    builder: (dialogContext) {
+      return Consumer<CustomersProvider>(
+        builder: (context, provider, _) {
+          final customers = provider.customers;
+
+          return AlertDialog(
+            title: const Text('Selecionar cliente para fiado'),
+            content: SizedBox(
+              width: 640,
+              height: 430,
+              child: customers.isEmpty
+                  ? const Center(
+                      child: Text(
+                        'Nenhum cliente cadastrado. Cadastre um cliente na tela Fiado primeiro.',
+                        textAlign: TextAlign.center,
+                      ),
+                    )
+                  : ListView.separated(
+                      itemCount: customers.length,
+                      separatorBuilder: (_, __) => const SizedBox(height: 10),
+                      itemBuilder: (context, index) {
+                        final customer = customers[index];
+                        final balance = provider.balanceForCustomer(customer.id);
+
+                        return Card(
+                          child: ListTile(
+                            onTap: () {
+                              Navigator.of(dialogContext).pop(customer);
+                            },
+                            leading: Container(
+                              width: 44,
+                              height: 44,
+                              decoration: BoxDecoration(
+                                color: AppColors.wine900,
+                                borderRadius: BorderRadius.circular(15),
+                              ),
+                              child: const Icon(
+                                Icons.person_rounded,
+                                color: AppColors.beige100,
+                              ),
+                            ),
+                            title: Text(
+                              customer.name,
+                              style: const TextStyle(
+                                fontWeight: FontWeight.w900,
+                              ),
+                            ),
+                            subtitle: Text(
+                              customer.phone == null || customer.phone!.isEmpty
+                                  ? 'Sem telefone'
+                                  : customer.phone!,
+                            ),
+                            trailing: Text(
+                              _formatMoney(balance),
+                              style: const TextStyle(
+                                fontWeight: FontWeight.w900,
+                              ),
+                            ),
+                          ),
+                        );
+                      },
+                    ),
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.of(dialogContext).pop(),
+                child: const Text('Cancelar'),
+              ),
+            ],
+          );
+        },
+      );
+    },
+  );
 }
 
 void _showMessage(BuildContext context, String message) {

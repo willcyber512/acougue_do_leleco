@@ -199,13 +199,18 @@ class SalesProvider extends ChangeNotifier {
     notifyListeners();
   }
 
-  SaleRecord? createSaleRecord() {
+  SaleRecord? createSaleRecord({
+    String? customerId,
+    String? customerName,
+  }) {
     if (_items.isEmpty) return null;
 
     return SaleRecord.fromCart(
       cartItems: _items,
       paymentMethod: _paymentMethod,
       createdAt: DateTime.now(),
+      customerId: customerId,
+      customerName: customerName,
     );
   }
 

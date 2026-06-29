@@ -6,6 +6,7 @@ import '../../widgets/leleco_top_bar.dart';
 import '../home/home_dashboard_screen.dart';
 import '../inventory/inventory_screen.dart';
 import '../cash/cash_screen.dart';
+import '../customers/customers_screen.dart';
 import '../sales/sales_screen.dart';
 
 class DesktopShellScreen extends StatefulWidget {
@@ -87,6 +88,10 @@ class _DesktopShellScreenState extends State<DesktopShellScreen> {
 
     if (index == 2) {
       return const InventoryScreen();
+    }
+
+    if (index == 3) {
+      return const CustomersScreen();
     }
 
     if (index == 4) {

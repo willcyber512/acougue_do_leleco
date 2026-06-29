@@ -1,0 +1,545 @@
+import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
+
+import '../../core/constants/app_colors.dart';
+import '../../models/credit_entry.dart';
+import '../../models/customer.dart';
+import '../../providers/customers_provider.dart';
+import '../../widgets/leleco_metric_card.dart';
+
+class CustomersScreen extends StatelessWidget {
+  const CustomersScreen({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return Consumer<CustomersProvider>(
+      builder: (context, provider, _) {
+        if (provider.isLoading) {
+          return const Center(child: CircularProgressIndicator());
+        }
+
+        final customers = provider.filteredCustomers;
+
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Wrap(
+              spacing: 16,
+              runSpacing: 16,
+              children: [
+                SizedBox(
+                  width: 230,
+                  child: LelecoMetricCard(
+                    icon: Icons.people_alt_rounded,
+                    title: 'Clientes',
+                    value: provider.totalCustomers.toString(),
+                  ),
+                ),
+                SizedBox(
+                  width: 230,
+                  child: LelecoMetricCard(
+                    icon: Icons.money_off_rounded,
+                    title: 'Fiado aberto',
+                    value: _formatMoney(provider.totalOpenCredit),
+                  ),
+                ),
+                SizedBox(
+                  width: 230,
+                  child: LelecoMetricCard(
+                    icon: Icons.warning_rounded,
+                    title: 'Com dívida',
+                    value: provider.customersWithDebt.toString(),
+                  ),
+                ),
+                SizedBox(
+                  width: 230,
+                  child: LelecoMetricCard(
+                    icon: Icons.payments_rounded,
+                    title: 'Recebido hoje',
+                    value: _formatMoney(provider.paymentsReceivedToday),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 20),
+            _CustomersToolbar(provider: provider),
+            const SizedBox(height: 16),
+            Expanded(
+              child: customers.isEmpty
+                  ? const _EmptyCustomers()
+                  : ListView.separated(
+                      itemCount: customers.length,
+                      separatorBuilder: (_, __) => const SizedBox(height: 12),
+                      itemBuilder: (context, index) {
+                        return _CustomerCard(
+                          provider: provider,
+                          customer: customers[index],
+                        );
+                      },
+                    ),
+            ),
+          ],
+        );
+      },
+    );
+  }
+}
+
+class _CustomersToolbar extends StatelessWidget {
+  const _CustomersToolbar({required this.provider});
+
+  final CustomersProvider provider;
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      children: [
+        Expanded(
+          child: TextField(
+            onChanged: provider.setSearchTerm,
+            decoration: InputDecoration(
+              hintText: 'Buscar cliente por nome ou telefone...',
+              prefixIcon: const Icon(Icons.search_rounded),
+              filled: true,
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(22),
+                borderSide: BorderSide.none,
+              ),
+            ),
+          ),
+        ),
+        const SizedBox(width: 14),
+        FilledButton.icon(
+          onPressed: () => _openCustomerDialog(context),
+          icon: const Icon(Icons.person_add_alt_rounded),
+          label: const Text('Novo cliente'),
+        ),
+      ],
+    );
+  }
+}
+
+class _CustomerCard extends StatelessWidget {
+  const _CustomerCard({
+    required this.provider,
+    required this.customer,
+  });
+
+  final CustomersProvider provider;
+  final Customer customer;
+
+  @override
+  Widget build(BuildContext context) {
+    final balance = provider.balanceForCustomer(customer.id);
+    final hasDebt = balance > 0.009;
+
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(18),
+        child: Row(
+          children: [
+            Container(
+              width: 58,
+              height: 58,
+              decoration: BoxDecoration(
+                color: AppColors.wine900,
+                borderRadius: BorderRadius.circular(20),
+              ),
+              child: const Icon(
+                Icons.person_rounded,
+                color: AppColors.beige100,
+              ),
+            ),
+            const SizedBox(width: 16),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    customer.name,
+                    style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                          fontWeight: FontWeight.w900,
+                        ),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    (customer.phone == null || customer.phone!.isEmpty)
+                        ? 'Sem telefone cadastrado'
+                        : customer.phone!,
+                  ),
+                ],
+              ),
+            ),
+            Container(
+              width: 150,
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+              decoration: BoxDecoration(
+                color: hasDebt
+                    ? AppColors.warning.withOpacity(0.16)
+                    : AppColors.success.withOpacity(0.14),
+                borderRadius: BorderRadius.circular(999),
+              ),
+              child: Text(
+                hasDebt ? _formatMoney(balance) : 'Sem dívida',
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  color: hasDebt ? AppColors.warning : AppColors.success,
+                  fontWeight: FontWeight.w900,
+                ),
+              ),
+            ),
+            const SizedBox(width: 8),
+            IconButton(
+              tooltip: 'Receber pagamento',
+              onPressed: hasDebt
+                  ? () => _openPaymentDialog(context, customer)
+                  : null,
+              icon: const Icon(Icons.payments_rounded),
+            ),
+            IconButton(
+              tooltip: 'Histórico',
+              onPressed: () => _openCustomerHistoryDialog(context, customer),
+              icon: const Icon(Icons.history_rounded),
+            ),
+            IconButton(
+              tooltip: 'Editar',
+              onPressed: () => _openCustomerDialog(context, customer: customer),
+              icon: const Icon(Icons.edit_rounded),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _EmptyCustomers extends StatelessWidget {
+  const _EmptyCustomers();
+
+  @override
+  Widget build(BuildContext context) {
+    return const Center(
+      child: Text('Nenhum cliente cadastrado.'),
+    );
+  }
+}
+
+Future<void> _openCustomerDialog(
+  BuildContext context, {
+  Customer? customer,
+}) async {
+  final provider = context.read<CustomersProvider>();
+
+  final nameController = TextEditingController(text: customer?.name ?? '');
+  final phoneController = TextEditingController(text: customer?.phone ?? '');
+  final notesController = TextEditingController(text: customer?.notes ?? '');
+
+  await showDialog<void>(
+    context: context,
+    builder: (dialogContext) {
+      return AlertDialog(
+        title: Text(customer == null ? 'Novo cliente' : 'Editar cliente'),
+        content: SizedBox(
+          width: 520,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              TextField(
+                controller: nameController,
+                decoration: const InputDecoration(
+                  labelText: 'Nome do cliente',
+                  hintText: 'Ex: João Silva',
+                ),
+              ),
+              const SizedBox(height: 14),
+              TextField(
+                controller: phoneController,
+                decoration: const InputDecoration(
+                  labelText: 'Telefone',
+                  hintText: 'Ex: (98) 99999-9999',
+                ),
+              ),
+              const SizedBox(height: 14),
+              TextField(
+                controller: notesController,
+                maxLines: 3,
+                decoration: const InputDecoration(
+                  labelText: 'Observações',
+                  hintText: 'Ex: cliente antigo, paga sábado...',
+                ),
+              ),
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop(),
+            child: const Text('Cancelar'),
+          ),
+          FilledButton(
+            onPressed: () {
+              final name = nameController.text.trim();
+
+              if (name.isEmpty) {
+                _showMessage(context, 'Informe o nome do cliente.');
+                return;
+              }
+
+              if (customer == null) {
+                provider.addCustomer(
+                  name: name,
+                  phone: phoneController.text,
+                  notes: notesController.text,
+                );
+              } else {
+                provider.updateCustomer(
+                  customer.copyWith(
+                    name: name,
+                    phone: phoneController.text.trim(),
+                    notes: notesController.text.trim(),
+                  ),
+                );
+              }
+
+              Navigator.of(dialogContext).pop();
+            },
+            child: const Text('Salvar'),
+          ),
+        ],
+      );
+    },
+  );
+}
+
+Future<void> _openPaymentDialog(
+  BuildContext context,
+  Customer customer,
+) async {
+  final provider = context.read<CustomersProvider>();
+  final balance = provider.balanceForCustomer(customer.id);
+
+  final amountController = TextEditingController(
+    text: balance.toStringAsFixed(2),
+  );
+  final noteController = TextEditingController();
+
+  await showDialog<void>(
+    context: context,
+    builder: (dialogContext) {
+      return AlertDialog(
+        title: Text('Receber de ${customer.name}'),
+        content: SizedBox(
+          width: 420,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(
+                'Saldo atual: ${_formatMoney(balance)}',
+                style: const TextStyle(fontWeight: FontWeight.w900),
+              ),
+              const SizedBox(height: 16),
+              TextField(
+                controller: amountController,
+                keyboardType: TextInputType.number,
+                decoration: const InputDecoration(
+                  labelText: 'Valor recebido',
+                  hintText: 'Ex: 50,00',
+                ),
+              ),
+              const SizedBox(height: 14),
+              TextField(
+                controller: noteController,
+                maxLines: 2,
+                decoration: const InputDecoration(
+                  labelText: 'Observação',
+                  hintText: 'Ex: pagamento em dinheiro',
+                ),
+              ),
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop(),
+            child: const Text('Cancelar'),
+          ),
+          FilledButton(
+            onPressed: () {
+              final amount = _parseDouble(amountController.text);
+
+              if (amount <= 0) {
+                _showMessage(context, 'Informe um valor válido.');
+                return;
+              }
+
+              provider.registerPayment(
+                customerId: customer.id,
+                amount: amount,
+                description: noteController.text,
+              );
+
+              Navigator.of(dialogContext).pop();
+            },
+            child: const Text('Receber'),
+          ),
+        ],
+      );
+    },
+  );
+}
+
+Future<void> _openCustomerHistoryDialog(
+  BuildContext context,
+  Customer customer,
+) async {
+  await showDialog<void>(
+    context: context,
+    builder: (dialogContext) {
+      return Consumer<CustomersProvider>(
+        builder: (context, provider, _) {
+          final entries = provider.entriesForCustomer(customer.id);
+          final balance = provider.balanceForCustomer(customer.id);
+
+          return AlertDialog(
+            title: Text('Histórico de ${customer.name}'),
+            content: SizedBox(
+              width: 720,
+              height: 460,
+              child: Column(
+                children: [
+                  Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.all(16),
+                    decoration: BoxDecoration(
+                      color: AppColors.wine900.withOpacity(0.12),
+                      borderRadius: BorderRadius.circular(18),
+                    ),
+                    child: Text(
+                      'Saldo atual: ${_formatMoney(balance)}',
+                      style: const TextStyle(fontWeight: FontWeight.w900),
+                    ),
+                  ),
+                  const SizedBox(height: 14),
+                  Expanded(
+                    child: entries.isEmpty
+                        ? const Center(
+                            child: Text('Nenhum movimento encontrado.'),
+                          )
+                        : ListView.separated(
+                            itemCount: entries.length,
+                            separatorBuilder: (_, __) =>
+                                const SizedBox(height: 10),
+                            itemBuilder: (context, index) {
+                              return _CreditEntryCard(entry: entries[index]);
+                            },
+                          ),
+                  ),
+                ],
+              ),
+            ),
+            actions: [
+              FilledButton(
+                onPressed: () => Navigator.of(dialogContext).pop(),
+                child: const Text('Fechar'),
+              ),
+            ],
+          );
+        },
+      );
+    },
+  );
+}
+
+class _CreditEntryCard extends StatelessWidget {
+  const _CreditEntryCard({required this.entry});
+
+  final CreditEntry entry;
+
+  @override
+  Widget build(BuildContext context) {
+    final isPurchase = entry.type == CreditEntryType.purchase;
+    final color = isPurchase ? AppColors.warning : AppColors.success;
+
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(14),
+        child: Row(
+          children: [
+            Container(
+              width: 48,
+              height: 48,
+              decoration: BoxDecoration(
+                color: isPurchase ? AppColors.wine900 : AppColors.success,
+                borderRadius: BorderRadius.circular(16),
+              ),
+              child: Icon(
+                isPurchase
+                    ? Icons.shopping_cart_rounded
+                    : Icons.payments_rounded,
+                color: AppColors.beige100,
+              ),
+            ),
+            const SizedBox(width: 14),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    entry.type.label,
+                    style: const TextStyle(fontWeight: FontWeight.w900),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(entry.description),
+                  const SizedBox(height: 3),
+                  Text(
+                    _formatDateTime(entry.createdAt),
+                    style: Theme.of(context).textTheme.bodySmall,
+                  ),
+                ],
+              ),
+            ),
+            Text(
+              '${isPurchase ? '+' : '-'} ${_formatMoney(entry.amount)}',
+              style: TextStyle(
+                color: color,
+                fontWeight: FontWeight.w900,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+void _showMessage(BuildContext context, String message) {
+  ScaffoldMessenger.of(context)
+    ..clearSnackBars()
+    ..showSnackBar(
+      SnackBar(content: Text(message)),
+    );
+}
+
+String _formatMoney(double value) {
+  final fixed = value.toStringAsFixed(2).replaceAll('.', ',');
+  return 'R\$ $fixed';
+}
+
+String _formatDateTime(DateTime value) {
+  final day = _two(value.day);
+  final month = _two(value.month);
+  final year = value.year;
+  final hour = _two(value.hour);
+  final minute = _two(value.minute);
+
+  return '$day/$month/$year $hour:$minute';
+}
+
+String _two(int value) {
+  return value.toString().padLeft(2, '0');
+}
+
+double _parseDouble(String value) {
+  final normalized = value.trim().replaceAll(',', '.');
+  return double.tryParse(normalized) ?? 0;
+}

@@ -241,7 +241,7 @@ class _SaleCard extends StatelessWidget {
                     ),
                     const SizedBox(height: 4),
                     Text(
-                      '${_formatDateTime(sale.createdAt)} • ${sale.paymentMethod.label}',
+                      '${_formatDateTime(sale.createdAt)} • ${sale.paymentMethod.label}${sale.customerName == null ? '' : ' • ${sale.customerName}'}',
                     ),
                   ],
                 ),

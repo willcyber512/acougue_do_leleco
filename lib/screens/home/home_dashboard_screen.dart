@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
+import '../../providers/customers_provider.dart';
 import '../../providers/inventory_provider.dart';
 import '../../providers/sales_provider.dart';
 import '../../widgets/leleco_action_card.dart';
@@ -11,8 +12,8 @@ class HomeDashboardScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Consumer2<InventoryProvider, SalesProvider>(
-      builder: (context, inventory, sales, _) {
+    return Consumer3<InventoryProvider, SalesProvider, CustomersProvider>(
+      builder: (context, inventory, sales, customers, _) {
         return ListView(
           children: [
             Row(
@@ -35,9 +36,9 @@ class HomeDashboardScreen extends StatelessWidget {
                 const SizedBox(width: 16),
                 Expanded(
                   child: LelecoMetricCard(
-                    icon: Icons.inventory_2_rounded,
-                    title: 'Produtos cadastrados',
-                    value: inventory.totalProducts.toString(),
+                    icon: Icons.money_off_rounded,
+                    title: 'Fiado aberto',
+                    value: _formatMoney(customers.totalOpenCredit),
                   ),
                 ),
                 const SizedBox(width: 16),

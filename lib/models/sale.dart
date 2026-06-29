@@ -51,6 +51,8 @@ class SaleRecord {
     required this.paymentMethod,
     required this.total,
     required this.createdAt,
+    this.customerId,
+    this.customerName,
     this.canceledAt,
     this.cancelReason,
   });
@@ -60,6 +62,8 @@ class SaleRecord {
   final PaymentMethod paymentMethod;
   final double total;
   final DateTime createdAt;
+  final String? customerId;
+  final String? customerName;
   final DateTime? canceledAt;
   final String? cancelReason;
 
@@ -83,6 +87,8 @@ class SaleRecord {
     PaymentMethod? paymentMethod,
     double? total,
     DateTime? createdAt,
+    String? customerId,
+    String? customerName,
     DateTime? canceledAt,
     String? cancelReason,
   }) {
@@ -92,6 +98,8 @@ class SaleRecord {
       paymentMethod: paymentMethod ?? this.paymentMethod,
       total: total ?? this.total,
       createdAt: createdAt ?? this.createdAt,
+      customerId: customerId ?? this.customerId,
+      customerName: customerName ?? this.customerName,
       canceledAt: canceledAt ?? this.canceledAt,
       cancelReason: cancelReason ?? this.cancelReason,
     );
@@ -104,6 +112,8 @@ class SaleRecord {
       'paymentMethod': paymentMethod.name,
       'total': total,
       'createdAt': createdAt.toIso8601String(),
+      'customerId': customerId,
+      'customerName': customerName,
       'canceledAt': canceledAt?.toIso8601String(),
       'cancelReason': cancelReason,
     };
@@ -127,6 +137,8 @@ class SaleRecord {
       paymentMethod: paymentMethodFromName(map['paymentMethod']?.toString()),
       total: _toDouble(map['total']),
       createdAt: _toDate(map['createdAt']),
+      customerId: map['customerId']?.toString(),
+      customerName: map['customerName']?.toString(),
       canceledAt: _toNullableDate(map['canceledAt']),
       cancelReason: map['cancelReason']?.toString(),
     );
@@ -136,6 +148,8 @@ class SaleRecord {
     required List<SaleCartItem> cartItems,
     required PaymentMethod paymentMethod,
     required DateTime createdAt,
+    String? customerId,
+    String? customerName,
   }) {
     final items = cartItems.map((cartItem) {
       return SaleRecordItem(
@@ -159,6 +173,8 @@ class SaleRecord {
       paymentMethod: paymentMethod,
       total: total,
       createdAt: createdAt,
+      customerId: customerId,
+      customerName: customerName,
     );
   }
 }
