@@ -8,6 +8,8 @@ import '../models/inventory_loss.dart';
 import '../models/product.dart';
 import '../models/product_category.dart';
 import '../models/product_unit.dart';
+import '../models/sale.dart';
+import '../models/sale_cart_item.dart';
 
 class InventoryProvider extends ChangeNotifier {
   InventoryProvider() {
@@ -265,6 +267,67 @@ class InventoryProvider extends ChangeNotifier {
       description:
           'Perda registrada: ${_formatNumber(lossQuantity)} ${product.unit.label} de "${product.name}" (${type.label}).',
     );
+
+    _saveAllAndNotify();
+    return true;
+  }
+
+
+  String? validateSaleItems(List<SaleCartItem> items) {
+    if (items.isEmpty) return 'Adicione produtos ao carrinho.';
+
+    for (final item in items) {
+      final index = _products.indexWhere(
+        (product) => product.id == item.product.id && !product.isDeleted,
+      );
+
+      if (index == -1) {
+        return 'Produto "${item.product.name}" não encontrado no estoque.';
+      }
+
+      final currentProduct = _products[index];
+
+      if (currentProduct.stockQuantity < item.quantity) {
+        return 'Estoque insuficiente para "${currentProduct.name}". Disponível: ${_formatNumber(currentProduct.stockQuantity)} ${currentProduct.unit.label}.';
+      }
+    }
+
+    return null;
+  }
+
+  bool deductSaleRecord(SaleRecord sale) {
+    for (final item in sale.items) {
+      final index = _products.indexWhere(
+        (product) => product.id == item.productId && !product.isDeleted,
+      );
+
+      if (index == -1) return false;
+
+      final product = _products[index];
+
+      if (product.stockQuantity < item.quantity) return false;
+    }
+
+    for (final item in sale.items) {
+      final index = _products.indexWhere(
+        (product) => product.id == item.productId && !product.isDeleted,
+      );
+
+      final product = _products[index];
+
+      _products[index] = product.copyWith(
+        stockQuantity: product.stockQuantity - item.quantity,
+        updatedAt: sale.createdAt,
+      );
+
+      _addEvent(
+        type: InventoryEventType.saleDeducted,
+        product: _products[index],
+        quantity: item.quantity,
+        description:
+            'Venda #${sale.shortId} baixou ${_formatNumber(item.quantity)} ${product.unit.label} de "${product.name}".',
+      );
+    }
 
     _saveAllAndNotify();
     return true;

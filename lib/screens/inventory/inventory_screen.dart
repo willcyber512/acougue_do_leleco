@@ -1103,6 +1103,8 @@ IconData _eventIcon(InventoryEventType type) {
       return Icons.star_border_rounded;
     case InventoryEventType.replenished:
       return Icons.add_box_rounded;
+    case InventoryEventType.saleDeducted:
+      return Icons.point_of_sale_rounded;
     case InventoryEventType.lossRegistered:
       return Icons.remove_circle_outline_rounded;
     case InventoryEventType.movedToTrash:

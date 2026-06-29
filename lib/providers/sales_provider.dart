@@ -1,40 +1,31 @@
-import 'package:flutter/material.dart';
+import 'dart:convert';
 
+import 'package:flutter/material.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+
+import '../models/payment_method.dart';
 import '../models/product.dart';
+import '../models/sale.dart';
 import '../models/sale_cart_item.dart';
 
-enum PaymentMethod {
-  dinheiro,
-  pix,
-  debito,
-  credito,
-  fiado,
-}
-
-extension PaymentMethodLabel on PaymentMethod {
-  String get label {
-    switch (this) {
-      case PaymentMethod.dinheiro:
-        return 'Dinheiro';
-      case PaymentMethod.pix:
-        return 'Pix';
-      case PaymentMethod.debito:
-        return 'Débito';
-      case PaymentMethod.credito:
-        return 'Crédito';
-      case PaymentMethod.fiado:
-        return 'Fiado';
-    }
-  }
-}
+export '../models/payment_method.dart';
 
 class SalesProvider extends ChangeNotifier {
+  SalesProvider() {
+    _loadSales();
+  }
+
+  static const String _salesStorageKey = 'leleco_sales_records_v1';
+
   final List<SaleCartItem> _items = [];
+  final List<SaleRecord> _sales = [];
 
   PaymentMethod _paymentMethod = PaymentMethod.dinheiro;
   String _searchTerm = '';
 
   List<SaleCartItem> get items => List.unmodifiable(_items);
+  List<SaleRecord> get sales => List.unmodifiable(_sortedSales());
+
   PaymentMethod get paymentMethod => _paymentMethod;
   String get searchTerm => _searchTerm;
 
@@ -54,6 +45,32 @@ class SalesProvider extends ChangeNotifier {
     );
   }
 
+  List<SaleRecord> get todaySales {
+    final now = DateTime.now();
+
+    return _sales.where((sale) {
+      return sale.createdAt.year == now.year &&
+          sale.createdAt.month == now.month &&
+          sale.createdAt.day == now.day;
+    }).toList()
+      ..sort((a, b) => b.createdAt.compareTo(a.createdAt));
+  }
+
+  int get todaySalesCount => todaySales.length;
+
+  double get todayRevenue {
+    return todaySales.fold(
+      0.0,
+      (total, sale) => total + sale.total,
+    );
+  }
+
+  double get todayFiadoTotal {
+    return todaySales
+        .where((sale) => sale.paymentMethod == PaymentMethod.fiado)
+        .fold(0.0, (total, sale) => total + sale.total);
+  }
+
   void setSearchTerm(String value) {
     _searchTerm = value;
     notifyListeners();
@@ -66,23 +83,31 @@ class SalesProvider extends ChangeNotifier {
 
   void addProduct(Product product, {double quantity = 1}) {
     if (quantity <= 0) return;
+    if (product.stockQuantity <= 0) return;
 
     final index = _items.indexWhere(
       (item) => item.product.id == product.id,
     );
 
     if (index == -1) {
+      final safeQuantity =
+          quantity > product.stockQuantity ? product.stockQuantity : quantity;
+
       _items.add(
         SaleCartItem(
           product: product,
-          quantity: quantity,
+          quantity: safeQuantity,
         ),
       );
     } else {
       final current = _items[index];
+      final newQuantity = current.quantity + quantity;
+      final safeQuantity = newQuantity > product.stockQuantity
+          ? product.stockQuantity
+          : newQuantity;
 
       _items[index] = current.copyWith(
-        quantity: current.quantity + quantity,
+        quantity: safeQuantity,
       );
     }
 
@@ -100,7 +125,11 @@ class SalesProvider extends ChangeNotifier {
     if (quantity <= 0) {
       _items.removeAt(index);
     } else {
-      _items[index] = _items[index].copyWith(quantity: quantity);
+      final product = _items[index].product;
+      final safeQuantity =
+          quantity > product.stockQuantity ? product.stockQuantity : quantity;
+
+      _items[index] = _items[index].copyWith(quantity: safeQuantity);
     }
 
     notifyListeners();
@@ -114,8 +143,11 @@ class SalesProvider extends ChangeNotifier {
     if (index == -1) return;
 
     final item = _items[index];
+    final newQuantity = item.quantity + 1;
 
-    _items[index] = item.copyWith(quantity: item.quantity + 1);
+    if (newQuantity > item.product.stockQuantity) return;
+
+    _items[index] = item.copyWith(quantity: newQuantity);
 
     notifyListeners();
   }
@@ -151,10 +183,74 @@ class SalesProvider extends ChangeNotifier {
     notifyListeners();
   }
 
-  bool finishSale() {
-    if (_items.isEmpty) return false;
+  SaleRecord? createSaleRecord() {
+    if (_items.isEmpty) return null;
 
-    clearCart();
-    return true;
+    return SaleRecord.fromCart(
+      cartItems: _items,
+      paymentMethod: _paymentMethod,
+      createdAt: DateTime.now(),
+    );
+  }
+
+  void completeSale(SaleRecord sale) {
+    _sales.insert(0, sale);
+
+    _items.clear();
+    _searchTerm = '';
+    _paymentMethod = PaymentMethod.dinheiro;
+
+    _saveSales();
+    notifyListeners();
+  }
+
+  SaleRecord? finishSale() {
+    final sale = createSaleRecord();
+
+    if (sale == null) return null;
+
+    completeSale(sale);
+    return sale;
+  }
+
+  Future<void> _loadSales() async {
+    final prefs = await SharedPreferences.getInstance();
+    final savedSales = prefs.getString(_salesStorageKey);
+
+    if (savedSales == null || savedSales.trim().isEmpty) {
+      return;
+    }
+
+    final decoded = jsonDecode(savedSales);
+
+    if (decoded is List) {
+      _sales
+        ..clear()
+        ..addAll(
+          decoded.whereType<Map>().map(
+                (item) => SaleRecord.fromMap(
+                  Map<String, dynamic>.from(item),
+                ),
+              ),
+        );
+    }
+
+    notifyListeners();
+  }
+
+  Future<void> _saveSales() async {
+    final prefs = await SharedPreferences.getInstance();
+
+    final encoded = jsonEncode(
+      _sales.map((sale) => sale.toMap()).toList(),
+    );
+
+    await prefs.setString(_salesStorageKey, encoded);
+  }
+
+  List<SaleRecord> _sortedSales() {
+    final result = [..._sales];
+    result.sort((a, b) => b.createdAt.compareTo(a.createdAt));
+    return result;
   }
 }

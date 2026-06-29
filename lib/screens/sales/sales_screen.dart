@@ -263,9 +263,20 @@ class _CartPanel extends StatelessWidget {
                       child: FilledButton.icon(
                         onPressed: sales.hasItems
                             ? () {
-                                final ok = sales.finishSale();
+                                final inventory =
+                                    context.read<InventoryProvider>();
 
-                                if (!ok) {
+                                final validationError =
+                                    inventory.validateSaleItems(sales.items);
+
+                                if (validationError != null) {
+                                  _showMessage(context, validationError);
+                                  return;
+                                }
+
+                                final sale = sales.createSaleRecord();
+
+                                if (sale == null) {
                                   _showMessage(
                                     context,
                                     'Adicione produtos ao carrinho.',
@@ -273,9 +284,22 @@ class _CartPanel extends StatelessWidget {
                                   return;
                                 }
 
+                                final stockOk =
+                                    inventory.deductSaleRecord(sale);
+
+                                if (!stockOk) {
+                                  _showMessage(
+                                    context,
+                                    'Não foi possível baixar o estoque.',
+                                  );
+                                  return;
+                                }
+
+                                sales.completeSale(sale);
+
                                 _showMessage(
                                   context,
-                                  'Venda finalizada no modo teste.',
+                                  'Venda #${sale.shortId} finalizada.',
                                 );
                               }
                             : null,
