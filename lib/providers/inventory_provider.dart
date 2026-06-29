@@ -3,18 +3,21 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import '../models/inventory_event.dart';
 import '../models/product.dart';
 import '../models/product_category.dart';
 import '../models/product_unit.dart';
 
 class InventoryProvider extends ChangeNotifier {
   InventoryProvider() {
-    _loadProducts();
+    _loadData();
   }
 
-  static const String _storageKey = 'leleco_inventory_products_v1';
+  static const String _productsStorageKey = 'leleco_inventory_products_v1';
+  static const String _eventsStorageKey = 'leleco_inventory_events_v1';
 
   final List<Product> _products = [];
+  final List<InventoryEvent> _events = [];
 
   bool _isLoading = true;
   String _searchTerm = '';
@@ -40,7 +43,24 @@ class InventoryProvider extends ChangeNotifier {
     return result;
   }
 
+  List<InventoryEvent> get events {
+    final result = [..._events];
+
+    result.sort((a, b) => b.createdAt.compareTo(a.createdAt));
+
+    return List.unmodifiable(result);
+  }
+
+  List<InventoryEvent> eventsForProduct(String productId) {
+    final result = _events.where((event) => event.productId == productId).toList();
+
+    result.sort((a, b) => b.createdAt.compareTo(a.createdAt));
+
+    return List.unmodifiable(result);
+  }
+
   int get deletedProductsCount => deletedProducts.length;
+  int get eventsCount => _events.length;
 
   List<Product> get filteredProducts {
     final term = _searchTerm.trim().toLowerCase();
@@ -82,7 +102,7 @@ class InventoryProvider extends ChangeNotifier {
 
   double get stockValue {
     return products.fold(
-      0,
+      0.0,
       (total, product) => total + (product.salePrice * product.stockQuantity),
     );
   }
@@ -99,7 +119,14 @@ class InventoryProvider extends ChangeNotifier {
 
   void addProduct(Product product) {
     _products.insert(0, product);
-    _saveAndNotify();
+
+    _addEvent(
+      type: InventoryEventType.created,
+      product: product,
+      description: 'Produto "${product.name}" foi cadastrado no estoque.',
+    );
+
+    _saveAllAndNotify();
   }
 
   void updateProduct(Product product) {
@@ -108,7 +135,14 @@ class InventoryProvider extends ChangeNotifier {
     if (index == -1) return;
 
     _products[index] = product.copyWith(updatedAt: DateTime.now());
-    _saveAndNotify();
+
+    _addEvent(
+      type: InventoryEventType.updated,
+      product: _products[index],
+      description: 'Produto "${product.name}" foi editado.',
+    );
+
+    _saveAllAndNotify();
   }
 
   void toggleFavorite(String productId) {
@@ -117,13 +151,24 @@ class InventoryProvider extends ChangeNotifier {
     if (index == -1) return;
 
     final product = _products[index];
+    final willBeFavorite = !product.favorite;
 
     _products[index] = product.copyWith(
-      favorite: !product.favorite,
+      favorite: willBeFavorite,
       updatedAt: DateTime.now(),
     );
 
-    _saveAndNotify();
+    _addEvent(
+      type: willBeFavorite
+          ? InventoryEventType.favorited
+          : InventoryEventType.unfavorited,
+      product: _products[index],
+      description: willBeFavorite
+          ? 'Produto "${product.name}" foi marcado como favorito.'
+          : 'Produto "${product.name}" foi removido dos favoritos.',
+    );
+
+    _saveAllAndNotify();
   }
 
   void replenishProduct(String productId, double quantity) {
@@ -140,7 +185,15 @@ class InventoryProvider extends ChangeNotifier {
       updatedAt: DateTime.now(),
     );
 
-    _saveAndNotify();
+    _addEvent(
+      type: InventoryEventType.replenished,
+      product: _products[index],
+      quantity: quantity,
+      description:
+          'Entrada de ${_formatNumber(quantity)} ${product.unit.label} em "${product.name}".',
+    );
+
+    _saveAllAndNotify();
   }
 
   void moveProductToTrash(String productId) {
@@ -148,12 +201,20 @@ class InventoryProvider extends ChangeNotifier {
 
     if (index == -1) return;
 
-    _products[index] = _products[index].copyWith(
+    final product = _products[index];
+
+    _products[index] = product.copyWith(
       deletedAt: DateTime.now(),
       updatedAt: DateTime.now(),
     );
 
-    _saveAndNotify();
+    _addEvent(
+      type: InventoryEventType.movedToTrash,
+      product: product,
+      description: 'Produto "${product.name}" foi movido para a lixeira.',
+    );
+
+    _saveAllAndNotify();
   }
 
   void restoreProduct(String productId) {
@@ -161,58 +222,119 @@ class InventoryProvider extends ChangeNotifier {
 
     if (index == -1) return;
 
-    _products[index] = _products[index].copyWith(
+    final product = _products[index];
+
+    _products[index] = product.copyWith(
       clearDeletedAt: true,
       updatedAt: DateTime.now(),
     );
 
-    _saveAndNotify();
+    _addEvent(
+      type: InventoryEventType.restored,
+      product: _products[index],
+      description: 'Produto "${product.name}" foi restaurado da lixeira.',
+    );
+
+    _saveAllAndNotify();
   }
 
   void deleteProductForever(String productId) {
-    _products.removeWhere((product) => product.id == productId);
-    _saveAndNotify();
+    final index = _products.indexWhere((product) => product.id == productId);
+
+    if (index == -1) return;
+
+    final product = _products[index];
+
+    _addEvent(
+      type: InventoryEventType.deletedForever,
+      product: product,
+      description:
+          'Produto "${product.name}" foi excluído definitivamente do sistema.',
+    );
+
+    _products.removeAt(index);
+    _saveAllAndNotify();
   }
 
   void emptyTrash() {
+    final deletedCount = deletedProducts.length;
+
+    if (deletedCount == 0) return;
+
     _products.removeWhere((product) => product.isDeleted);
-    _saveAndNotify();
+
+    _addEvent(
+      type: InventoryEventType.emptiedTrash,
+      description: 'A lixeira foi esvaziada. $deletedCount produto(s) removido(s).',
+    );
+
+    _saveAllAndNotify();
   }
 
-  Future<void> _loadProducts() async {
+  Future<void> _loadData() async {
     try {
       final prefs = await SharedPreferences.getInstance();
-      final savedProducts = prefs.getString(_storageKey);
 
-      if (savedProducts == null || savedProducts.trim().isEmpty) {
-        _loadMockProducts();
-        await _saveProducts();
-      } else {
-        final decoded = jsonDecode(savedProducts);
-
-        if (decoded is List) {
-          _products
-            ..clear()
-            ..addAll(
-              decoded.whereType<Map>().map(
-                    (item) => Product.fromMap(
-                      Map<String, dynamic>.from(item),
-                    ),
-                  ),
-            );
-        }
-
-        if (_products.isEmpty) {
-          _loadMockProducts();
-          await _saveProducts();
-        }
-      }
+      await _loadProducts(prefs);
+      await _loadEvents(prefs);
     } catch (_) {
       _products.clear();
+      _events.clear();
       _loadMockProducts();
     } finally {
       _isLoading = false;
       notifyListeners();
+    }
+  }
+
+  Future<void> _loadProducts(SharedPreferences prefs) async {
+    final savedProducts = prefs.getString(_productsStorageKey);
+
+    if (savedProducts == null || savedProducts.trim().isEmpty) {
+      _loadMockProducts();
+      await _saveProducts();
+      return;
+    }
+
+    final decoded = jsonDecode(savedProducts);
+
+    if (decoded is List) {
+      _products
+        ..clear()
+        ..addAll(
+          decoded.whereType<Map>().map(
+                (item) => Product.fromMap(
+                  Map<String, dynamic>.from(item),
+                ),
+              ),
+        );
+    }
+
+    if (_products.isEmpty) {
+      _loadMockProducts();
+      await _saveProducts();
+    }
+  }
+
+  Future<void> _loadEvents(SharedPreferences prefs) async {
+    final savedEvents = prefs.getString(_eventsStorageKey);
+
+    if (savedEvents == null || savedEvents.trim().isEmpty) {
+      return;
+    }
+
+    final decoded = jsonDecode(savedEvents);
+
+    if (decoded is List) {
+      _events
+        ..clear()
+        ..addAll(
+          decoded.whereType<Map>().map(
+                (item) => InventoryEvent.fromMap(
+                  Map<String, dynamic>.from(item),
+                ),
+              ),
+        );
     }
   }
 
@@ -223,12 +345,45 @@ class InventoryProvider extends ChangeNotifier {
       _products.map((product) => product.toMap()).toList(),
     );
 
-    await prefs.setString(_storageKey, encoded);
+    await prefs.setString(_productsStorageKey, encoded);
   }
 
-  void _saveAndNotify() {
+  Future<void> _saveEvents() async {
+    final prefs = await SharedPreferences.getInstance();
+
+    final encoded = jsonEncode(
+      _events.map((event) => event.toMap()).toList(),
+    );
+
+    await prefs.setString(_eventsStorageKey, encoded);
+  }
+
+  void _saveAllAndNotify() {
     notifyListeners();
     _saveProducts();
+    _saveEvents();
+  }
+
+  void _addEvent({
+    required InventoryEventType type,
+    required String description,
+    Product? product,
+    double? quantity,
+  }) {
+    final now = DateTime.now();
+
+    _events.add(
+      InventoryEvent(
+        id: now.microsecondsSinceEpoch.toString(),
+        type: type,
+        description: description,
+        createdAt: now,
+        productId: product?.id,
+        productCode: product?.code,
+        productName: product?.name,
+        quantity: quantity,
+      ),
+    );
   }
 
   void _loadMockProducts() {
@@ -350,5 +505,9 @@ class InventoryProvider extends ChangeNotifier {
           updatedAt: now,
         ),
       ]);
+  }
+
+  String _formatNumber(double value) {
+    return value.toStringAsFixed(3).replaceAll('.', ',');
   }
 }

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import '../../core/constants/app_colors.dart';
+import '../../models/inventory_event.dart';
 import '../../models/product.dart';
 import '../../models/product_category.dart';
 import '../../models/product_unit.dart';
@@ -29,7 +30,7 @@ class InventoryScreen extends StatelessWidget {
               runSpacing: 16,
               children: [
                 SizedBox(
-                  width: 250,
+                  width: 225,
                   child: LelecoMetricCard(
                     icon: Icons.inventory_2_rounded,
                     title: 'Produtos cadastrados',
@@ -37,7 +38,7 @@ class InventoryScreen extends StatelessWidget {
                   ),
                 ),
                 SizedBox(
-                  width: 250,
+                  width: 225,
                   child: LelecoMetricCard(
                     icon: Icons.warning_rounded,
                     title: 'Estoque baixo',
@@ -45,19 +46,19 @@ class InventoryScreen extends StatelessWidget {
                   ),
                 ),
                 SizedBox(
-                  width: 250,
-                  child: LelecoMetricCard(
-                    icon: Icons.star_rounded,
-                    title: 'Favoritos',
-                    value: inventory.favoriteCount.toString(),
-                  ),
-                ),
-                SizedBox(
-                  width: 250,
+                  width: 225,
                   child: LelecoMetricCard(
                     icon: Icons.delete_rounded,
                     title: 'Na lixeira',
                     value: inventory.deletedProductsCount.toString(),
+                  ),
+                ),
+                SizedBox(
+                  width: 225,
+                  child: LelecoMetricCard(
+                    icon: Icons.history_rounded,
+                    title: 'Registros',
+                    value: inventory.eventsCount.toString(),
                   ),
                 ),
               ],
@@ -112,7 +113,7 @@ class _InventoryToolbar extends StatelessWidget {
         ),
         const SizedBox(width: 14),
         SizedBox(
-          width: 230,
+          width: 220,
           child: DropdownButtonFormField<String>(
             value: inventory.selectedCategory?.name ?? 'all',
             decoration: InputDecoration(
@@ -150,11 +151,17 @@ class _InventoryToolbar extends StatelessWidget {
         ),
         const SizedBox(width: 14),
         OutlinedButton.icon(
+          onPressed: () => _openHistoryDialog(context),
+          icon: const Icon(Icons.history_rounded),
+          label: const Text('Histórico'),
+        ),
+        const SizedBox(width: 10),
+        OutlinedButton.icon(
           onPressed: () => _openTrashDialog(context),
           icon: const Icon(Icons.delete_outline_rounded),
           label: Text('Lixeira (${inventory.deletedProductsCount})'),
         ),
-        const SizedBox(width: 14),
+        const SizedBox(width: 10),
         FilledButton.icon(
           onPressed: () => _openProductDialog(context),
           icon: const Icon(Icons.add_rounded),
@@ -242,7 +249,7 @@ class _ProductListCard extends StatelessWidget {
               ),
             ),
             SizedBox(
-              width: 130,
+              width: 120,
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
@@ -255,7 +262,7 @@ class _ProductListCard extends StatelessWidget {
               ),
             ),
             SizedBox(
-              width: 145,
+              width: 135,
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
@@ -268,7 +275,7 @@ class _ProductListCard extends StatelessWidget {
               ),
             ),
             _StockChip(product: product),
-            const SizedBox(width: 10),
+            const SizedBox(width: 8),
             IconButton(
               tooltip: 'Favoritar',
               onPressed: () => inventory.toggleFavorite(product.id),
@@ -280,6 +287,11 @@ class _ProductListCard extends StatelessWidget {
               tooltip: 'Repor estoque',
               onPressed: () => _openReplenishDialog(context, product),
               icon: const Icon(Icons.add_box_rounded),
+            ),
+            IconButton(
+              tooltip: 'Histórico do produto',
+              onPressed: () => _openHistoryDialog(context, product: product),
+              icon: const Icon(Icons.history_rounded),
             ),
             IconButton(
               tooltip: 'Editar produto',
@@ -308,8 +320,8 @@ class _StockChip extends StatelessWidget {
     final isLow = product.isLowStock;
 
     return Container(
-      width: 116,
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 9),
+      width: 96,
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 9),
       decoration: BoxDecoration(
         color: isLow
             ? AppColors.warning.withOpacity(0.16)
@@ -616,6 +628,111 @@ void _moveProductToTrash(BuildContext context, Product product) {
     );
 }
 
+Future<void> _openHistoryDialog(
+  BuildContext context, {
+  Product? product,
+}) async {
+  await showDialog<void>(
+    context: context,
+    builder: (dialogContext) {
+      return Consumer<InventoryProvider>(
+        builder: (context, inventory, _) {
+          final events = product == null
+              ? inventory.events
+              : inventory.eventsForProduct(product.id);
+
+          return AlertDialog(
+            title: Text(
+              product == null
+                  ? 'Histórico do estoque'
+                  : 'Histórico de ${product.name}',
+            ),
+            content: SizedBox(
+              width: 760,
+              height: 460,
+              child: events.isEmpty
+                  ? const Center(
+                      child: Text('Nenhum registro encontrado.'),
+                    )
+                  : ListView.separated(
+                      itemCount: events.length,
+                      separatorBuilder: (_, __) => const SizedBox(height: 10),
+                      itemBuilder: (context, index) {
+                        return _HistoryCard(event: events[index]);
+                      },
+                    ),
+            ),
+            actions: [
+              FilledButton(
+                onPressed: () => Navigator.of(dialogContext).pop(),
+                child: const Text('Fechar'),
+              ),
+            ],
+          );
+        },
+      );
+    },
+  );
+}
+
+class _HistoryCard extends StatelessWidget {
+  const _HistoryCard({required this.event});
+
+  final InventoryEvent event;
+
+  @override
+  Widget build(BuildContext context) {
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(14),
+        child: Row(
+          children: [
+            Container(
+              width: 48,
+              height: 48,
+              decoration: BoxDecoration(
+                color: AppColors.wine900,
+                borderRadius: BorderRadius.circular(16),
+              ),
+              child: Icon(
+                _eventIcon(event.type),
+                color: AppColors.beige100,
+              ),
+            ),
+            const SizedBox(width: 14),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    event.type.label,
+                    style: const TextStyle(fontWeight: FontWeight.w900),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(event.description),
+                  if (event.productCode != null && event.productName != null) ...[
+                    const SizedBox(height: 3),
+                    Text(
+                      'Código ${event.productCode} • ${event.productName}',
+                      style: Theme.of(context).textTheme.bodySmall,
+                    ),
+                  ],
+                ],
+              ),
+            ),
+            const SizedBox(width: 12),
+            Text(
+              _formatDateTime(event.createdAt),
+              textAlign: TextAlign.right,
+              style: Theme.of(context).textTheme.bodySmall,
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
 Future<void> _openTrashDialog(BuildContext context) async {
   await showDialog<void>(
     context: context,
@@ -760,6 +877,29 @@ Future<bool> _confirmAction(
   );
 
   return result ?? false;
+}
+
+IconData _eventIcon(InventoryEventType type) {
+  switch (type) {
+    case InventoryEventType.created:
+      return Icons.add_circle_rounded;
+    case InventoryEventType.updated:
+      return Icons.edit_rounded;
+    case InventoryEventType.favorited:
+      return Icons.star_rounded;
+    case InventoryEventType.unfavorited:
+      return Icons.star_border_rounded;
+    case InventoryEventType.replenished:
+      return Icons.add_box_rounded;
+    case InventoryEventType.movedToTrash:
+      return Icons.delete_outline_rounded;
+    case InventoryEventType.restored:
+      return Icons.restore_rounded;
+    case InventoryEventType.deletedForever:
+      return Icons.delete_forever_rounded;
+    case InventoryEventType.emptiedTrash:
+      return Icons.cleaning_services_rounded;
+  }
 }
 
 String _formatMoney(double value) {
