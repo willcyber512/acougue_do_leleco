@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 
 import '../../core/constants/app_colors.dart';
 import '../../models/inventory_event.dart';
+import '../../models/inventory_loss.dart';
 import '../../models/product.dart';
 import '../../models/product_category.dart';
 import '../../models/product_unit.dart';
@@ -30,15 +31,15 @@ class InventoryScreen extends StatelessWidget {
               runSpacing: 16,
               children: [
                 SizedBox(
-                  width: 225,
+                  width: 215,
                   child: LelecoMetricCard(
                     icon: Icons.inventory_2_rounded,
-                    title: 'Produtos cadastrados',
+                    title: 'Produtos',
                     value: inventory.totalProducts.toString(),
                   ),
                 ),
                 SizedBox(
-                  width: 225,
+                  width: 215,
                   child: LelecoMetricCard(
                     icon: Icons.warning_rounded,
                     title: 'Estoque baixo',
@@ -46,15 +47,16 @@ class InventoryScreen extends StatelessWidget {
                   ),
                 ),
                 SizedBox(
-                  width: 225,
+                  width: 215,
                   child: LelecoMetricCard(
-                    icon: Icons.delete_rounded,
-                    title: 'Na lixeira',
-                    value: inventory.deletedProductsCount.toString(),
+                    icon: Icons.remove_circle_rounded,
+                    title: 'Perdas',
+                    value: inventory.lossesCount.toString(),
+                    footer: _formatMoney(inventory.lossesEstimatedValue),
                   ),
                 ),
                 SizedBox(
-                  width: 225,
+                  width: 215,
                   child: LelecoMetricCard(
                     icon: Icons.history_rounded,
                     title: 'Registros',
@@ -95,9 +97,13 @@ class _InventoryToolbar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Row(
+    return Wrap(
+      spacing: 10,
+      runSpacing: 10,
+      crossAxisAlignment: WrapCrossAlignment.center,
       children: [
-        Expanded(
+        SizedBox(
+          width: 360,
           child: TextField(
             onChanged: inventory.setSearchTerm,
             decoration: InputDecoration(
@@ -111,7 +117,6 @@ class _InventoryToolbar extends StatelessWidget {
             ),
           ),
         ),
-        const SizedBox(width: 14),
         SizedBox(
           width: 220,
           child: DropdownButtonFormField<String>(
@@ -149,19 +154,21 @@ class _InventoryToolbar extends StatelessWidget {
             },
           ),
         ),
-        const SizedBox(width: 14),
+        OutlinedButton.icon(
+          onPressed: () => _openLossesDialog(context),
+          icon: const Icon(Icons.remove_circle_outline_rounded),
+          label: const Text('Perdas'),
+        ),
         OutlinedButton.icon(
           onPressed: () => _openHistoryDialog(context),
           icon: const Icon(Icons.history_rounded),
           label: const Text('Histórico'),
         ),
-        const SizedBox(width: 10),
         OutlinedButton.icon(
           onPressed: () => _openTrashDialog(context),
           icon: const Icon(Icons.delete_outline_rounded),
           label: Text('Lixeira (${inventory.deletedProductsCount})'),
         ),
-        const SizedBox(width: 10),
         FilledButton.icon(
           onPressed: () => _openProductDialog(context),
           icon: const Icon(Icons.add_rounded),
@@ -249,7 +256,7 @@ class _ProductListCard extends StatelessWidget {
               ),
             ),
             SizedBox(
-              width: 120,
+              width: 115,
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
@@ -262,7 +269,7 @@ class _ProductListCard extends StatelessWidget {
               ),
             ),
             SizedBox(
-              width: 135,
+              width: 130,
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
@@ -287,6 +294,11 @@ class _ProductListCard extends StatelessWidget {
               tooltip: 'Repor estoque',
               onPressed: () => _openReplenishDialog(context, product),
               icon: const Icon(Icons.add_box_rounded),
+            ),
+            IconButton(
+              tooltip: 'Registrar perda',
+              onPressed: () => _openLossDialog(context, product),
+              icon: const Icon(Icons.remove_circle_outline_rounded),
             ),
             IconButton(
               tooltip: 'Histórico do produto',
@@ -320,7 +332,7 @@ class _StockChip extends StatelessWidget {
     final isLow = product.isLowStock;
 
     return Container(
-      width: 96,
+      width: 88,
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 9),
       decoration: BoxDecoration(
         color: isLow
@@ -610,6 +622,110 @@ Future<void> _openReplenishDialog(
   );
 }
 
+Future<void> _openLossDialog(
+  BuildContext context,
+  Product product,
+) async {
+  final inventory = context.read<InventoryProvider>();
+  final quantityController = TextEditingController();
+  final reasonController = TextEditingController();
+
+  var type = InventoryLossType.discarded;
+
+  await showDialog<void>(
+    context: context,
+    builder: (dialogContext) {
+      return StatefulBuilder(
+        builder: (context, setDialogState) {
+          return AlertDialog(
+            title: Text('Registrar perda: ${product.name}'),
+            content: SizedBox(
+              width: 460,
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(
+                    'Estoque atual: ${_formatQuantity(product.stockQuantity, product.unit)}',
+                    style: const TextStyle(fontWeight: FontWeight.w800),
+                  ),
+                  const SizedBox(height: 16),
+                  TextField(
+                    controller: quantityController,
+                    keyboardType: TextInputType.number,
+                    decoration: InputDecoration(
+                      labelText: 'Quantidade perdida (${product.unit.label})',
+                      hintText: 'Ex: 1,5',
+                    ),
+                  ),
+                  const SizedBox(height: 14),
+                  DropdownButtonFormField<InventoryLossType>(
+                    value: type,
+                    decoration: const InputDecoration(
+                      labelText: 'Motivo da perda',
+                    ),
+                    items: InventoryLossType.values.map((item) {
+                      return DropdownMenuItem(
+                        value: item,
+                        child: Text(item.label),
+                      );
+                    }).toList(),
+                    onChanged: (value) {
+                      if (value == null) return;
+                      setDialogState(() => type = value);
+                    },
+                  ),
+                  const SizedBox(height: 14),
+                  TextField(
+                    controller: reasonController,
+                    maxLines: 3,
+                    decoration: const InputDecoration(
+                      labelText: 'Observação',
+                      hintText: 'Ex: produto vencido no balcão',
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.of(dialogContext).pop(),
+                child: const Text('Cancelar'),
+              ),
+              FilledButton(
+                onPressed: () {
+                  final quantity = _parseDouble(quantityController.text);
+                  final reason = reasonController.text.trim().isEmpty
+                      ? type.label
+                      : reasonController.text.trim();
+
+                  final success = inventory.registerLoss(
+                    productId: product.id,
+                    quantity: quantity,
+                    type: type,
+                    reason: reason,
+                  );
+
+                  if (!success) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(
+                        content: Text('Não foi possível registrar a perda.'),
+                      ),
+                    );
+                    return;
+                  }
+
+                  Navigator.of(dialogContext).pop();
+                },
+                child: const Text('Registrar'),
+              ),
+            ],
+          );
+        },
+      );
+    },
+  );
+}
+
 void _moveProductToTrash(BuildContext context, Product product) {
   final inventory = context.read<InventoryProvider>();
 
@@ -626,6 +742,102 @@ void _moveProductToTrash(BuildContext context, Product product) {
         ),
       ),
     );
+}
+
+Future<void> _openLossesDialog(BuildContext context) async {
+  await showDialog<void>(
+    context: context,
+    builder: (dialogContext) {
+      return Consumer<InventoryProvider>(
+        builder: (context, inventory, _) {
+          final losses = inventory.losses;
+
+          return AlertDialog(
+            title: const Text('Controle de perdas'),
+            content: SizedBox(
+              width: 800,
+              height: 460,
+              child: losses.isEmpty
+                  ? const Center(
+                      child: Text('Nenhuma perda registrada.'),
+                    )
+                  : ListView.separated(
+                      itemCount: losses.length,
+                      separatorBuilder: (_, __) => const SizedBox(height: 10),
+                      itemBuilder: (context, index) {
+                        return _LossCard(loss: losses[index]);
+                      },
+                    ),
+            ),
+            actions: [
+              FilledButton(
+                onPressed: () => Navigator.of(dialogContext).pop(),
+                child: const Text('Fechar'),
+              ),
+            ],
+          );
+        },
+      );
+    },
+  );
+}
+
+class _LossCard extends StatelessWidget {
+  const _LossCard({required this.loss});
+
+  final InventoryLoss loss;
+
+  @override
+  Widget build(BuildContext context) {
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(14),
+        child: Row(
+          children: [
+            Container(
+              width: 48,
+              height: 48,
+              decoration: BoxDecoration(
+                color: AppColors.wine900,
+                borderRadius: BorderRadius.circular(16),
+              ),
+              child: const Icon(
+                Icons.remove_circle_outline_rounded,
+                color: AppColors.beige100,
+              ),
+            ),
+            const SizedBox(width: 14),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    loss.productName,
+                    style: const TextStyle(fontWeight: FontWeight.w900),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    '${loss.type.label} • ${_formatNumber(loss.quantity)} ${loss.unitLabel} • ${loss.reason}',
+                  ),
+                  const SizedBox(height: 3),
+                  Text(
+                    'Código ${loss.productCode} • Valor estimado ${_formatMoney(loss.estimatedValue)}',
+                    style: Theme.of(context).textTheme.bodySmall,
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(width: 12),
+            Text(
+              _formatDateTime(loss.createdAt),
+              textAlign: TextAlign.right,
+              style: Theme.of(context).textTheme.bodySmall,
+            ),
+          ],
+        ),
+      ),
+    );
+  }
 }
 
 Future<void> _openHistoryDialog(
@@ -891,6 +1103,8 @@ IconData _eventIcon(InventoryEventType type) {
       return Icons.star_border_rounded;
     case InventoryEventType.replenished:
       return Icons.add_box_rounded;
+    case InventoryEventType.lossRegistered:
+      return Icons.remove_circle_outline_rounded;
     case InventoryEventType.movedToTrash:
       return Icons.delete_outline_rounded;
     case InventoryEventType.restored:
@@ -913,6 +1127,10 @@ String _formatQuantity(double value, ProductUnit unit) {
   }
 
   return '${value.toStringAsFixed(0)} ${unit.label}';
+}
+
+String _formatNumber(double value) {
+  return value.toStringAsFixed(3).replaceAll('.', ',');
 }
 
 String _formatDateTime(DateTime? value) {

@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../models/inventory_event.dart';
+import '../models/inventory_loss.dart';
 import '../models/product.dart';
 import '../models/product_category.dart';
 import '../models/product_unit.dart';
@@ -15,9 +16,11 @@ class InventoryProvider extends ChangeNotifier {
 
   static const String _productsStorageKey = 'leleco_inventory_products_v1';
   static const String _eventsStorageKey = 'leleco_inventory_events_v1';
+  static const String _lossesStorageKey = 'leleco_inventory_losses_v1';
 
   final List<Product> _products = [];
   final List<InventoryEvent> _events = [];
+  final List<InventoryLoss> _losses = [];
 
   bool _isLoading = true;
   String _searchTerm = '';
@@ -45,22 +48,38 @@ class InventoryProvider extends ChangeNotifier {
 
   List<InventoryEvent> get events {
     final result = [..._events];
-
     result.sort((a, b) => b.createdAt.compareTo(a.createdAt));
+    return List.unmodifiable(result);
+  }
 
+  List<InventoryLoss> get losses {
+    final result = [..._losses];
+    result.sort((a, b) => b.createdAt.compareTo(a.createdAt));
     return List.unmodifiable(result);
   }
 
   List<InventoryEvent> eventsForProduct(String productId) {
     final result = _events.where((event) => event.productId == productId).toList();
-
     result.sort((a, b) => b.createdAt.compareTo(a.createdAt));
+    return List.unmodifiable(result);
+  }
 
+  List<InventoryLoss> lossesForProduct(String productId) {
+    final result = _losses.where((loss) => loss.productId == productId).toList();
+    result.sort((a, b) => b.createdAt.compareTo(a.createdAt));
     return List.unmodifiable(result);
   }
 
   int get deletedProductsCount => deletedProducts.length;
   int get eventsCount => _events.length;
+  int get lossesCount => _losses.length;
+
+  double get lossesEstimatedValue {
+    return _losses.fold(
+      0.0,
+      (total, loss) => total + loss.estimatedValue,
+    );
+  }
 
   List<Product> get filteredProducts {
     final term = _searchTerm.trim().toLowerCase();
@@ -196,6 +215,61 @@ class InventoryProvider extends ChangeNotifier {
     _saveAllAndNotify();
   }
 
+  bool registerLoss({
+    required String productId,
+    required double quantity,
+    required InventoryLossType type,
+    required String reason,
+  }) {
+    if (quantity <= 0) return false;
+
+    final index = _products.indexWhere((item) => item.id == productId);
+
+    if (index == -1) return false;
+
+    final product = _products[index];
+
+    if (product.isDeleted || product.stockQuantity <= 0) {
+      return false;
+    }
+
+    final lossQuantity =
+        quantity > product.stockQuantity ? product.stockQuantity : quantity;
+
+    final now = DateTime.now();
+
+    final loss = InventoryLoss(
+      id: now.microsecondsSinceEpoch.toString(),
+      productId: product.id,
+      productCode: product.code,
+      productName: product.name,
+      quantity: lossQuantity,
+      unitLabel: product.unit.label,
+      salePriceAtTime: product.salePrice,
+      type: type,
+      reason: reason,
+      createdAt: now,
+    );
+
+    _losses.add(loss);
+
+    _products[index] = product.copyWith(
+      stockQuantity: product.stockQuantity - lossQuantity,
+      updatedAt: now,
+    );
+
+    _addEvent(
+      type: InventoryEventType.lossRegistered,
+      product: _products[index],
+      quantity: lossQuantity,
+      description:
+          'Perda registrada: ${_formatNumber(lossQuantity)} ${product.unit.label} de "${product.name}" (${type.label}).',
+    );
+
+    _saveAllAndNotify();
+    return true;
+  }
+
   void moveProductToTrash(String productId) {
     final index = _products.indexWhere((item) => item.id == productId);
 
@@ -277,9 +351,11 @@ class InventoryProvider extends ChangeNotifier {
 
       await _loadProducts(prefs);
       await _loadEvents(prefs);
+      await _loadLosses(prefs);
     } catch (_) {
       _products.clear();
       _events.clear();
+      _losses.clear();
       _loadMockProducts();
     } finally {
       _isLoading = false;
@@ -338,6 +414,28 @@ class InventoryProvider extends ChangeNotifier {
     }
   }
 
+  Future<void> _loadLosses(SharedPreferences prefs) async {
+    final savedLosses = prefs.getString(_lossesStorageKey);
+
+    if (savedLosses == null || savedLosses.trim().isEmpty) {
+      return;
+    }
+
+    final decoded = jsonDecode(savedLosses);
+
+    if (decoded is List) {
+      _losses
+        ..clear()
+        ..addAll(
+          decoded.whereType<Map>().map(
+                (item) => InventoryLoss.fromMap(
+                  Map<String, dynamic>.from(item),
+                ),
+              ),
+        );
+    }
+  }
+
   Future<void> _saveProducts() async {
     final prefs = await SharedPreferences.getInstance();
 
@@ -358,10 +456,21 @@ class InventoryProvider extends ChangeNotifier {
     await prefs.setString(_eventsStorageKey, encoded);
   }
 
+  Future<void> _saveLosses() async {
+    final prefs = await SharedPreferences.getInstance();
+
+    final encoded = jsonEncode(
+      _losses.map((loss) => loss.toMap()).toList(),
+    );
+
+    await prefs.setString(_lossesStorageKey, encoded);
+  }
+
   void _saveAllAndNotify() {
     notifyListeners();
     _saveProducts();
     _saveEvents();
+    _saveLosses();
   }
 
   void _addEvent({

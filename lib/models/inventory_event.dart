@@ -4,6 +4,7 @@ enum InventoryEventType {
   favorited,
   unfavorited,
   replenished,
+  lossRegistered,
   movedToTrash,
   restored,
   deletedForever,
@@ -23,6 +24,8 @@ extension InventoryEventTypeLabel on InventoryEventType {
         return 'Desfavoritado';
       case InventoryEventType.replenished:
         return 'Estoque reposto';
+      case InventoryEventType.lossRegistered:
+        return 'Perda registrada';
       case InventoryEventType.movedToTrash:
         return 'Movido para lixeira';
       case InventoryEventType.restored:
