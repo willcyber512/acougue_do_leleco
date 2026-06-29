@@ -15,6 +15,10 @@ class InventoryScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     return Consumer<InventoryProvider>(
       builder: (context, inventory, _) {
+        if (inventory.isLoading) {
+          return const Center(child: CircularProgressIndicator());
+        }
+
         final products = inventory.filteredProducts;
 
         return Column(
@@ -51,9 +55,9 @@ class InventoryScreen extends StatelessWidget {
                 SizedBox(
                   width: 250,
                   child: LelecoMetricCard(
-                    icon: Icons.payments_rounded,
-                    title: 'Valor em estoque',
-                    value: _formatMoney(inventory.stockValue),
+                    icon: Icons.delete_rounded,
+                    title: 'Na lixeira',
+                    value: inventory.deletedProductsCount.toString(),
                   ),
                 ),
               ],
@@ -143,6 +147,12 @@ class _InventoryToolbar extends StatelessWidget {
               inventory.setCategory(category);
             },
           ),
+        ),
+        const SizedBox(width: 14),
+        OutlinedButton.icon(
+          onPressed: () => _openTrashDialog(context),
+          icon: const Icon(Icons.delete_outline_rounded),
+          label: Text('Lixeira (${inventory.deletedProductsCount})'),
         ),
         const SizedBox(width: 14),
         FilledButton.icon(
@@ -275,6 +285,11 @@ class _ProductListCard extends StatelessWidget {
               tooltip: 'Editar produto',
               onPressed: () => _openProductDialog(context, product: product),
               icon: const Icon(Icons.edit_rounded),
+            ),
+            IconButton(
+              tooltip: 'Mover para lixeira',
+              onPressed: () => _moveProductToTrash(context, product),
+              icon: const Icon(Icons.delete_outline_rounded),
             ),
           ],
         ),
@@ -517,8 +532,10 @@ Future<void> _openProductDialog(
                     stockQuantity: _parseDouble(stockController.text),
                     minStock: _parseDouble(minStockController.text),
                     favorite: product?.favorite ?? false,
+                    imagePath: product?.imagePath,
                     createdAt: product?.createdAt ?? now,
                     updatedAt: now,
+                    deletedAt: product?.deletedAt,
                   );
 
                   if (product == null) {
@@ -581,6 +598,170 @@ Future<void> _openReplenishDialog(
   );
 }
 
+void _moveProductToTrash(BuildContext context, Product product) {
+  final inventory = context.read<InventoryProvider>();
+
+  inventory.moveProductToTrash(product.id);
+
+  ScaffoldMessenger.of(context)
+    ..clearSnackBars()
+    ..showSnackBar(
+      SnackBar(
+        content: Text('${product.name} foi movido para a lixeira.'),
+        action: SnackBarAction(
+          label: 'DESFAZER',
+          onPressed: () => inventory.restoreProduct(product.id),
+        ),
+      ),
+    );
+}
+
+Future<void> _openTrashDialog(BuildContext context) async {
+  await showDialog<void>(
+    context: context,
+    builder: (dialogContext) {
+      return Consumer<InventoryProvider>(
+        builder: (context, inventory, _) {
+          final deletedProducts = inventory.deletedProducts;
+
+          return AlertDialog(
+            title: const Text('Lixeira de produtos'),
+            content: SizedBox(
+              width: 720,
+              height: 430,
+              child: deletedProducts.isEmpty
+                  ? const Center(
+                      child: Text('A lixeira está vazia.'),
+                    )
+                  : ListView.separated(
+                      itemCount: deletedProducts.length,
+                      separatorBuilder: (_, __) => const SizedBox(height: 10),
+                      itemBuilder: (context, index) {
+                        final product = deletedProducts[index];
+
+                        return Card(
+                          child: Padding(
+                            padding: const EdgeInsets.all(14),
+                            child: Row(
+                              children: [
+                                Container(
+                                  width: 48,
+                                  height: 48,
+                                  decoration: BoxDecoration(
+                                    color: AppColors.wine900,
+                                    borderRadius: BorderRadius.circular(16),
+                                  ),
+                                  child: const Icon(
+                                    Icons.delete_outline_rounded,
+                                    color: AppColors.beige100,
+                                  ),
+                                ),
+                                const SizedBox(width: 14),
+                                Expanded(
+                                  child: Column(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    children: [
+                                      Text(
+                                        product.name,
+                                        style: const TextStyle(
+                                          fontWeight: FontWeight.w900,
+                                        ),
+                                      ),
+                                      const SizedBox(height: 3),
+                                      Text(
+                                        'Código ${product.code} • Excluído em ${_formatDateTime(product.deletedAt)}',
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                                IconButton(
+                                  tooltip: 'Restaurar',
+                                  onPressed: () {
+                                    inventory.restoreProduct(product.id);
+                                  },
+                                  icon: const Icon(Icons.restore_rounded),
+                                ),
+                                IconButton(
+                                  tooltip: 'Excluir definitivamente',
+                                  onPressed: () async {
+                                    final confirmed = await _confirmAction(
+                                      context,
+                                      title: 'Excluir definitivamente?',
+                                      message:
+                                          'O produto "${product.name}" será removido para sempre.',
+                                    );
+
+                                    if (!confirmed) return;
+
+                                    inventory.deleteProductForever(product.id);
+                                  },
+                                  icon: const Icon(Icons.delete_forever_rounded),
+                                ),
+                              ],
+                            ),
+                          ),
+                        );
+                      },
+                    ),
+            ),
+            actions: [
+              TextButton(
+                onPressed: deletedProducts.isEmpty
+                    ? null
+                    : () async {
+                        final confirmed = await _confirmAction(
+                          context,
+                          title: 'Esvaziar lixeira?',
+                          message:
+                              'Todos os produtos da lixeira serão removidos definitivamente.',
+                        );
+
+                        if (!confirmed) return;
+
+                        inventory.emptyTrash();
+                      },
+                child: const Text('Esvaziar lixeira'),
+              ),
+              FilledButton(
+                onPressed: () => Navigator.of(dialogContext).pop(),
+                child: const Text('Fechar'),
+              ),
+            ],
+          );
+        },
+      );
+    },
+  );
+}
+
+Future<bool> _confirmAction(
+  BuildContext context, {
+  required String title,
+  required String message,
+}) async {
+  final result = await showDialog<bool>(
+    context: context,
+    builder: (dialogContext) {
+      return AlertDialog(
+        title: Text(title),
+        content: Text(message),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop(false),
+            child: const Text('Cancelar'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.of(dialogContext).pop(true),
+            child: const Text('Confirmar'),
+          ),
+        ],
+      );
+    },
+  );
+
+  return result ?? false;
+}
+
 String _formatMoney(double value) {
   final fixed = value.toStringAsFixed(2).replaceAll('.', ',');
   return 'R\$ $fixed';
@@ -592,6 +773,22 @@ String _formatQuantity(double value, ProductUnit unit) {
   }
 
   return '${value.toStringAsFixed(0)} ${unit.label}';
+}
+
+String _formatDateTime(DateTime? value) {
+  if (value == null) return '-';
+
+  final day = _two(value.day);
+  final month = _two(value.month);
+  final year = value.year;
+  final hour = _two(value.hour);
+  final minute = _two(value.minute);
+
+  return '$day/$month/$year $hour:$minute';
+}
+
+String _two(int value) {
+  return value.toString().padLeft(2, '0');
 }
 
 double _parseDouble(String value) {

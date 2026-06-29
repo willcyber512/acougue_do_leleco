@@ -16,6 +16,7 @@ class Product {
     required this.createdAt,
     required this.updatedAt,
     this.imagePath,
+    this.deletedAt,
   });
 
   final String id;
@@ -31,8 +32,10 @@ class Product {
   final String? imagePath;
   final DateTime createdAt;
   final DateTime updatedAt;
+  final DateTime? deletedAt;
 
   bool get isLowStock => stockQuantity <= minStock;
+  bool get isDeleted => deletedAt != null;
 
   Map<String, dynamic> toMap() {
     return {
@@ -49,6 +52,7 @@ class Product {
       'imagePath': imagePath,
       'createdAt': createdAt.toIso8601String(),
       'updatedAt': updatedAt.toIso8601String(),
+      'deletedAt': deletedAt?.toIso8601String(),
     };
   }
 
@@ -67,6 +71,7 @@ class Product {
       imagePath: map['imagePath']?.toString(),
       createdAt: _toDate(map['createdAt']),
       updatedAt: _toDate(map['updatedAt']),
+      deletedAt: _toNullableDate(map['deletedAt']),
     );
   }
 
@@ -84,6 +89,8 @@ class Product {
     String? imagePath,
     DateTime? createdAt,
     DateTime? updatedAt,
+    DateTime? deletedAt,
+    bool clearDeletedAt = false,
   }) {
     return Product(
       id: id ?? this.id,
@@ -99,6 +106,7 @@ class Product {
       imagePath: imagePath ?? this.imagePath,
       createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
+      deletedAt: clearDeletedAt ? null : deletedAt ?? this.deletedAt,
     );
   }
 
@@ -117,5 +125,15 @@ class Product {
 
   static DateTime _toDate(dynamic value) {
     return DateTime.tryParse(value?.toString() ?? '') ?? DateTime.now();
+  }
+
+  static DateTime? _toNullableDate(dynamic value) {
+    final text = value?.toString();
+
+    if (text == null || text.isEmpty || text == 'null') {
+      return null;
+    }
+
+    return DateTime.tryParse(text);
   }
 }

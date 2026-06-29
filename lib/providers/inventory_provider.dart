@@ -24,12 +24,30 @@ class InventoryProvider extends ChangeNotifier {
   String get searchTerm => _searchTerm;
   ProductCategory? get selectedCategory => _selectedCategory;
 
-  List<Product> get products => List.unmodifiable(_products);
+  List<Product> get products {
+    return List.unmodifiable(_products.where((product) => !product.isDeleted));
+  }
+
+  List<Product> get deletedProducts {
+    final result = _products.where((product) => product.isDeleted).toList();
+
+    result.sort((a, b) {
+      final aDate = a.deletedAt ?? DateTime.fromMillisecondsSinceEpoch(0);
+      final bDate = b.deletedAt ?? DateTime.fromMillisecondsSinceEpoch(0);
+      return bDate.compareTo(aDate);
+    });
+
+    return result;
+  }
+
+  int get deletedProductsCount => deletedProducts.length;
 
   List<Product> get filteredProducts {
     final term = _searchTerm.trim().toLowerCase();
 
     final result = _products.where((product) {
+      if (product.isDeleted) return false;
+
       final matchesSearch = term.isEmpty ||
           product.name.toLowerCase().contains(term) ||
           product.code.toLowerCase().contains(term) ||
@@ -52,18 +70,18 @@ class InventoryProvider extends ChangeNotifier {
     return result;
   }
 
-  int get totalProducts => _products.length;
+  int get totalProducts => products.length;
 
   int get lowStockCount {
-    return _products.where((product) => product.isLowStock).length;
+    return products.where((product) => product.isLowStock).length;
   }
 
   int get favoriteCount {
-    return _products.where((product) => product.favorite).length;
+    return products.where((product) => product.favorite).length;
   }
 
   double get stockValue {
-    return _products.fold(
+    return products.fold(
       0,
       (total, product) => total + (product.salePrice * product.stockQuantity),
     );
@@ -125,6 +143,42 @@ class InventoryProvider extends ChangeNotifier {
     _saveAndNotify();
   }
 
+  void moveProductToTrash(String productId) {
+    final index = _products.indexWhere((item) => item.id == productId);
+
+    if (index == -1) return;
+
+    _products[index] = _products[index].copyWith(
+      deletedAt: DateTime.now(),
+      updatedAt: DateTime.now(),
+    );
+
+    _saveAndNotify();
+  }
+
+  void restoreProduct(String productId) {
+    final index = _products.indexWhere((item) => item.id == productId);
+
+    if (index == -1) return;
+
+    _products[index] = _products[index].copyWith(
+      clearDeletedAt: true,
+      updatedAt: DateTime.now(),
+    );
+
+    _saveAndNotify();
+  }
+
+  void deleteProductForever(String productId) {
+    _products.removeWhere((product) => product.id == productId);
+    _saveAndNotify();
+  }
+
+  void emptyTrash() {
+    _products.removeWhere((product) => product.isDeleted);
+    _saveAndNotify();
+  }
+
   Future<void> _loadProducts() async {
     try {
       final prefs = await SharedPreferences.getInstance();
@@ -180,119 +234,121 @@ class InventoryProvider extends ChangeNotifier {
   void _loadMockProducts() {
     final now = DateTime.now();
 
-    _products.addAll([
-      Product(
-        id: '1',
-        code: '1001',
-        name: 'Picanha',
-        category: ProductCategory.bovina,
-        unit: ProductUnit.kg,
-        salePrice: 69.90,
-        costPrice: 52.00,
-        stockQuantity: 18.5,
-        minStock: 5,
-        favorite: true,
-        createdAt: now,
-        updatedAt: now,
-      ),
-      Product(
-        id: '2',
-        code: '1002',
-        name: 'Coxão mole',
-        category: ProductCategory.bovina,
-        unit: ProductUnit.kg,
-        salePrice: 39.90,
-        costPrice: 29.00,
-        stockQuantity: 3.2,
-        minStock: 5,
-        favorite: false,
-        createdAt: now,
-        updatedAt: now,
-      ),
-      Product(
-        id: '3',
-        code: '2001',
-        name: 'Frango inteiro',
-        category: ProductCategory.frango,
-        unit: ProductUnit.kg,
-        salePrice: 13.99,
-        costPrice: 9.50,
-        stockQuantity: 25,
-        minStock: 8,
-        favorite: true,
-        createdAt: now,
-        updatedAt: now,
-      ),
-      Product(
-        id: '4',
-        code: '2002',
-        name: 'Coxinha da asa',
-        category: ProductCategory.frango,
-        unit: ProductUnit.kg,
-        salePrice: 18.90,
-        costPrice: 13.00,
-        stockQuantity: 4,
-        minStock: 6,
-        favorite: false,
-        createdAt: now,
-        updatedAt: now,
-      ),
-      Product(
-        id: '5',
-        code: '3001',
-        name: 'Bisteca suína',
-        category: ProductCategory.suina,
-        unit: ProductUnit.kg,
-        salePrice: 24.90,
-        costPrice: 17.00,
-        stockQuantity: 12,
-        minStock: 4,
-        favorite: false,
-        createdAt: now,
-        updatedAt: now,
-      ),
-      Product(
-        id: '6',
-        code: '4001',
-        name: 'Charque',
-        category: ProductCategory.charque,
-        unit: ProductUnit.kg,
-        salePrice: 49.90,
-        costPrice: 35.00,
-        stockQuantity: 2.5,
-        minStock: 3,
-        favorite: true,
-        createdAt: now,
-        updatedAt: now,
-      ),
-      Product(
-        id: '7',
-        code: '5001',
-        name: 'Carvão 3kg',
-        category: ProductCategory.carvao,
-        unit: ProductUnit.pacote,
-        salePrice: 15.00,
-        costPrice: 10.00,
-        stockQuantity: 30,
-        minStock: 10,
-        favorite: false,
-        createdAt: now,
-        updatedAt: now,
-      ),
-      Product(
-        id: '8',
-        code: '6001',
-        name: 'Sal grosso',
-        category: ProductCategory.temperos,
-        unit: ProductUnit.pacote,
-        salePrice: 4.50,
-        costPrice: 2.80,
-        stockQuantity: 40,
-        minStock: 10,
-        favorite: false,
-        createdAt: now,
-        updatedAt: now,
-      ),
-    ]);
+    _products
+      ..clear()
+      ..addAll([
+        Product(
+          id: '1',
+          code: '1001',
+          name: 'Picanha',
+          category: ProductCategory.bovina,
+          unit: ProductUnit.kg,
+          salePrice: 69.90,
+          costPrice: 52.00,
+          stockQuantity: 18.5,
+          minStock: 5,
+          favorite: true,
+          createdAt: now,
+          updatedAt: now,
+        ),
+        Product(
+          id: '2',
+          code: '1002',
+          name: 'Coxão mole',
+          category: ProductCategory.bovina,
+          unit: ProductUnit.kg,
+          salePrice: 39.90,
+          costPrice: 29.00,
+          stockQuantity: 3.2,
+          minStock: 5,
+          favorite: false,
+          createdAt: now,
+          updatedAt: now,
+        ),
+        Product(
+          id: '3',
+          code: '2001',
+          name: 'Frango inteiro',
+          category: ProductCategory.frango,
+          unit: ProductUnit.kg,
+          salePrice: 13.99,
+          costPrice: 9.50,
+          stockQuantity: 25,
+          minStock: 8,
+          favorite: true,
+          createdAt: now,
+          updatedAt: now,
+        ),
+        Product(
+          id: '4',
+          code: '2002',
+          name: 'Coxinha da asa',
+          category: ProductCategory.frango,
+          unit: ProductUnit.kg,
+          salePrice: 18.90,
+          costPrice: 13.00,
+          stockQuantity: 4,
+          minStock: 6,
+          favorite: false,
+          createdAt: now,
+          updatedAt: now,
+        ),
+        Product(
+          id: '5',
+          code: '3001',
+          name: 'Bisteca suína',
+          category: ProductCategory.suina,
+          unit: ProductUnit.kg,
+          salePrice: 24.90,
+          costPrice: 17.00,
+          stockQuantity: 12,
+          minStock: 4,
+          favorite: false,
+          createdAt: now,
+          updatedAt: now,
+        ),
+        Product(
+          id: '6',
+          code: '4001',
+          name: 'Charque',
+          category: ProductCategory.charque,
+          unit: ProductUnit.kg,
+          salePrice: 49.90,
+          costPrice: 35.00,
+          stockQuantity: 2.5,
+          minStock: 3,
+          favorite: true,
+          createdAt: now,
+          updatedAt: now,
+        ),
+        Product(
+          id: '7',
+          code: '5001',
+          name: 'Carvão 3kg',
+          category: ProductCategory.carvao,
+          unit: ProductUnit.pacote,
+          salePrice: 15.00,
+          costPrice: 10.00,
+          stockQuantity: 30,
+          minStock: 10,
+          favorite: false,
+          createdAt: now,
+          updatedAt: now,
+        ),
+        Product(
+          id: '8',
+          code: '6001',
+          name: 'Sal grosso',
+          category: ProductCategory.temperos,
+          unit: ProductUnit.pacote,
+          salePrice: 4.50,
+          costPrice: 2.80,
+          stockQuantity: 40,
+          minStock: 10,
+          favorite: false,
+          createdAt: now,
+          updatedAt: now,
+        ),
+      ]);
   }
 }
