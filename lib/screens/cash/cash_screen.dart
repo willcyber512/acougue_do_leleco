@@ -4,6 +4,7 @@ import 'package:provider/provider.dart';
 import '../../core/constants/app_colors.dart';
 import '../../models/payment_method.dart';
 import '../../models/sale.dart';
+import '../../providers/inventory_provider.dart';
 import '../../providers/sales_provider.dart';
 import '../../widgets/leleco_metric_card.dart';
 
@@ -22,10 +23,14 @@ class _CashScreenState extends State<CashScreen> {
     return Consumer<SalesProvider>(
       builder: (context, sales, _) {
         final visibleSales = showOnlyToday ? sales.todaySales : sales.sales;
-        final totalVisible = visibleSales.fold(
+        final validSales = visibleSales.where((sale) => !sale.isCanceled).toList();
+
+        final totalVisible = validSales.fold(
           0.0,
           (total, sale) => total + sale.total,
         );
+
+        final canceledCount = visibleSales.where((sale) => sale.isCanceled).length;
 
         return Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -35,7 +40,7 @@ class _CashScreenState extends State<CashScreen> {
               runSpacing: 16,
               children: [
                 SizedBox(
-                  width: 230,
+                  width: 220,
                   child: LelecoMetricCard(
                     icon: Icons.payments_rounded,
                     title: showOnlyToday ? 'Faturamento hoje' : 'Faturamento total',
@@ -43,30 +48,27 @@ class _CashScreenState extends State<CashScreen> {
                   ),
                 ),
                 SizedBox(
-                  width: 230,
+                  width: 220,
                   child: LelecoMetricCard(
                     icon: Icons.receipt_long_rounded,
-                    title: showOnlyToday ? 'Vendas hoje' : 'Vendas totais',
-                    value: visibleSales.length.toString(),
+                    title: showOnlyToday ? 'Vendas válidas hoje' : 'Vendas válidas',
+                    value: validSales.length.toString(),
                   ),
                 ),
                 SizedBox(
-                  width: 230,
+                  width: 220,
+                  child: LelecoMetricCard(
+                    icon: Icons.cancel_rounded,
+                    title: 'Canceladas',
+                    value: canceledCount.toString(),
+                  ),
+                ),
+                SizedBox(
+                  width: 220,
                   child: LelecoMetricCard(
                     icon: Icons.pix_rounded,
                     title: 'Pix',
-                    value: _formatMoney(_sumByMethod(visibleSales, PaymentMethod.pix)),
-                  ),
-                ),
-                SizedBox(
-                  width: 230,
-                  child: LelecoMetricCard(
-                    icon: Icons.credit_card_rounded,
-                    title: 'Cartões',
-                    value: _formatMoney(
-                      _sumByMethod(visibleSales, PaymentMethod.debito) +
-                          _sumByMethod(visibleSales, PaymentMethod.credito),
-                    ),
+                    value: _formatMoney(_sumByMethod(validSales, PaymentMethod.pix)),
                   ),
                 ),
               ],
@@ -79,7 +81,7 @@ class _CashScreenState extends State<CashScreen> {
               },
             ),
             const SizedBox(height: 16),
-            _PaymentSummary(sales: visibleSales),
+            _PaymentSummary(sales: validSales),
             const SizedBox(height: 16),
             Expanded(
               child: visibleSales.isEmpty
@@ -138,7 +140,7 @@ class _CashToolbar extends StatelessWidget {
             borderRadius: BorderRadius.circular(999),
           ),
           child: const Text(
-            'Modo caixa: visualização das vendas finalizadas',
+            'Cancelamento devolve o estoque automaticamente',
             style: TextStyle(fontWeight: FontWeight.w800),
           ),
         ),
@@ -201,6 +203,9 @@ class _SaleCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final statusColor = sale.isCanceled ? AppColors.danger : AppColors.success;
+    final statusText = sale.isCanceled ? 'Cancelada' : 'Finalizada';
+
     return Card(
       child: InkWell(
         borderRadius: BorderRadius.circular(24),
@@ -213,11 +218,13 @@ class _SaleCard extends StatelessWidget {
                 width: 58,
                 height: 58,
                 decoration: BoxDecoration(
-                  color: AppColors.wine900,
+                  color: sale.isCanceled ? AppColors.danger : AppColors.wine900,
                   borderRadius: BorderRadius.circular(20),
                 ),
-                child: const Icon(
-                  Icons.receipt_long_rounded,
+                child: Icon(
+                  sale.isCanceled
+                      ? Icons.cancel_rounded
+                      : Icons.receipt_long_rounded,
                   color: AppColors.beige100,
                 ),
               ),
@@ -239,26 +246,42 @@ class _SaleCard extends StatelessWidget {
                   ],
                 ),
               ),
-              SizedBox(
-                width: 120,
+              Container(
+                width: 105,
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                decoration: BoxDecoration(
+                  color: statusColor.withOpacity(0.14),
+                  borderRadius: BorderRadius.circular(999),
+                ),
                 child: Text(
-                  '${sale.items.length} item(ns)',
+                  statusText,
                   textAlign: TextAlign.center,
-                  style: const TextStyle(fontWeight: FontWeight.w800),
+                  style: TextStyle(
+                    color: statusColor,
+                    fontWeight: FontWeight.w900,
+                  ),
                 ),
               ),
               SizedBox(
-                width: 140,
+                width: 125,
                 child: Text(
                   _formatMoney(sale.total),
                   textAlign: TextAlign.end,
                   style: Theme.of(context).textTheme.titleMedium?.copyWith(
                         fontWeight: FontWeight.w900,
-                        color: AppColors.wine700,
+                        color: sale.isCanceled ? AppColors.danger : AppColors.wine700,
+                        decoration:
+                            sale.isCanceled ? TextDecoration.lineThrough : null,
                       ),
                 ),
               ),
               const SizedBox(width: 8),
+              if (!sale.isCanceled)
+                IconButton(
+                  tooltip: 'Cancelar venda',
+                  onPressed: () => _cancelSaleFlow(context, sale),
+                  icon: const Icon(Icons.cancel_outlined),
+                ),
               const Icon(Icons.chevron_right_rounded),
             ],
           ),
@@ -287,7 +310,7 @@ Future<void> _openSaleDetails(BuildContext context, SaleRecord sale) async {
         title: Text('Detalhes da venda #${sale.shortId}'),
         content: SizedBox(
           width: 760,
-          height: 460,
+          height: 500,
           child: Column(
             children: [
               Row(
@@ -308,6 +331,21 @@ Future<void> _openSaleDetails(BuildContext context, SaleRecord sale) async {
                   ),
                 ],
               ),
+              if (sale.isCanceled) ...[
+                const SizedBox(height: 12),
+                Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.all(14),
+                  decoration: BoxDecoration(
+                    color: AppColors.danger.withOpacity(0.12),
+                    borderRadius: BorderRadius.circular(18),
+                  ),
+                  child: Text(
+                    'Venda cancelada em ${_formatDateTime(sale.canceledAt!)}.\nMotivo: ${sale.cancelReason ?? '-'}',
+                    style: const TextStyle(fontWeight: FontWeight.w800),
+                  ),
+                ),
+              ],
               const SizedBox(height: 18),
               Expanded(
                 child: ListView.separated(
@@ -368,6 +406,15 @@ Future<void> _openSaleDetails(BuildContext context, SaleRecord sale) async {
           ),
         ),
         actions: [
+          if (!sale.isCanceled)
+            OutlinedButton.icon(
+              onPressed: () {
+                Navigator.of(dialogContext).pop();
+                _cancelSaleFlow(context, sale);
+              },
+              icon: const Icon(Icons.cancel_outlined),
+              label: const Text('Cancelar venda'),
+            ),
           FilledButton(
             onPressed: () => Navigator.of(dialogContext).pop(),
             child: const Text('Fechar'),
@@ -414,10 +461,95 @@ class _DetailBox extends StatelessWidget {
   }
 }
 
+Future<void> _cancelSaleFlow(BuildContext context, SaleRecord sale) async {
+  final sales = context.read<SalesProvider>();
+  final inventory = context.read<InventoryProvider>();
+
+  final currentSale = sales.findSaleById(sale.id);
+
+  if (currentSale == null) {
+    _showMessage(context, 'Venda não encontrada.');
+    return;
+  }
+
+  if (currentSale.isCanceled) {
+    _showMessage(context, 'Essa venda já foi cancelada.');
+    return;
+  }
+
+  final reason = await _askCancelReason(context);
+
+  if (reason == null) return;
+
+  final restored = inventory.restoreSaleRecordStock(currentSale);
+
+  if (!restored) {
+    _showMessage(context, 'Não foi possível devolver o estoque dessa venda.');
+    return;
+  }
+
+  final canceled = sales.cancelSale(currentSale.id, reason);
+
+  if (!canceled) {
+    _showMessage(context, 'Não foi possível cancelar a venda.');
+    return;
+  }
+
+  _showMessage(context, 'Venda #${currentSale.shortId} cancelada e estoque devolvido.');
+}
+
+Future<String?> _askCancelReason(BuildContext context) async {
+  final controller = TextEditingController();
+
+  return showDialog<String>(
+    context: context,
+    builder: (dialogContext) {
+      return AlertDialog(
+        title: const Text('Cancelar venda?'),
+        content: SizedBox(
+          width: 440,
+          child: TextField(
+            controller: controller,
+            maxLines: 3,
+            decoration: const InputDecoration(
+              labelText: 'Motivo do cancelamento',
+              hintText: 'Ex: cliente desistiu, erro no lançamento...',
+            ),
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop(),
+            child: const Text('Voltar'),
+          ),
+          FilledButton(
+            onPressed: () {
+              final reason = controller.text.trim().isEmpty
+                  ? 'Cancelamento manual'
+                  : controller.text.trim();
+
+              Navigator.of(dialogContext).pop(reason);
+            },
+            child: const Text('Confirmar cancelamento'),
+          ),
+        ],
+      );
+    },
+  );
+}
+
 double _sumByMethod(List<SaleRecord> sales, PaymentMethod method) {
   return sales
-      .where((sale) => sale.paymentMethod == method)
+      .where((sale) => sale.paymentMethod == method && !sale.isCanceled)
       .fold(0.0, (total, sale) => total + sale.total);
+}
+
+void _showMessage(BuildContext context, String message) {
+  ScaffoldMessenger.of(context)
+    ..clearSnackBars()
+    ..showSnackBar(
+      SnackBar(content: Text(message)),
+    );
 }
 
 String _formatMoney(double value) {

@@ -5,6 +5,7 @@ enum InventoryEventType {
   unfavorited,
   replenished,
   saleDeducted,
+  saleRestored,
   lossRegistered,
   movedToTrash,
   restored,
@@ -27,6 +28,8 @@ extension InventoryEventTypeLabel on InventoryEventType {
         return 'Estoque reposto';
       case InventoryEventType.saleDeducted:
         return 'Baixa por venda';
+      case InventoryEventType.saleRestored:
+        return 'Estorno de venda';
       case InventoryEventType.lossRegistered:
         return 'Perda registrada';
       case InventoryEventType.movedToTrash:

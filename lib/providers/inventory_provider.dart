@@ -333,6 +333,45 @@ class InventoryProvider extends ChangeNotifier {
     return true;
   }
 
+
+  bool restoreSaleRecordStock(SaleRecord sale) {
+    if (sale.isCanceled) return false;
+
+    for (final item in sale.items) {
+      final index = _products.indexWhere(
+        (product) => product.id == item.productId,
+      );
+
+      if (index == -1) {
+        return false;
+      }
+    }
+
+    for (final item in sale.items) {
+      final index = _products.indexWhere(
+        (product) => product.id == item.productId,
+      );
+
+      final product = _products[index];
+
+      _products[index] = product.copyWith(
+        stockQuantity: product.stockQuantity + item.quantity,
+        updatedAt: DateTime.now(),
+      );
+
+      _addEvent(
+        type: InventoryEventType.saleRestored,
+        product: _products[index],
+        quantity: item.quantity,
+        description:
+            'Cancelamento da venda #${sale.shortId} devolveu ${_formatNumber(item.quantity)} ${product.unit.label} de "${product.name}" ao estoque.',
+      );
+    }
+
+    _saveAllAndNotify();
+    return true;
+  }
+
   void moveProductToTrash(String productId) {
     final index = _products.indexWhere((item) => item.id == productId);
 

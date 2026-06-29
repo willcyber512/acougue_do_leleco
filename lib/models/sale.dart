@@ -51,6 +51,8 @@ class SaleRecord {
     required this.paymentMethod,
     required this.total,
     required this.createdAt,
+    this.canceledAt,
+    this.cancelReason,
   });
 
   final String id;
@@ -58,6 +60,10 @@ class SaleRecord {
   final PaymentMethod paymentMethod;
   final double total;
   final DateTime createdAt;
+  final DateTime? canceledAt;
+  final String? cancelReason;
+
+  bool get isCanceled => canceledAt != null;
 
   String get shortId {
     if (id.length <= 6) return id;
@@ -71,6 +77,26 @@ class SaleRecord {
     );
   }
 
+  SaleRecord copyWith({
+    String? id,
+    List<SaleRecordItem>? items,
+    PaymentMethod? paymentMethod,
+    double? total,
+    DateTime? createdAt,
+    DateTime? canceledAt,
+    String? cancelReason,
+  }) {
+    return SaleRecord(
+      id: id ?? this.id,
+      items: items ?? this.items,
+      paymentMethod: paymentMethod ?? this.paymentMethod,
+      total: total ?? this.total,
+      createdAt: createdAt ?? this.createdAt,
+      canceledAt: canceledAt ?? this.canceledAt,
+      cancelReason: cancelReason ?? this.cancelReason,
+    );
+  }
+
   Map<String, dynamic> toMap() {
     return {
       'id': id,
@@ -78,6 +104,8 @@ class SaleRecord {
       'paymentMethod': paymentMethod.name,
       'total': total,
       'createdAt': createdAt.toIso8601String(),
+      'canceledAt': canceledAt?.toIso8601String(),
+      'cancelReason': cancelReason,
     };
   }
 
@@ -99,6 +127,8 @@ class SaleRecord {
       paymentMethod: paymentMethodFromName(map['paymentMethod']?.toString()),
       total: _toDouble(map['total']),
       createdAt: _toDate(map['createdAt']),
+      canceledAt: _toNullableDate(map['canceledAt']),
+      cancelReason: map['cancelReason']?.toString(),
     );
   }
 
@@ -142,4 +172,14 @@ double _toDouble(dynamic value) {
 
 DateTime _toDate(dynamic value) {
   return DateTime.tryParse(value?.toString() ?? '') ?? DateTime.now();
+}
+
+DateTime? _toNullableDate(dynamic value) {
+  final text = value?.toString();
+
+  if (text == null || text.isEmpty || text == 'null') {
+    return null;
+  }
+
+  return DateTime.tryParse(text);
 }

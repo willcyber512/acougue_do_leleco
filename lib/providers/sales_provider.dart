@@ -45,6 +45,11 @@ class SalesProvider extends ChangeNotifier {
     );
   }
 
+  List<SaleRecord> get completedSales {
+    return _sales.where((sale) => !sale.isCanceled).toList()
+      ..sort((a, b) => b.createdAt.compareTo(a.createdAt));
+  }
+
   List<SaleRecord> get todaySales {
     final now = DateTime.now();
 
@@ -56,19 +61,31 @@ class SalesProvider extends ChangeNotifier {
       ..sort((a, b) => b.createdAt.compareTo(a.createdAt));
   }
 
-  int get todaySalesCount => todaySales.length;
+  List<SaleRecord> get todayCompletedSales {
+    return todaySales.where((sale) => !sale.isCanceled).toList();
+  }
+
+  int get todaySalesCount => todayCompletedSales.length;
 
   double get todayRevenue {
-    return todaySales.fold(
+    return todayCompletedSales.fold(
       0.0,
       (total, sale) => total + sale.total,
     );
   }
 
   double get todayFiadoTotal {
-    return todaySales
+    return todayCompletedSales
         .where((sale) => sale.paymentMethod == PaymentMethod.fiado)
         .fold(0.0, (total, sale) => total + sale.total);
+  }
+
+  SaleRecord? findSaleById(String saleId) {
+    try {
+      return _sales.firstWhere((sale) => sale.id == saleId);
+    } catch (_) {
+      return null;
+    }
   }
 
   void setSearchTerm(String value) {
@@ -102,9 +119,8 @@ class SalesProvider extends ChangeNotifier {
     } else {
       final current = _items[index];
       final newQuantity = current.quantity + quantity;
-      final safeQuantity = newQuantity > product.stockQuantity
-          ? product.stockQuantity
-          : newQuantity;
+      final safeQuantity =
+          newQuantity > product.stockQuantity ? product.stockQuantity : newQuantity;
 
       _items[index] = current.copyWith(
         quantity: safeQuantity,
@@ -202,6 +218,23 @@ class SalesProvider extends ChangeNotifier {
 
     _saveSales();
     notifyListeners();
+  }
+
+  bool cancelSale(String saleId, String reason) {
+    final index = _sales.indexWhere((sale) => sale.id == saleId);
+
+    if (index == -1) return false;
+    if (_sales[index].isCanceled) return false;
+
+    _sales[index] = _sales[index].copyWith(
+      canceledAt: DateTime.now(),
+      cancelReason: reason.trim().isEmpty ? 'Cancelamento manual' : reason.trim(),
+    );
+
+    _saveSales();
+    notifyListeners();
+
+    return true;
   }
 
   SaleRecord? finishSale() {
