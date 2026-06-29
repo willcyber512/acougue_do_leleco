@@ -8,6 +8,7 @@ import '../inventory/inventory_screen.dart';
 import '../cash/cash_screen.dart';
 import '../customers/customers_screen.dart';
 import '../sales/sales_screen.dart';
+import '../reports/reports_screen.dart';
 
 class DesktopShellScreen extends StatefulWidget {
   const DesktopShellScreen({super.key});
@@ -96,6 +97,10 @@ class _DesktopShellScreenState extends State<DesktopShellScreen> {
 
     if (index == 4) {
       return const CashScreen();
+    }
+
+    if (index == 5) {
+      return const ReportsScreen();
     }
 
     return _ModulePage(title: labels[index], icon: icons[index]);
