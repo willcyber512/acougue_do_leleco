@@ -48,7 +48,8 @@ class NotesProvider extends ChangeNotifier {
     final result = _notes.where((note) {
       return note.title.toLowerCase().contains(term) ||
           note.content.toLowerCase().contains(term) ||
-          note.priority.label.toLowerCase().contains(term);
+          note.priority.label.toLowerCase().contains(term) ||
+          note.kind.label.toLowerCase().contains(term);
     }).toList();
 
     result.sort((a, b) {
@@ -88,6 +89,7 @@ class NotesProvider extends ChangeNotifier {
   void addNote({
     required String title,
     required String content,
+    required NoteKind kind,
     required NotePriority priority,
   }) {
     final now = DateTime.now();
@@ -96,6 +98,7 @@ class NotesProvider extends ChangeNotifier {
       id: now.microsecondsSinceEpoch.toString(),
       title: title.trim(),
       content: content.trim(),
+      kind: kind,
       priority: priority,
       pinned: false,
       done: false,

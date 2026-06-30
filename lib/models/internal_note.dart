@@ -24,11 +24,44 @@ NotePriority notePriorityFromName(String? value) {
   );
 }
 
+enum NoteKind {
+  general,
+  purchase,
+  stock,
+  cash,
+  customer,
+}
+
+extension NoteKindLabel on NoteKind {
+  String get label {
+    switch (this) {
+      case NoteKind.general:
+        return 'Geral';
+      case NoteKind.purchase:
+        return 'Compra';
+      case NoteKind.stock:
+        return 'Estoque';
+      case NoteKind.cash:
+        return 'Caixa';
+      case NoteKind.customer:
+        return 'Cliente/fiado';
+    }
+  }
+}
+
+NoteKind noteKindFromName(String? value) {
+  return NoteKind.values.firstWhere(
+    (kind) => kind.name == value,
+    orElse: () => NoteKind.general,
+  );
+}
+
 class InternalNote {
   const InternalNote({
     required this.id,
     required this.title,
     required this.content,
+    required this.kind,
     required this.priority,
     required this.pinned,
     required this.done,
@@ -39,6 +72,7 @@ class InternalNote {
   final String id;
   final String title;
   final String content;
+  final NoteKind kind;
   final NotePriority priority;
   final bool pinned;
   final bool done;
@@ -49,6 +83,7 @@ class InternalNote {
     String? id,
     String? title,
     String? content,
+    NoteKind? kind,
     NotePriority? priority,
     bool? pinned,
     bool? done,
@@ -59,6 +94,7 @@ class InternalNote {
       id: id ?? this.id,
       title: title ?? this.title,
       content: content ?? this.content,
+      kind: kind ?? this.kind,
       priority: priority ?? this.priority,
       pinned: pinned ?? this.pinned,
       done: done ?? this.done,
@@ -72,6 +108,7 @@ class InternalNote {
       'id': id,
       'title': title,
       'content': content,
+      'kind': kind.name,
       'priority': priority.name,
       'pinned': pinned,
       'done': done,
@@ -85,6 +122,7 @@ class InternalNote {
       id: map['id']?.toString() ?? '',
       title: map['title']?.toString() ?? '',
       content: map['content']?.toString() ?? '',
+      kind: noteKindFromName(map['kind']?.toString()),
       priority: notePriorityFromName(map['priority']?.toString()),
       pinned: _toBool(map['pinned']),
       done: _toBool(map['done']),

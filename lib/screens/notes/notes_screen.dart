@@ -37,6 +37,17 @@ class NotesScreen extends StatelessWidget {
                 SizedBox(
                   width: 220,
                   child: LelecoMetricCard(
+                    icon: Icons.shopping_bag_rounded,
+                    title: 'Compras anotadas',
+                    value: provider.notes
+                        .where((note) => note.kind == NoteKind.purchase)
+                        .length
+                        .toString(),
+                  ),
+                ),
+                SizedBox(
+                  width: 220,
+                  child: LelecoMetricCard(
                     icon: Icons.pending_actions_rounded,
                     title: 'Pendentes',
                     value: provider.pendingCount.toString(),
@@ -48,14 +59,6 @@ class NotesScreen extends StatelessWidget {
                     icon: Icons.push_pin_rounded,
                     title: 'Fixadas',
                     value: provider.pinnedCount.toString(),
-                  ),
-                ),
-                SizedBox(
-                  width: 220,
-                  child: LelecoMetricCard(
-                    icon: Icons.done_all_rounded,
-                    title: 'Concluídas',
-                    value: provider.doneCount.toString(),
                   ),
                 ),
               ],
@@ -94,7 +97,7 @@ class _NotesToolbar extends StatelessWidget {
           child: TextField(
             onChanged: provider.setSearchTerm,
             decoration: InputDecoration(
-              hintText: 'Buscar anotação por título, texto ou prioridade...',
+              hintText: 'Buscar anotação, compra, estoque, caixa ou fiado...',
               prefixIcon: const Icon(Icons.search_rounded),
               filled: true,
               border: OutlineInputBorder(
@@ -105,6 +108,16 @@ class _NotesToolbar extends StatelessWidget {
           ),
         ),
         const SizedBox(width: 14),
+        OutlinedButton.icon(
+          onPressed: () => _openNoteDialog(
+            context,
+            initialKind: NoteKind.purchase,
+            initialTitle: 'Compra de carne',
+          ),
+          icon: const Icon(Icons.shopping_bag_rounded),
+          label: const Text('Anotar compra'),
+        ),
+        const SizedBox(width: 8),
         FilledButton.icon(
           onPressed: () => _openNoteDialog(context),
           icon: const Icon(Icons.add_rounded),
@@ -124,6 +137,7 @@ class _NoteCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final provider = context.read<NotesProvider>();
     final priorityColor = _priorityColor(note.priority);
+    final kindColor = _kindColor(note.kind);
 
     return Card(
       child: Padding(
@@ -135,11 +149,11 @@ class _NoteCard extends StatelessWidget {
               width: 58,
               height: 58,
               decoration: BoxDecoration(
-                color: note.done ? AppColors.success : AppColors.wine900,
+                color: note.done ? AppColors.success : kindColor,
                 borderRadius: BorderRadius.circular(20),
               ),
               child: Icon(
-                note.done ? Icons.check_rounded : Icons.note_alt_rounded,
+                note.done ? Icons.check_rounded : _kindIcon(note.kind),
                 color: AppColors.beige100,
               ),
             ),
@@ -187,6 +201,10 @@ class _NoteCard extends StatelessWidget {
                     spacing: 8,
                     runSpacing: 8,
                     children: [
+                      _SmallChip(
+                        text: note.kind.label,
+                        color: kindColor,
+                      ),
                       _SmallChip(
                         text: note.priority.label,
                         color: priorityColor,
@@ -283,12 +301,18 @@ class _EmptyNotes extends StatelessWidget {
 Future<void> _openNoteDialog(
   BuildContext context, {
   InternalNote? note,
+  NoteKind? initialKind,
+  String? initialTitle,
 }) async {
   final provider = context.read<NotesProvider>();
 
-  final titleController = TextEditingController(text: note?.title ?? '');
+  final titleController = TextEditingController(
+    text: note?.title ?? initialTitle ?? '',
+  );
+
   final contentController = TextEditingController(text: note?.content ?? '');
 
+  var kind = note?.kind ?? initialKind ?? NoteKind.general;
   var priority = note?.priority ?? NotePriority.normal;
 
   await showDialog<void>(
@@ -299,42 +323,69 @@ Future<void> _openNoteDialog(
           return AlertDialog(
             title: Text(note == null ? 'Nova anotação' : 'Editar anotação'),
             content: SizedBox(
-              width: 560,
+              width: 580,
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
+                  Row(
+                    children: [
+                      Expanded(
+                        child: DropdownButtonFormField<NoteKind>(
+                          value: kind,
+                          decoration: const InputDecoration(
+                            labelText: 'Tipo',
+                          ),
+                          items: NoteKind.values.map((item) {
+                            return DropdownMenuItem(
+                              value: item,
+                              child: Text(item.label),
+                            );
+                          }).toList(),
+                          onChanged: (value) {
+                            if (value == null) return;
+                            setDialogState(() => kind = value);
+                          },
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: DropdownButtonFormField<NotePriority>(
+                          value: priority,
+                          decoration: const InputDecoration(
+                            labelText: 'Prioridade',
+                          ),
+                          items: NotePriority.values.map((item) {
+                            return DropdownMenuItem(
+                              value: item,
+                              child: Text(item.label),
+                            );
+                          }).toList(),
+                          onChanged: (value) {
+                            if (value == null) return;
+                            setDialogState(() => priority = value);
+                          },
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 14),
                   TextField(
                     controller: titleController,
                     decoration: const InputDecoration(
                       labelText: 'Título',
-                      hintText: 'Ex: Comprar embalagens',
+                      hintText: 'Ex: Compra de carne',
                     ),
                   ),
                   const SizedBox(height: 14),
                   TextField(
                     controller: contentController,
-                    maxLines: 5,
-                    decoration: const InputDecoration(
+                    maxLines: 6,
+                    decoration: InputDecoration(
                       labelText: 'Descrição',
-                      hintText: 'Ex: lembrar de comprar sacolas e bandejas',
+                      hintText: kind == NoteKind.purchase
+                          ? 'Ex: Compramos 30kg de bovina, 12kg de frango e 8kg de linguiça.'
+                          : 'Escreva a anotação aqui...',
                     ),
-                  ),
-                  const SizedBox(height: 14),
-                  DropdownButtonFormField<NotePriority>(
-                    value: priority,
-                    decoration: const InputDecoration(
-                      labelText: 'Prioridade',
-                    ),
-                    items: NotePriority.values.map((item) {
-                      return DropdownMenuItem(
-                        value: item,
-                        child: Text(item.label),
-                      );
-                    }).toList(),
-                    onChanged: (value) {
-                      if (value == null) return;
-                      setDialogState(() => priority = value);
-                    },
                   ),
                 ],
               ),
@@ -358,6 +409,7 @@ Future<void> _openNoteDialog(
                     provider.addNote(
                       title: title,
                       content: content,
+                      kind: kind,
                       priority: priority,
                     );
                   } else {
@@ -365,6 +417,7 @@ Future<void> _openNoteDialog(
                       note.copyWith(
                         title: title,
                         content: content,
+                        kind: kind,
                         priority: priority,
                       ),
                     );
@@ -408,6 +461,36 @@ Future<void> _deleteNote(BuildContext context, InternalNote note) async {
   if (confirmed != true) return;
 
   provider.deleteNote(note.id);
+}
+
+IconData _kindIcon(NoteKind kind) {
+  switch (kind) {
+    case NoteKind.general:
+      return Icons.note_alt_rounded;
+    case NoteKind.purchase:
+      return Icons.shopping_bag_rounded;
+    case NoteKind.stock:
+      return Icons.inventory_2_rounded;
+    case NoteKind.cash:
+      return Icons.payments_rounded;
+    case NoteKind.customer:
+      return Icons.people_alt_rounded;
+  }
+}
+
+Color _kindColor(NoteKind kind) {
+  switch (kind) {
+    case NoteKind.general:
+      return AppColors.wine900;
+    case NoteKind.purchase:
+      return AppColors.brown900;
+    case NoteKind.stock:
+      return AppColors.wine700;
+    case NoteKind.cash:
+      return AppColors.success;
+    case NoteKind.customer:
+      return AppColors.warning;
+  }
 }
 
 Color _priorityColor(NotePriority priority) {

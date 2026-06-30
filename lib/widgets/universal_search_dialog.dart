@@ -298,6 +298,7 @@ List<_SearchResult> _buildResults({
       note.title,
       note.content,
       note.priority.label,
+      note.kind.label,
       note.done ? 'concluida' : 'pendente',
       note.done ? 'concluída' : 'pendente',
     ])) {
@@ -305,7 +306,7 @@ List<_SearchResult> _buildResults({
         _SearchResult(
           title: note.title,
           subtitle:
-              '${note.priority.label} • ${note.done ? 'Concluída' : 'Pendente'} • ${note.content.isEmpty ? 'Sem descrição' : note.content}',
+              '${note.kind.label} • ${note.priority.label} • ${note.done ? 'Concluída' : 'Pendente'} • ${note.content.isEmpty ? 'Sem descrição' : note.content}',
           badge: 'Anotação',
           icon: note.done ? Icons.check_rounded : Icons.note_alt_rounded,
           color: note.done ? AppColors.success : AppColors.wine900,
