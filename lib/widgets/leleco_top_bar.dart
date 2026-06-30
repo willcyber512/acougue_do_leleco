@@ -9,6 +9,7 @@ import 'leleco_logo.dart';
 import 'operation_mode_button.dart';
 import 'ramuza_barcode_config_dialog.dart';
 import 'ramuza_barcode_history_dialog.dart';
+import 'system_diagnostics_dialog.dart';
 import 'ramuza_export_dialog.dart';
 import 'shortcuts_config_dialog.dart';
 import 'universal_search_dialog.dart';
@@ -77,6 +78,16 @@ class LelecoTopBar extends StatelessWidget {
               },
               icon: const Icon(Icons.tune_rounded),
               label: const Text('Atalhos'),
+            ),
+          ],
+          if (title == 'Ajustes') ...[
+            const SizedBox(width: 12),
+            OutlinedButton.icon(
+              onPressed: () {
+                showSystemDiagnosticsDialog(context);
+              },
+              icon: const Icon(Icons.health_and_safety_rounded),
+              label: const Text('Diagnóstico'),
             ),
           ],
           if (title == 'Venda') ...[
