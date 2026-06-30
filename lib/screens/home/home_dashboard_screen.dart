@@ -8,7 +8,12 @@ import '../../widgets/leleco_action_card.dart';
 import '../../widgets/leleco_metric_card.dart';
 
 class HomeDashboardScreen extends StatelessWidget {
-  const HomeDashboardScreen({super.key});
+  const HomeDashboardScreen({
+    super.key,
+    required this.onNavigate,
+  });
+
+  final ValueChanged<int> onNavigate;
 
   @override
   Widget build(BuildContext context) {
@@ -52,7 +57,7 @@ class HomeDashboardScreen extends StatelessWidget {
               ],
             ),
             const SizedBox(height: 24),
-            const Wrap(
+            Wrap(
               spacing: 16,
               runSpacing: 16,
               children: [
@@ -60,21 +65,25 @@ class HomeDashboardScreen extends StatelessWidget {
                   icon: Icons.point_of_sale_rounded,
                   title: 'Nova venda',
                   subtitle: 'Abrir tela de caixa',
+                  onTap: () => onNavigate(1),
                 ),
                 LelecoActionCard(
                   icon: Icons.add_box_rounded,
                   title: 'Repor estoque',
                   subtitle: 'Entrada rápida de produto',
+                  onTap: () => onNavigate(2),
                 ),
                 LelecoActionCard(
                   icon: Icons.person_search_rounded,
                   title: 'Cobrar fiado',
                   subtitle: 'Consultar clientes devendo',
+                  onTap: () => onNavigate(3),
                 ),
                 LelecoActionCard(
                   icon: Icons.note_alt_rounded,
                   title: 'Anotações',
                   subtitle: 'Recados e lembretes',
+                  onTap: () => onNavigate(6),
                 ),
               ],
             ),

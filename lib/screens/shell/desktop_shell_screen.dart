@@ -93,7 +93,7 @@ class _DesktopShellScreenState extends State<DesktopShellScreen> {
 
   Widget _buildPage(int index) {
     if (index == 0) {
-      return const HomeDashboardScreen();
+      return HomeDashboardScreen(onNavigate: _goToModule);
     }
 
     if (index == 1) {
