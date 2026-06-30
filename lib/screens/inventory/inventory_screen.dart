@@ -9,6 +9,7 @@ import '../../models/product_category.dart';
 import '../../models/product_unit.dart';
 import '../../providers/inventory_provider.dart';
 import '../../widgets/leleco_metric_card.dart';
+import '../../widgets/product_detail_dialog.dart';
 
 class InventoryScreen extends StatelessWidget {
   const InventoryScreen({super.key});
@@ -301,9 +302,9 @@ class _ProductListCard extends StatelessWidget {
               icon: const Icon(Icons.remove_circle_outline_rounded),
             ),
             IconButton(
-              tooltip: 'Histórico do produto',
-              onPressed: () => _openHistoryDialog(context, product: product),
-              icon: const Icon(Icons.history_rounded),
+              tooltip: 'Ficha do produto',
+              onPressed: () => showProductDetailDialog(context, product),
+              icon: const Icon(Icons.badge_rounded),
             ),
             IconButton(
               tooltip: 'Editar produto',
@@ -374,6 +375,7 @@ Future<void> _openProductDialog(
 
   final codeController = TextEditingController(text: product?.code ?? '');
   final nameController = TextEditingController(text: product?.name ?? '');
+  final imagePathController = TextEditingController(text: product?.imagePath ?? '');
   final salePriceController = TextEditingController(
     text: product == null ? '' : product.salePrice.toStringAsFixed(2),
   );
@@ -425,6 +427,14 @@ Future<void> _openProductDialog(
                           ),
                         ),
                       ],
+                    ),
+                    const SizedBox(height: 14),
+                    TextField(
+                      controller: imagePathController,
+                      decoration: const InputDecoration(
+                        labelText: 'Foto do produto',
+                        hintText: 'URL da imagem ou caminho do asset. Opcional.',
+                      ),
                     ),
                     const SizedBox(height: 14),
                     Row(
@@ -556,7 +566,9 @@ Future<void> _openProductDialog(
                     stockQuantity: _parseDouble(stockController.text),
                     minStock: _parseDouble(minStockController.text),
                     favorite: product?.favorite ?? false,
-                    imagePath: product?.imagePath,
+                    imagePath: imagePathController.text.trim().isEmpty
+                        ? null
+                        : imagePathController.text.trim(),
                     createdAt: product?.createdAt ?? now,
                     updatedAt: now,
                     deletedAt: product?.deletedAt,
