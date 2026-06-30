@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 
 import '../core/constants/app_colors.dart';
 import '../providers/theme_provider.dart';
+import 'inventory_categories_dialog.dart';
 import 'leleco_logo.dart';
 import 'universal_search_dialog.dart';
 
@@ -62,6 +63,16 @@ class LelecoTopBar extends StatelessWidget {
               ),
             ),
           ),
+          if (title == 'Estoque') ...[
+            const SizedBox(width: 12),
+            OutlinedButton.icon(
+              onPressed: () {
+                showInventoryCategoriesDialog(context);
+              },
+              icon: const Icon(Icons.category_rounded),
+              label: const Text('Categorias'),
+            ),
+          ],
           const SizedBox(width: 12),
           IconButton.filledTonal(
             onPressed: themeProvider.toggleTheme,
