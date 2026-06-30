@@ -6,6 +6,7 @@ import '../../models/customer.dart';
 import '../../models/product.dart';
 import '../../models/product_category.dart';
 import '../../models/product_unit.dart';
+import '../../models/sale_cart_item.dart';
 import '../../providers/customers_provider.dart';
 import '../../providers/inventory_provider.dart';
 import '../../providers/sales_provider.dart';
@@ -58,9 +59,18 @@ class _ProductsPanel extends StatelessWidget {
                 }
 
                 sales.addProduct(product);
+                _showMessage(
+                  context,
+                  '${product.name} adicionado com 1 ${product.unit.label}.',
+                );
               },
             ),
-            const SizedBox(height: 18),
+            const SizedBox(height: 12),
+            const Text(
+              'Enter adiciona 1 unidade/kg. Para peso exato, use o botão "Qtd".',
+              style: TextStyle(fontWeight: FontWeight.w700),
+            ),
+            const SizedBox(height: 14),
             Expanded(
               child: products.isEmpty
                   ? const _EmptyProducts()
@@ -68,8 +78,8 @@ class _ProductsPanel extends StatelessWidget {
                       itemCount: products.length,
                       gridDelegate:
                           const SliverGridDelegateWithMaxCrossAxisExtent(
-                        maxCrossAxisExtent: 260,
-                        mainAxisExtent: 155,
+                        maxCrossAxisExtent: 270,
+                        mainAxisExtent: 190,
                         crossAxisSpacing: 14,
                         mainAxisSpacing: 14,
                       ),
@@ -134,66 +144,79 @@ class _ProductSaleCard extends StatelessWidget {
     final isLow = product.isLowStock;
 
     return Card(
-      child: InkWell(
-        borderRadius: BorderRadius.circular(24),
-        onTap: () => sales.addProduct(product),
-        child: Padding(
-          padding: const EdgeInsets.all(16),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
-                children: [
-                  Container(
-                    width: 46,
-                    height: 46,
-                    decoration: BoxDecoration(
-                      color: AppColors.wine900,
-                      borderRadius: BorderRadius.circular(16),
-                    ),
-                    child: Icon(
-                      product.favorite
-                          ? Icons.star_rounded
-                          : Icons.shopping_bag_rounded,
-                      color: AppColors.beige100,
-                    ),
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Container(
+                  width: 46,
+                  height: 46,
+                  decoration: BoxDecoration(
+                    color: AppColors.wine900,
+                    borderRadius: BorderRadius.circular(16),
                   ),
-                  const Spacer(),
-                  Text(
-                    product.code,
-                    style: const TextStyle(fontWeight: FontWeight.w900),
+                  child: Icon(
+                    product.favorite
+                        ? Icons.star_rounded
+                        : Icons.shopping_bag_rounded,
+                    color: AppColors.beige100,
                   ),
-                ],
-              ),
-              const Spacer(),
-              Text(
-                product.name,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                      fontWeight: FontWeight.w900,
-                    ),
-              ),
-              const SizedBox(height: 4),
-              Text(
-                '${_formatQuantity(product.stockQuantity, product.unit)} em estoque',
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: TextStyle(
-                  color: isLow ? AppColors.warning : null,
-                  fontWeight: isLow ? FontWeight.w900 : FontWeight.w500,
                 ),
+                const Spacer(),
+                Text(
+                  product.code,
+                  style: const TextStyle(fontWeight: FontWeight.w900),
+                ),
+              ],
+            ),
+            const SizedBox(height: 12),
+            Text(
+              product.name,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                    fontWeight: FontWeight.w900,
+                  ),
+            ),
+            const SizedBox(height: 4),
+            Text(
+              '${_formatQuantity(product.stockQuantity, product.unit)} em estoque',
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: TextStyle(
+                color: isLow ? AppColors.warning : null,
+                fontWeight: isLow ? FontWeight.w900 : FontWeight.w500,
               ),
-              const SizedBox(height: 8),
-              Text(
-                _formatMoney(product.salePrice),
-                style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                      fontWeight: FontWeight.w900,
-                      color: AppColors.wine700,
-                    ),
-              ),
-            ],
-          ),
+            ),
+            const Spacer(),
+            Row(
+              children: [
+                Expanded(
+                  child: Text(
+                    _formatMoney(product.salePrice),
+                    style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                          fontWeight: FontWeight.w900,
+                          color: AppColors.wine700,
+                        ),
+                  ),
+                ),
+                OutlinedButton(
+                  onPressed: () => _openQuantityDialog(context, product),
+                  child: const Text('Qtd'),
+                ),
+                const SizedBox(width: 8),
+                FilledButton(
+                  onPressed: () {
+                    sales.addProduct(product);
+                  },
+                  child: const Text('+1'),
+                ),
+              ],
+            ),
+          ],
         ),
       ),
     );
@@ -302,8 +325,7 @@ class _CartPanel extends StatelessWidget {
                                   return;
                                 }
 
-                                final stockOk =
-                                    inventory.deductSaleRecord(sale);
+                                final stockOk = inventory.deductSaleRecord(sale);
 
                                 if (!stockOk) {
                                   _showMessage(
@@ -347,13 +369,13 @@ class _CartPanel extends StatelessWidget {
 class _CartItemTile extends StatelessWidget {
   const _CartItemTile({required this.item});
 
-  final dynamic item;
+  final SaleCartItem item;
 
   @override
   Widget build(BuildContext context) {
     final sales = context.read<SalesProvider>();
-    final product = item.product as Product;
-    final quantity = item.quantity as double;
+    final product = item.product;
+    final quantity = item.quantity;
 
     return Container(
       padding: const EdgeInsets.all(12),
@@ -379,44 +401,63 @@ class _CartItemTile extends StatelessWidget {
           ),
           const SizedBox(width: 12),
           Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  product.name,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(fontWeight: FontWeight.w900),
+            child: InkWell(
+              onTap: () => _openCartQuantityDialog(context, item),
+              borderRadius: BorderRadius.circular(12),
+              child: Padding(
+                padding: const EdgeInsets.symmetric(vertical: 4),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      product.name,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(fontWeight: FontWeight.w900),
+                    ),
+                    const SizedBox(height: 3),
+                    Text(
+                      '${_formatMoney(product.salePrice)} x ${_formatNumber(quantity)} ${product.unit.label}',
+                      style: Theme.of(context).textTheme.bodySmall,
+                    ),
+                  ],
                 ),
-                const SizedBox(height: 3),
-                Text(
-                  '${_formatMoney(product.salePrice)} x ${_formatNumber(quantity)}',
-                  style: Theme.of(context).textTheme.bodySmall,
-                ),
-              ],
+              ),
             ),
           ),
           IconButton(
+            tooltip: 'Diminuir',
             onPressed: () => sales.decreaseQuantity(product.id),
             icon: const Icon(Icons.remove_circle_outline_rounded),
           ),
-          Text(
-            _formatNumber(quantity),
-            style: const TextStyle(fontWeight: FontWeight.w900),
+          InkWell(
+            onTap: () => _openCartQuantityDialog(context, item),
+            borderRadius: BorderRadius.circular(12),
+            child: Container(
+              width: 58,
+              padding: const EdgeInsets.symmetric(vertical: 8),
+              child: Text(
+                _formatNumber(quantity),
+                textAlign: TextAlign.center,
+                style: const TextStyle(fontWeight: FontWeight.w900),
+              ),
+            ),
           ),
           IconButton(
+            tooltip: 'Aumentar',
             onPressed: () => sales.increaseQuantity(product.id),
             icon: const Icon(Icons.add_circle_outline_rounded),
           ),
           SizedBox(
             width: 78,
             child: Text(
-              _formatMoney(item.subtotal as double),
+              _formatMoney(item.subtotal),
               textAlign: TextAlign.end,
               style: const TextStyle(fontWeight: FontWeight.w900),
             ),
           ),
           IconButton(
+            tooltip: 'Remover',
             onPressed: () => sales.removeItem(product.id),
             icon: const Icon(Icons.close_rounded),
           ),
@@ -521,43 +562,223 @@ class _EmptyProducts extends StatelessWidget {
   }
 }
 
-List<Product> _filterProducts(List<Product> products, String searchTerm) {
-  final term = searchTerm.trim().toLowerCase();
+Future<void> _openQuantityDialog(
+  BuildContext context,
+  Product product,
+) async {
+  final sales = context.read<SalesProvider>();
+  final quantityController = TextEditingController(
+    text: product.unit == ProductUnit.kg ? '1,000' : '1',
+  );
 
-  final availableProducts = products.where((product) {
-    return !product.isDeleted && product.stockQuantity > 0;
-  }).toList();
-
-  if (term.isEmpty) {
-    return availableProducts;
-  }
-
-  return availableProducts.where((product) {
-    return product.name.toLowerCase().contains(term) ||
-        product.code.toLowerCase().contains(term) ||
-        product.category.label.toLowerCase().contains(term);
-  }).toList();
+  await showDialog<void>(
+    context: context,
+    builder: (dialogContext) {
+      return AlertDialog(
+        title: Text('Adicionar ${product.name}'),
+        content: SizedBox(
+          width: 420,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(
+                'Estoque disponível: ${_formatQuantity(product.stockQuantity, product.unit)}',
+                style: const TextStyle(fontWeight: FontWeight.w900),
+              ),
+              const SizedBox(height: 16),
+              TextField(
+                controller: quantityController,
+                autofocus: true,
+                keyboardType: TextInputType.number,
+                decoration: InputDecoration(
+                  labelText: 'Quantidade (${product.unit.label})',
+                  hintText:
+                      product.unit == ProductUnit.kg ? 'Ex: 1,250' : 'Ex: 2',
+                  suffixText: product.unit.label,
+                ),
+                onSubmitted: (_) {
+                  _confirmAddQuantity(
+                    context: context,
+                    dialogContext: dialogContext,
+                    product: product,
+                    sales: sales,
+                    text: quantityController.text,
+                  );
+                },
+              ),
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop(),
+            child: const Text('Cancelar'),
+          ),
+          FilledButton.icon(
+            onPressed: () {
+              _confirmAddQuantity(
+                context: context,
+                dialogContext: dialogContext,
+                product: product,
+                sales: sales,
+                text: quantityController.text,
+              );
+            },
+            icon: const Icon(Icons.add_shopping_cart_rounded),
+            label: const Text('Adicionar'),
+          ),
+        ],
+      );
+    },
+  );
 }
 
-Product? _findByCodeOrName(List<Product> products, String value) {
-  final term = value.trim().toLowerCase();
+void _confirmAddQuantity({
+  required BuildContext context,
+  required BuildContext dialogContext,
+  required Product product,
+  required SalesProvider sales,
+  required String text,
+}) {
+  final quantity = _parseDouble(text);
 
-  if (term.isEmpty) return null;
+  final error = _validateQuantity(product, quantity);
 
-  try {
-    return products.firstWhere(
-      (product) {
-        return !product.isDeleted &&
-            product.stockQuantity > 0 &&
-            (product.code.toLowerCase() == term ||
-                product.name.toLowerCase() == term);
-      },
-    );
-  } catch (_) {
-    return null;
+  if (error != null) {
+    _showMessage(context, error);
+    return;
   }
+
+  sales.addProduct(product, quantity: quantity);
+
+  Navigator.of(dialogContext).pop();
+
+  _showMessage(
+    context,
+    '${product.name} adicionado: ${_formatNumber(quantity)} ${product.unit.label}.',
+  );
 }
 
+Future<void> _openCartQuantityDialog(
+  BuildContext context,
+  SaleCartItem item,
+) async {
+  final sales = context.read<SalesProvider>();
+  final product = item.product;
+
+  final quantityController = TextEditingController(
+    text: product.unit == ProductUnit.kg
+        ? item.quantity.toStringAsFixed(3).replaceAll('.', ',')
+        : item.quantity.toStringAsFixed(0),
+  );
+
+  await showDialog<void>(
+    context: context,
+    builder: (dialogContext) {
+      return AlertDialog(
+        title: Text('Alterar quantidade'),
+        content: SizedBox(
+          width: 420,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(
+                product.name,
+                style: const TextStyle(fontWeight: FontWeight.w900),
+              ),
+              const SizedBox(height: 8),
+              Text(
+                'Estoque disponível: ${_formatQuantity(product.stockQuantity, product.unit)}',
+              ),
+              const SizedBox(height: 16),
+              TextField(
+                controller: quantityController,
+                autofocus: true,
+                keyboardType: TextInputType.number,
+                decoration: InputDecoration(
+                  labelText: 'Nova quantidade (${product.unit.label})',
+                  hintText:
+                      product.unit == ProductUnit.kg ? 'Ex: 0,750' : 'Ex: 3',
+                  suffixText: product.unit.label,
+                ),
+                onSubmitted: (_) {
+                  _confirmUpdateCartQuantity(
+                    context: context,
+                    dialogContext: dialogContext,
+                    product: product,
+                    sales: sales,
+                    text: quantityController.text,
+                  );
+                },
+              ),
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop(),
+            child: const Text('Cancelar'),
+          ),
+          FilledButton.icon(
+            onPressed: () {
+              _confirmUpdateCartQuantity(
+                context: context,
+                dialogContext: dialogContext,
+                product: product,
+                sales: sales,
+                text: quantityController.text,
+              );
+            },
+            icon: const Icon(Icons.save_rounded),
+            label: const Text('Salvar'),
+          ),
+        ],
+      );
+    },
+  );
+}
+
+void _confirmUpdateCartQuantity({
+  required BuildContext context,
+  required BuildContext dialogContext,
+  required Product product,
+  required SalesProvider sales,
+  required String text,
+}) {
+  final quantity = _parseDouble(text);
+
+  final error = _validateQuantity(product, quantity);
+
+  if (error != null) {
+    _showMessage(context, error);
+    return;
+  }
+
+  sales.updateQuantity(product.id, quantity);
+
+  Navigator.of(dialogContext).pop();
+
+  _showMessage(
+    context,
+    'Quantidade de ${product.name}: ${_formatNumber(quantity)} ${product.unit.label}.',
+  );
+}
+
+String? _validateQuantity(Product product, double quantity) {
+  if (quantity <= 0) {
+    return 'Informe uma quantidade maior que zero.';
+  }
+
+  if (quantity > product.stockQuantity) {
+    return 'Quantidade maior que o estoque disponível.';
+  }
+
+  if (product.unit != ProductUnit.kg && quantity % 1 != 0) {
+    return 'Para unidade ou pacote, use número inteiro.';
+  }
+
+  return null;
+}
 
 Future<Customer?> _selectCustomerForFiado(BuildContext context) async {
   return showDialog<Customer>(
@@ -638,6 +859,43 @@ Future<Customer?> _selectCustomerForFiado(BuildContext context) async {
   );
 }
 
+List<Product> _filterProducts(List<Product> products, String searchTerm) {
+  final term = searchTerm.trim().toLowerCase();
+
+  final availableProducts = products.where((product) {
+    return !product.isDeleted && product.stockQuantity > 0;
+  }).toList();
+
+  if (term.isEmpty) {
+    return availableProducts;
+  }
+
+  return availableProducts.where((product) {
+    return product.name.toLowerCase().contains(term) ||
+        product.code.toLowerCase().contains(term) ||
+        product.category.label.toLowerCase().contains(term);
+  }).toList();
+}
+
+Product? _findByCodeOrName(List<Product> products, String value) {
+  final term = value.trim().toLowerCase();
+
+  if (term.isEmpty) return null;
+
+  try {
+    return products.firstWhere(
+      (product) {
+        return !product.isDeleted &&
+            product.stockQuantity > 0 &&
+            (product.code.toLowerCase() == term ||
+                product.name.toLowerCase() == term);
+      },
+    );
+  } catch (_) {
+    return null;
+  }
+}
+
 void _showMessage(BuildContext context, String message) {
   ScaffoldMessenger.of(context)
     ..clearSnackBars()
@@ -665,4 +923,9 @@ String _formatNumber(double value) {
   }
 
   return value.toStringAsFixed(3).replaceAll('.', ',');
+}
+
+double _parseDouble(String value) {
+  final normalized = value.trim().replaceAll(',', '.');
+  return double.tryParse(normalized) ?? 0;
 }
