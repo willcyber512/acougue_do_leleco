@@ -3,14 +3,18 @@ import 'package:provider/provider.dart';
 
 import '../core/constants/app_colors.dart';
 import '../providers/theme_provider.dart';
+import 'leleco_logo.dart';
+import 'universal_search_dialog.dart';
 
 class LelecoTopBar extends StatelessWidget {
   const LelecoTopBar({
     super.key,
     required this.title,
+    required this.onNavigate,
   });
 
   final String title;
+  final ValueChanged<int> onNavigate;
 
   @override
   Widget build(BuildContext context) {
@@ -22,6 +26,8 @@ class LelecoTopBar extends StatelessWidget {
       padding: const EdgeInsets.symmetric(horizontal: 24),
       child: Row(
         children: [
+          const LelecoLogo(size: 46),
+          const SizedBox(width: 14),
           Text(
             title,
             style: Theme.of(context).textTheme.headlineSmall?.copyWith(
@@ -32,9 +38,17 @@ class LelecoTopBar extends StatelessWidget {
           SizedBox(
             width: 390,
             child: TextField(
+              readOnly: true,
+              onTap: () {
+                showUniversalSearchDialog(
+                  context: context,
+                  onNavigate: onNavigate,
+                );
+              },
               decoration: InputDecoration(
                 hintText: 'Pesquisar produto, cliente ou código...',
                 prefixIcon: const Icon(Icons.search_rounded),
+                suffixIcon: const Icon(Icons.open_in_new_rounded),
                 filled: true,
                 fillColor: isDark ? AppColors.darkSurfaceAlt : AppColors.white,
                 contentPadding: const EdgeInsets.symmetric(

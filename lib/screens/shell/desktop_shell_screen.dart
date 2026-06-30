@@ -47,6 +47,12 @@ class _DesktopShellScreenState extends State<DesktopShellScreen> {
     Icons.settings_rounded,
   ];
 
+  void _goToModule(int index) {
+    if (index < 0 || index >= labels.length) return;
+
+    setState(() => selectedIndex = index);
+  }
+
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
@@ -58,7 +64,7 @@ class _DesktopShellScreenState extends State<DesktopShellScreen> {
             labels: labels,
             icons: icons,
             selectedIndex: selectedIndex,
-            onSelect: (index) => setState(() => selectedIndex = index),
+            onSelect: _goToModule,
           ),
           Expanded(
             child: Container(
@@ -66,7 +72,10 @@ class _DesktopShellScreenState extends State<DesktopShellScreen> {
                   isDark ? AppColors.darkBackground : AppColors.lightBackground,
               child: Column(
                 children: [
-                  LelecoTopBar(title: labels[selectedIndex]),
+                  LelecoTopBar(
+                    title: labels[selectedIndex],
+                    onNavigate: _goToModule,
+                  ),
                   Expanded(
                     child: Padding(
                       padding: const EdgeInsets.all(24),

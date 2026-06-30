@@ -5,7 +5,7 @@ import '../core/constants/app_colors.dart';
 class LelecoLogo extends StatelessWidget {
   const LelecoLogo({
     super.key,
-    this.size = 86,
+    this.size = 92,
   });
 
   final double size;
@@ -15,29 +15,26 @@ class LelecoLogo extends StatelessWidget {
     return Container(
       width: size,
       height: size,
-      padding: const EdgeInsets.all(10),
+      padding: EdgeInsets.all(size * 0.07),
       decoration: BoxDecoration(
         color: AppColors.wine900,
-        borderRadius: BorderRadius.circular(size * 0.28),
+        borderRadius: BorderRadius.circular(size * 0.26),
       ),
-      child: ClipRRect(
-        borderRadius: BorderRadius.circular(size * 0.2),
-        child: Image.asset(
-          'assets/logo/logo.png',
-          fit: BoxFit.cover,
-          errorBuilder: (context, error, stackTrace) {
-            return Center(
-              child: Text(
-                'AL',
-                style: TextStyle(
-                  color: AppColors.beige100,
-                  fontSize: size * 0.32,
-                  fontWeight: FontWeight.w900,
-                ),
+      child: Image.asset(
+        'assets/logo/logo.png',
+        fit: BoxFit.contain,
+        errorBuilder: (context, error, stackTrace) {
+          return Center(
+            child: Text(
+              'AL',
+              style: TextStyle(
+                color: AppColors.beige100,
+                fontSize: size * 0.32,
+                fontWeight: FontWeight.w900,
               ),
-            );
-          },
-        ),
+            ),
+          );
+        },
       ),
     );
   }
