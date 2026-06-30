@@ -8,6 +8,7 @@ import '../../providers/customers_provider.dart';
 import '../../providers/inventory_provider.dart';
 import '../../providers/notes_provider.dart';
 import '../../providers/sales_provider.dart';
+import '../../providers/shortcuts_provider.dart';
 import '../../services/local_backup_service.dart';
 import '../../widgets/system_about_card.dart';
 
@@ -144,6 +145,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
       await context.read<CustomersProvider>().reloadFromStorage();
       await context.read<NotesProvider>().reloadFromStorage();
       await context.read<CashClosureProvider>().reloadFromStorage();
+      await context.read<ShortcutsProvider>().reloadFromStorage();
 
       _showMessage('Backup restaurado com sucesso.');
     } catch (_) {

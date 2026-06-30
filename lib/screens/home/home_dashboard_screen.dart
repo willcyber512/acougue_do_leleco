@@ -1,9 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
+import '../../core/constants/app_colors.dart';
+import '../../models/dashboard_shortcut.dart';
 import '../../providers/customers_provider.dart';
 import '../../providers/inventory_provider.dart';
 import '../../providers/sales_provider.dart';
+import '../../providers/shortcuts_provider.dart';
 import '../../widgets/leleco_action_card.dart';
 import '../../widgets/leleco_metric_card.dart';
 
@@ -17,8 +20,11 @@ class HomeDashboardScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Consumer3<InventoryProvider, SalesProvider, CustomersProvider>(
-      builder: (context, inventory, sales, customers, _) {
+    return Consumer4<InventoryProvider, SalesProvider, CustomersProvider,
+        ShortcutsProvider>(
+      builder: (context, inventory, sales, customers, shortcuts, _) {
+        final activeShortcuts = shortcuts.activeShortcuts;
+
         return ListView(
           children: [
             Row(
@@ -57,40 +63,81 @@ class HomeDashboardScreen extends StatelessWidget {
               ],
             ),
             const SizedBox(height: 24),
-            Wrap(
-              spacing: 16,
-              runSpacing: 16,
-              children: [
-                LelecoActionCard(
-                  icon: Icons.point_of_sale_rounded,
-                  title: 'Nova venda',
-                  subtitle: 'Abrir tela de caixa',
-                  onTap: () => onNavigate(1),
-                ),
-                LelecoActionCard(
-                  icon: Icons.add_box_rounded,
-                  title: 'Repor estoque',
-                  subtitle: 'Entrada rápida de produto',
-                  onTap: () => onNavigate(2),
-                ),
-                LelecoActionCard(
-                  icon: Icons.person_search_rounded,
-                  title: 'Cobrar fiado',
-                  subtitle: 'Consultar clientes devendo',
-                  onTap: () => onNavigate(3),
-                ),
-                LelecoActionCard(
-                  icon: Icons.note_alt_rounded,
-                  title: 'Anotações',
-                  subtitle: 'Recados e lembretes',
-                  onTap: () => onNavigate(6),
-                ),
-              ],
-            ),
+            if (activeShortcuts.isEmpty)
+              const _NoShortcutsCard()
+            else
+              Wrap(
+                spacing: 16,
+                runSpacing: 16,
+                children: activeShortcuts.map((shortcut) {
+                  return LelecoActionCard(
+                    icon: _shortcutIcon(shortcut.type),
+                    title: shortcut.type.label,
+                    subtitle: shortcut.type.subtitle,
+                    onTap: () => onNavigate(shortcut.type.moduleIndex),
+                  );
+                }).toList(),
+              ),
           ],
         );
       },
     );
+  }
+}
+
+class _NoShortcutsCard extends StatelessWidget {
+  const _NoShortcutsCard();
+
+  @override
+  Widget build(BuildContext context) {
+    return Card(
+      child: Container(
+        width: double.infinity,
+        padding: const EdgeInsets.all(22),
+        child: Row(
+          children: [
+            Container(
+              width: 56,
+              height: 56,
+              decoration: BoxDecoration(
+                color: AppColors.wine900,
+                borderRadius: BorderRadius.circular(18),
+              ),
+              child: const Icon(
+                Icons.tune_rounded,
+                color: AppColors.beige100,
+              ),
+            ),
+            const SizedBox(width: 14),
+            const Expanded(
+              child: Text(
+                'Nenhum atalho ativo. Use o botão Atalhos no topo para escolher quais aparecem aqui.',
+                style: TextStyle(fontWeight: FontWeight.w800),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+IconData _shortcutIcon(DashboardShortcutType type) {
+  switch (type) {
+    case DashboardShortcutType.sale:
+      return Icons.point_of_sale_rounded;
+    case DashboardShortcutType.inventory:
+      return Icons.add_box_rounded;
+    case DashboardShortcutType.credit:
+      return Icons.person_search_rounded;
+    case DashboardShortcutType.notes:
+      return Icons.note_alt_rounded;
+    case DashboardShortcutType.cash:
+      return Icons.payments_rounded;
+    case DashboardShortcutType.reports:
+      return Icons.bar_chart_rounded;
+    case DashboardShortcutType.alerts:
+      return Icons.notifications_rounded;
   }
 }
 

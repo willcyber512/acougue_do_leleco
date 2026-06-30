@@ -6,6 +6,7 @@ import '../providers/theme_provider.dart';
 import 'cash_closure_dialog.dart';
 import 'inventory_categories_dialog.dart';
 import 'leleco_logo.dart';
+import 'shortcuts_config_dialog.dart';
 import 'universal_search_dialog.dart';
 
 class LelecoTopBar extends StatelessWidget {
@@ -64,6 +65,16 @@ class LelecoTopBar extends StatelessWidget {
               ),
             ),
           ),
+          if (title == 'Hoje') ...[
+            const SizedBox(width: 12),
+            OutlinedButton.icon(
+              onPressed: () {
+                showShortcutsConfigDialog(context);
+              },
+              icon: const Icon(Icons.tune_rounded),
+              label: const Text('Atalhos'),
+            ),
+          ],
           if (title == 'Estoque') ...[
             const SizedBox(width: 12),
             OutlinedButton.icon(

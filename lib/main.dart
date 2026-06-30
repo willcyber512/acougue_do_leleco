@@ -7,6 +7,7 @@ import 'providers/customers_provider.dart';
 import 'providers/inventory_provider.dart';
 import 'providers/notes_provider.dart';
 import 'providers/sales_provider.dart';
+import 'providers/shortcuts_provider.dart';
 import 'providers/theme_provider.dart';
 
 void main() {
@@ -19,6 +20,7 @@ void main() {
         ChangeNotifierProvider(create: (_) => CustomersProvider()),
         ChangeNotifierProvider(create: (_) => CashClosureProvider()),
         ChangeNotifierProvider(create: (_) => NotesProvider()),
+        ChangeNotifierProvider(create: (_) => ShortcutsProvider()),
       ],
       child: const LelecoApp(),
     ),
