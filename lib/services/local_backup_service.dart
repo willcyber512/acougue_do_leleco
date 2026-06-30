@@ -15,6 +15,7 @@ class LocalBackupService {
     'leleco_sales_records_v1',
     'leleco_customers_v1',
     'leleco_credit_entries_v1',
+    'leleco_internal_notes_v1',
   ];
 
   static Future<String> exportBackup() async {

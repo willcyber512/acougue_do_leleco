@@ -3,14 +3,15 @@ import 'package:flutter/material.dart';
 import '../../core/constants/app_colors.dart';
 import '../../widgets/leleco_sidebar.dart';
 import '../../widgets/leleco_top_bar.dart';
+import '../alerts/alerts_screen.dart';
+import '../cash/cash_screen.dart';
+import '../customers/customers_screen.dart';
 import '../home/home_dashboard_screen.dart';
 import '../inventory/inventory_screen.dart';
-import '../cash/cash_screen.dart';
-import '../alerts/alerts_screen.dart';
-import '../customers/customers_screen.dart';
+import '../notes/notes_screen.dart';
+import '../reports/reports_screen.dart';
 import '../sales/sales_screen.dart';
 import '../settings/settings_screen.dart';
-import '../reports/reports_screen.dart';
 
 class DesktopShellScreen extends StatefulWidget {
   const DesktopShellScreen({super.key});
@@ -29,6 +30,7 @@ class _DesktopShellScreenState extends State<DesktopShellScreen> {
     'Fiado',
     'Caixa',
     'Relatórios',
+    'Anotações',
     'Alertas',
     'Ajustes',
   ];
@@ -40,6 +42,7 @@ class _DesktopShellScreenState extends State<DesktopShellScreen> {
     Icons.people_alt_rounded,
     Icons.payments_rounded,
     Icons.bar_chart_rounded,
+    Icons.note_alt_rounded,
     Icons.notifications_rounded,
     Icons.settings_rounded,
   ];
@@ -59,9 +62,8 @@ class _DesktopShellScreenState extends State<DesktopShellScreen> {
           ),
           Expanded(
             child: Container(
-              color: isDark
-                  ? AppColors.darkBackground
-                  : AppColors.lightBackground,
+              color:
+                  isDark ? AppColors.darkBackground : AppColors.lightBackground,
               child: Column(
                 children: [
                   LelecoTopBar(title: labels[selectedIndex]),
@@ -106,10 +108,14 @@ class _DesktopShellScreenState extends State<DesktopShellScreen> {
     }
 
     if (index == 6) {
-      return const AlertsScreen();
+      return const NotesScreen();
     }
 
     if (index == 7) {
+      return const AlertsScreen();
+    }
+
+    if (index == 8) {
       return const SettingsScreen();
     }
 
