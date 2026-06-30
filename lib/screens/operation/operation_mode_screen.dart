@@ -15,6 +15,7 @@ import '../../providers/sales_provider.dart';
 import '../../services/ramuza_barcode_parser.dart';
 import '../../widgets/leleco_logo.dart';
 import '../../widgets/sale_receipt_dialog.dart';
+import '../../widgets/quick_product_from_barcode_dialog.dart';
 
 class OperationModeScreen extends StatefulWidget {
   const OperationModeScreen({super.key});
@@ -581,7 +582,7 @@ class _TotalBox extends StatelessWidget {
 }
 
 
-void _handleOperationInput(BuildContext context, String value) {
+Future<void> _handleOperationInput(BuildContext context, String value) async {
   final inventory = context.read<InventoryProvider>();
   final sales = context.read<SalesProvider>();
   final ramuzaSettings = context.read<RamuzaSettingsProvider>().settings;
@@ -589,14 +590,24 @@ void _handleOperationInput(BuildContext context, String value) {
   final parsed = RamuzaBarcodeParser.tryParse(value, ramuzaSettings);
 
   if (parsed != null) {
-    final product = _findByRamuzaCode(inventory.products, parsed.productCode);
+    var product = _findByRamuzaCode(inventory.products, parsed.productCode);
 
     if (product == null) {
       _showMessage(
         context,
-        'Etiqueta lida. PLU ${parsed.productCode} não está cadastrado no estoque.',
+        'Etiqueta lida. PLU ${parsed.productCode} ainda não está cadastrado.',
       );
-      return;
+
+      product = await showQuickProductFromBarcodeDialog(
+        context: context,
+        productCode: parsed.productCode,
+        rawBarcode: parsed.digits,
+        suggestedQuantity: parsed.quantity,
+      );
+
+      if (product == null) {
+        return;
+      }
     }
 
     if (product.isDeleted) {
