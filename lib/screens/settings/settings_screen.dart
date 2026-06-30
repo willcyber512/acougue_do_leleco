@@ -8,6 +8,7 @@ import '../../providers/inventory_provider.dart';
 import '../../providers/notes_provider.dart';
 import '../../providers/sales_provider.dart';
 import '../../services/local_backup_service.dart';
+import '../../widgets/system_about_card.dart';
 
 class SettingsScreen extends StatefulWidget {
   const SettingsScreen({super.key});
@@ -36,6 +37,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
     return ListView(
       children: [
         _HeaderCard(),
+        const SizedBox(height: 18),
+        const SystemAboutCard(),
         const SizedBox(height: 18),
         Row(
           crossAxisAlignment: CrossAxisAlignment.start,
