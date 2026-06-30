@@ -7,6 +7,8 @@ import 'cash_closure_dialog.dart';
 import 'inventory_categories_dialog.dart';
 import 'leleco_logo.dart';
 import 'operation_mode_button.dart';
+import 'ramuza_barcode_config_dialog.dart';
+import 'ramuza_export_dialog.dart';
 import 'shortcuts_config_dialog.dart';
 import 'universal_search_dialog.dart';
 
@@ -76,8 +78,28 @@ class LelecoTopBar extends StatelessWidget {
               label: const Text('Atalhos'),
             ),
           ],
+          if (title == 'Venda') ...[
+            const SizedBox(width: 12),
+            OutlinedButton.icon(
+              onPressed: () {
+                showRamuzaBarcodeConfigDialog(context);
+              },
+              icon: const Icon(Icons.qr_code_scanner_rounded),
+              label: const Text('Etiqueta'),
+            ),
+            const SizedBox(width: 8),
+            const OperationModeButton(),
+          ],
           if (title == 'Estoque') ...[
             const SizedBox(width: 12),
+            FilledButton.icon(
+              onPressed: () {
+                showRamuzaExportDialog(context);
+              },
+              icon: const Icon(Icons.scale_rounded),
+              label: const Text('Ramuza'),
+            ),
+            const SizedBox(width: 8),
             OutlinedButton.icon(
               onPressed: () {
                 showInventoryCategoriesDialog(context);
@@ -85,10 +107,6 @@ class LelecoTopBar extends StatelessWidget {
               icon: const Icon(Icons.category_rounded),
               label: const Text('Categorias'),
             ),
-          ],
-          if (title == 'Venda') ...[
-            const SizedBox(width: 12),
-            const OperationModeButton(),
           ],
           if (title == 'Caixa') ...[
             const SizedBox(width: 12),

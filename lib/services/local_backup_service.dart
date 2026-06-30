@@ -18,6 +18,7 @@ class LocalBackupService {
     'leleco_internal_notes_v1',
     'leleco_cash_closures_v1',
     'leleco_dashboard_shortcuts_v1',
+    'leleco_ramuza_barcode_settings_v1',
   ];
 
   static Future<String> exportBackup() async {

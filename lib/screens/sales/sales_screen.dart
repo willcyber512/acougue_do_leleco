@@ -9,7 +9,9 @@ import '../../models/product_unit.dart';
 import '../../models/sale_cart_item.dart';
 import '../../providers/customers_provider.dart';
 import '../../providers/inventory_provider.dart';
+import '../../providers/ramuza_settings_provider.dart';
 import '../../providers/sales_provider.dart';
+import '../../services/ramuza_barcode_parser.dart';
 import '../../widgets/sale_receipt_dialog.dart';
 
 class SalesScreen extends StatelessWidget {
@@ -40,10 +42,22 @@ class _ProductsPanel extends StatelessWidget {
   Widget build(BuildContext context) {
     return Consumer2<InventoryProvider, SalesProvider>(
       builder: (context, inventory, sales, _) {
-        final products = _filterProducts(
-          inventory.products,
+        final ramuzaSettings = context.watch<RamuzaSettingsProvider>().settings;
+
+        final parsedBarcode = RamuzaBarcodeParser.tryParse(
           sales.searchTerm,
+          ramuzaSettings,
         );
+
+        final products = parsedBarcode == null
+            ? _filterProducts(
+                inventory.products,
+                sales.searchTerm,
+              )
+            : _filterProductsForRamuzaCode(
+                inventory.products,
+                parsedBarcode.productCode,
+              );
 
         return Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -52,29 +66,24 @@ class _ProductsPanel extends StatelessWidget {
               value: sales.searchTerm,
               onChanged: sales.setSearchTerm,
               onSubmitted: (value) {
-                final product = _findByCodeOrName(inventory.products, value);
-
-                if (product == null) {
-                  _showMessage(context, 'Produto não encontrado.');
-                  return;
-                }
-
-                sales.addProduct(product);
-                _showMessage(
-                  context,
-                  '${product.name} adicionado com 1 ${product.unit.label}.',
-                );
+                _handleSalesInput(context, value);
               },
             ),
             const SizedBox(height: 12),
-            const Text(
-              'Enter adiciona 1 unidade/kg. Para peso exato, use o botão "Qtd".',
-              style: TextStyle(fontWeight: FontWeight.w700),
+            Text(
+              parsedBarcode == null
+                  ? 'Enter adiciona 1 unidade/kg. Para peso exato, use o botão "Qtd".'
+                  : 'Etiqueta Ramuza detectada: PLU ${parsedBarcode.productCode}. Aperte Enter para adicionar.',
+              style: const TextStyle(fontWeight: FontWeight.w700),
             ),
             const SizedBox(height: 14),
             Expanded(
               child: products.isEmpty
-                  ? const _EmptyProducts()
+                  ? _EmptyProducts(
+                      message: parsedBarcode == null
+                          ? 'Nenhum produto encontrado.'
+                          : 'Etiqueta detectada, mas o PLU ${parsedBarcode.productCode} não está disponível no estoque.',
+                    )
                   : GridView.builder(
                       itemCount: products.length,
                       gridDelegate:
@@ -423,6 +432,8 @@ class _CartItemTile extends StatelessWidget {
                     const SizedBox(height: 3),
                     Text(
                       '${_formatMoney(product.salePrice)} x ${_formatNumber(quantity)} ${product.unit.label}',
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
                       style: Theme.of(context).textTheme.bodySmall,
                     ),
                   ],
@@ -557,14 +568,128 @@ class _EmptyCart extends StatelessWidget {
 }
 
 class _EmptyProducts extends StatelessWidget {
-  const _EmptyProducts();
+  const _EmptyProducts({
+    required this.message,
+  });
+
+  final String message;
 
   @override
   Widget build(BuildContext context) {
-    return const Center(
-      child: Text('Nenhum produto encontrado.'),
+    return Center(
+      child: Text(message),
     );
   }
+}
+
+
+void _handleSalesInput(BuildContext context, String value) {
+  final inventory = context.read<InventoryProvider>();
+  final sales = context.read<SalesProvider>();
+  final ramuzaSettings = context.read<RamuzaSettingsProvider>().settings;
+
+  final parsed = RamuzaBarcodeParser.tryParse(value, ramuzaSettings);
+
+  if (parsed != null) {
+    final product = _findByRamuzaCode(inventory.products, parsed.productCode);
+
+    if (product == null) {
+      _showMessage(
+        context,
+        'Etiqueta lida. PLU ${parsed.productCode} não está cadastrado no estoque.',
+      );
+      sales.setSearchTerm('');
+      return;
+    }
+
+    if (product.isDeleted) {
+      _showMessage(
+        context,
+        'Etiqueta lida. Produto ${product.name} está na lixeira.',
+      );
+      sales.setSearchTerm('');
+      return;
+    }
+
+    final quantity = parsed.quantityForProduct(product);
+
+    if (quantity == null || quantity <= 0) {
+      _showMessage(
+        context,
+        'Etiqueta lida, mas não deu para calcular quantidade/valor.',
+      );
+      sales.setSearchTerm('');
+      return;
+    }
+
+    if (product.stockQuantity <= 0) {
+      _showMessage(
+        context,
+        'Etiqueta lida: ${product.name}, mas o estoque está zerado.',
+      );
+      sales.setSearchTerm('');
+      return;
+    }
+
+    final error = _validateQuantity(product, quantity);
+
+    if (error != null) {
+      _showMessage(
+        context,
+        'Etiqueta lida: ${product.name}. $error',
+      );
+      sales.setSearchTerm('');
+      return;
+    }
+
+    sales.addProduct(product, quantity: quantity);
+    sales.setSearchTerm('');
+
+    _showMessage(
+      context,
+      'Etiqueta OK: ${product.name} • ${_formatNumber(quantity)} ${product.unit.label}.',
+    );
+
+    return;
+  }
+
+  final product = _findByCodeOrName(inventory.products, value);
+
+  if (product == null) {
+    _showMessage(context, 'Produto não encontrado.');
+    return;
+  }
+
+  sales.addProduct(product);
+  sales.setSearchTerm('');
+
+  _showMessage(
+    context,
+    '${product.name} adicionado com 1 ${product.unit.label}.',
+  );
+}
+
+Product? _findByRamuzaCode(List<Product> products, String code) {
+  final normalizedCode = _normalizeNumericCode(code);
+
+  for (final product in products) {
+    final productCode = _normalizeNumericCode(product.code);
+
+    if (productCode == normalizedCode) {
+      return product;
+    }
+  }
+
+  return null;
+}
+
+String _normalizeNumericCode(String value) {
+  final digits = value.replaceAll(RegExp(r'[^0-9]'), '');
+  final parsed = int.tryParse(digits);
+
+  if (parsed == null) return digits;
+
+  return parsed.toString();
 }
 
 Future<void> _openQuantityDialog(
@@ -879,6 +1004,19 @@ List<Product> _filterProducts(List<Product> products, String searchTerm) {
     return product.name.toLowerCase().contains(term) ||
         product.code.toLowerCase().contains(term) ||
         product.category.label.toLowerCase().contains(term);
+  }).toList();
+}
+
+List<Product> _filterProductsForRamuzaCode(
+  List<Product> products,
+  String code,
+) {
+  final normalizedCode = _normalizeNumericCode(code);
+
+  return products.where((product) {
+    if (product.isDeleted || product.stockQuantity <= 0) return false;
+
+    return _normalizeNumericCode(product.code) == normalizedCode;
   }).toList();
 }
 

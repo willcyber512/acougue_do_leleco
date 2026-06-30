@@ -10,7 +10,9 @@ import '../../models/product_unit.dart';
 import '../../models/sale_cart_item.dart';
 import '../../providers/customers_provider.dart';
 import '../../providers/inventory_provider.dart';
+import '../../providers/ramuza_settings_provider.dart';
 import '../../providers/sales_provider.dart';
+import '../../services/ramuza_barcode_parser.dart';
 import '../../widgets/leleco_logo.dart';
 import '../../widgets/sale_receipt_dialog.dart';
 
@@ -36,7 +38,23 @@ class _OperationModeScreenState extends State<OperationModeScreen> {
   Widget build(BuildContext context) {
     return Consumer2<InventoryProvider, SalesProvider>(
       builder: (context, inventory, sales, _) {
-        final products = _filterProducts(inventory.products, searchTerm);
+        final ramuzaSettings = context.watch<RamuzaSettingsProvider>().settings;
+
+        final parsedBarcode = RamuzaBarcodeParser.tryParse(
+          searchTerm,
+          ramuzaSettings,
+        );
+
+        final products = parsedBarcode == null
+            ? _filterProducts(inventory.products, searchTerm)
+            : _filterProductsForRamuzaCode(
+                inventory.products,
+                parsedBarcode.productCode,
+              );
+
+        final emptyMessage = parsedBarcode == null
+            ? 'Nenhum produto encontrado.'
+            : 'Etiqueta detectada, mas o PLU ${parsedBarcode.productCode} não está disponível no estoque.';
 
         return Scaffold(
           body: SafeArea(
@@ -49,6 +67,11 @@ class _OperationModeScreenState extends State<OperationModeScreen> {
                     onSearchChanged: (value) {
                       setState(() => searchTerm = value);
                     },
+                    onSubmitted: (value) {
+                      _handleOperationInput(context, value);
+                      searchController.clear();
+                      setState(() => searchTerm = '');
+                    },
                     onExit: () => Navigator.of(context).pop(),
                   ),
                   const SizedBox(height: 18),
@@ -57,7 +80,10 @@ class _OperationModeScreenState extends State<OperationModeScreen> {
                       children: [
                         Expanded(
                           flex: 7,
-                          child: _ProductsFastPanel(products: products),
+                          child: _ProductsFastPanel(
+                            products: products,
+                            emptyMessage: emptyMessage,
+                          ),
                         ),
                         const SizedBox(width: 18),
                         const Expanded(
@@ -81,11 +107,13 @@ class _OperationHeader extends StatelessWidget {
   const _OperationHeader({
     required this.searchController,
     required this.onSearchChanged,
+    required this.onSubmitted,
     required this.onExit,
   });
 
   final TextEditingController searchController;
   final ValueChanged<String> onSearchChanged;
+  final ValueChanged<String> onSubmitted;
   final VoidCallback onExit;
 
   @override
@@ -117,6 +145,7 @@ class _OperationHeader extends StatelessWidget {
             controller: searchController,
             autofocus: true,
             onChanged: onSearchChanged,
+            onSubmitted: onSubmitted,
             decoration: InputDecoration(
               hintText: 'Buscar produto ou código...',
               prefixIcon: const Icon(Icons.search_rounded),
@@ -140,16 +169,20 @@ class _OperationHeader extends StatelessWidget {
 }
 
 class _ProductsFastPanel extends StatelessWidget {
-  const _ProductsFastPanel({required this.products});
+  const _ProductsFastPanel({
+    required this.products,
+    required this.emptyMessage,
+  });
 
   final List<Product> products;
+  final String emptyMessage;
 
   @override
   Widget build(BuildContext context) {
     if (products.isEmpty) {
-      return const Card(
+      return Card(
         child: Center(
-          child: Text('Nenhum produto encontrado.'),
+          child: Text(emptyMessage),
         ),
       );
     }
@@ -436,6 +469,8 @@ class _FastCartItem extends StatelessWidget {
                   const SizedBox(height: 3),
                   Text(
                     '${_formatNumber(item.quantity)} ${product.unit.label} x ${_formatMoney(product.salePrice)}',
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
                     style: Theme.of(context).textTheme.bodySmall,
                   ),
                 ],
@@ -543,6 +578,128 @@ class _TotalBox extends StatelessWidget {
       ),
     );
   }
+}
+
+
+void _handleOperationInput(BuildContext context, String value) {
+  final inventory = context.read<InventoryProvider>();
+  final sales = context.read<SalesProvider>();
+  final ramuzaSettings = context.read<RamuzaSettingsProvider>().settings;
+
+  final parsed = RamuzaBarcodeParser.tryParse(value, ramuzaSettings);
+
+  if (parsed != null) {
+    final product = _findByRamuzaCode(inventory.products, parsed.productCode);
+
+    if (product == null) {
+      _showMessage(
+        context,
+        'Etiqueta lida. PLU ${parsed.productCode} não está cadastrado no estoque.',
+      );
+      return;
+    }
+
+    if (product.isDeleted) {
+      _showMessage(
+        context,
+        'Etiqueta lida. Produto ${product.name} está na lixeira.',
+      );
+      return;
+    }
+
+    final quantity = parsed.quantityForProduct(product);
+
+    if (quantity == null || quantity <= 0) {
+      _showMessage(
+        context,
+        'Etiqueta lida, mas não deu para calcular quantidade/valor.',
+      );
+      return;
+    }
+
+    if (product.stockQuantity <= 0) {
+      _showMessage(
+        context,
+        'Etiqueta lida: ${product.name}, mas o estoque está zerado.',
+      );
+      return;
+    }
+
+    final error = _validateQuantity(product, quantity);
+
+    if (error != null) {
+      _showMessage(
+        context,
+        'Etiqueta lida: ${product.name}. $error',
+      );
+      return;
+    }
+
+    sales.addProduct(product, quantity: quantity);
+
+    _showMessage(
+      context,
+      'Etiqueta OK: ${product.name} • ${_formatNumber(quantity)} ${product.unit.label}.',
+    );
+
+    return;
+  }
+
+  final product = _findByCodeOrName(inventory.products, value);
+
+  if (product == null) {
+    _showMessage(context, 'Produto não encontrado.');
+    return;
+  }
+
+  sales.addProduct(product);
+
+  _showMessage(
+    context,
+    '${product.name} adicionado com 1 ${product.unit.label}.',
+  );
+}
+
+Product? _findByRamuzaCode(List<Product> products, String code) {
+  final normalizedCode = _normalizeNumericCode(code);
+
+  for (final product in products) {
+    final productCode = _normalizeNumericCode(product.code);
+
+    if (productCode == normalizedCode) {
+      return product;
+    }
+  }
+
+  return null;
+}
+
+Product? _findByCodeOrName(List<Product> products, String value) {
+  final term = value.trim().toLowerCase();
+
+  if (term.isEmpty) return null;
+
+  try {
+    return products.firstWhere(
+      (product) {
+        return !product.isDeleted &&
+            product.stockQuantity > 0 &&
+            (product.code.toLowerCase() == term ||
+                product.name.toLowerCase() == term);
+      },
+    );
+  } catch (_) {
+    return null;
+  }
+}
+
+String _normalizeNumericCode(String value) {
+  final digits = value.replaceAll(RegExp(r'[^0-9]'), '');
+  final parsed = int.tryParse(digits);
+
+  if (parsed == null) return digits;
+
+  return parsed.toString();
 }
 
 Future<void> _openFastQuantityDialog(
@@ -867,6 +1024,23 @@ List<Product> _filterProducts(List<Product> products, String searchTerm) {
         product.code.toLowerCase().contains(term) ||
         product.category.label.toLowerCase().contains(term);
   }).toList();
+}
+
+List<Product> _filterProductsForRamuzaCode(
+  List<Product> products,
+  String code,
+) {
+  final normalizedCode = _normalizeNumericCode(code);
+
+  final result = products.where((product) {
+    if (product.isDeleted || product.stockQuantity <= 0) return false;
+
+    return _normalizeNumericCode(product.code) == normalizedCode;
+  }).toList();
+
+  result.sort((a, b) => a.name.compareTo(b.name));
+
+  return result;
 }
 
 String? _validateQuantity(Product product, double quantity) {
