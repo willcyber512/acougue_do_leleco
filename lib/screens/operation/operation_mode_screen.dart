@@ -7,10 +7,12 @@ import '../../models/payment_method.dart';
 import '../../models/product.dart';
 import '../../models/product_category.dart';
 import '../../models/product_unit.dart';
+import '../../models/ramuza_barcode_event.dart';
 import '../../models/sale_cart_item.dart';
 import '../../providers/customers_provider.dart';
 import '../../providers/inventory_provider.dart';
 import '../../providers/ramuza_settings_provider.dart';
+import '../../providers/ramuza_barcode_log_provider.dart';
 import '../../providers/sales_provider.dart';
 import '../../services/ramuza_barcode_parser.dart';
 import '../../widgets/leleco_logo.dart';
@@ -606,47 +608,108 @@ Future<void> _handleOperationInput(BuildContext context, String value) async {
       );
 
       if (product == null) {
+        _logRamuzaBarcodeRead(
+          context: context,
+          parsed: parsed,
+          product: null,
+          status: RamuzaBarcodeStatus.canceledQuickRegister,
+          message: 'PLU ${parsed.productCode} não cadastrado. Cadastro rápido cancelado.',
+          screen: 'Modo Balcão',
+        );
+
         return;
       }
     }
 
     if (product.isDeleted) {
+      _logRamuzaBarcodeRead(
+        context: context,
+        parsed: parsed,
+        product: product,
+        status: RamuzaBarcodeStatus.productDeleted,
+        message: 'Produto está na lixeira.',
+        screen: 'Modo Balcão',
+      );
+
       _showMessage(
         context,
         'Etiqueta lida. Produto ${product.name} está na lixeira.',
       );
+
       return;
     }
 
     final quantity = parsed.quantityForProduct(product);
 
     if (quantity == null || quantity <= 0) {
+      _logRamuzaBarcodeRead(
+        context: context,
+        parsed: parsed,
+        product: product,
+        status: RamuzaBarcodeStatus.invalidQuantity,
+        message: 'Não foi possível calcular a quantidade/valor.',
+        screen: 'Modo Balcão',
+      );
+
       _showMessage(
         context,
         'Etiqueta lida, mas não deu para calcular quantidade/valor.',
       );
+
       return;
     }
 
     if (product.stockQuantity <= 0) {
+      _logRamuzaBarcodeRead(
+        context: context,
+        parsed: parsed,
+        product: product,
+        status: RamuzaBarcodeStatus.stockEmpty,
+        message: 'Estoque zerado.',
+        screen: 'Modo Balcão',
+        quantity: quantity,
+      );
+
       _showMessage(
         context,
         'Etiqueta lida: ${product.name}, mas o estoque está zerado.',
       );
+
       return;
     }
 
     final error = _validateQuantity(product, quantity);
 
     if (error != null) {
+      _logRamuzaBarcodeRead(
+        context: context,
+        parsed: parsed,
+        product: product,
+        status: RamuzaBarcodeStatus.invalidQuantity,
+        message: error,
+        screen: 'Modo Balcão',
+        quantity: quantity,
+      );
+
       _showMessage(
         context,
         'Etiqueta lida: ${product.name}. $error',
       );
+
       return;
     }
 
     sales.addProduct(product, quantity: quantity);
+
+    _logRamuzaBarcodeRead(
+      context: context,
+      parsed: parsed,
+      product: product,
+      status: RamuzaBarcodeStatus.success,
+      message: 'Produto adicionado ao carrinho.',
+      screen: 'Modo Balcão',
+      quantity: quantity,
+    );
 
     _showMessage(
       context,
@@ -669,6 +732,34 @@ Future<void> _handleOperationInput(BuildContext context, String value) async {
     context,
     '${product.name} adicionado com 1 ${product.unit.label}.',
   );
+}
+
+void _logRamuzaBarcodeRead({
+  required BuildContext context,
+  required RamuzaParsedBarcode parsed,
+  required Product? product,
+  required RamuzaBarcodeStatus status,
+  required String message,
+  required String screen,
+  double? quantity,
+}) {
+  final now = DateTime.now();
+
+  context.read<RamuzaBarcodeLogProvider>().addEvent(
+        RamuzaBarcodeEvent(
+          id: now.microsecondsSinceEpoch.toString(),
+          rawBarcode: parsed.raw,
+          digits: parsed.digits,
+          productCode: parsed.productCode,
+          productName: product?.name,
+          quantity: quantity,
+          totalPrice: parsed.totalPrice,
+          status: status,
+          message: message,
+          screen: screen,
+          createdAt: now,
+        ),
+      );
 }
 
 Product? _findByRamuzaCode(List<Product> products, String code) {

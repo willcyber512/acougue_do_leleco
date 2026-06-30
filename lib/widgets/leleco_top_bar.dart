@@ -8,6 +8,7 @@ import 'inventory_categories_dialog.dart';
 import 'leleco_logo.dart';
 import 'operation_mode_button.dart';
 import 'ramuza_barcode_config_dialog.dart';
+import 'ramuza_barcode_history_dialog.dart';
 import 'ramuza_export_dialog.dart';
 import 'shortcuts_config_dialog.dart';
 import 'universal_search_dialog.dart';
@@ -86,6 +87,14 @@ class LelecoTopBar extends StatelessWidget {
               },
               icon: const Icon(Icons.qr_code_scanner_rounded),
               label: const Text('Etiqueta'),
+            ),
+            const SizedBox(width: 8),
+            IconButton.filledTonal(
+              onPressed: () {
+                showRamuzaBarcodeHistoryDialog(context);
+              },
+              tooltip: 'Histórico de leituras Ramuza',
+              icon: const Icon(Icons.manage_search_rounded),
             ),
             const SizedBox(width: 8),
             const OperationModeButton(),

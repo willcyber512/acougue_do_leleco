@@ -6,6 +6,7 @@ import 'providers/cash_closure_provider.dart';
 import 'providers/customers_provider.dart';
 import 'providers/inventory_provider.dart';
 import 'providers/notes_provider.dart';
+import 'providers/ramuza_barcode_log_provider.dart';
 import 'providers/ramuza_settings_provider.dart';
 import 'providers/sales_provider.dart';
 import 'providers/shortcuts_provider.dart';
@@ -23,6 +24,7 @@ void main() {
         ChangeNotifierProvider(create: (_) => NotesProvider()),
         ChangeNotifierProvider(create: (_) => ShortcutsProvider()),
         ChangeNotifierProvider(create: (_) => RamuzaSettingsProvider()),
+        ChangeNotifierProvider(create: (_) => RamuzaBarcodeLogProvider()),
       ],
       child: const LelecoApp(),
     ),

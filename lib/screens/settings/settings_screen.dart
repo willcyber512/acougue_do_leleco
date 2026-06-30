@@ -8,6 +8,7 @@ import '../../providers/customers_provider.dart';
 import '../../providers/inventory_provider.dart';
 import '../../providers/notes_provider.dart';
 import '../../providers/ramuza_settings_provider.dart';
+import '../../providers/ramuza_barcode_log_provider.dart';
 import '../../providers/sales_provider.dart';
 import '../../providers/shortcuts_provider.dart';
 import '../../services/local_backup_service.dart';
@@ -148,6 +149,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
       await context.read<CashClosureProvider>().reloadFromStorage();
       await context.read<ShortcutsProvider>().reloadFromStorage();
       await context.read<RamuzaSettingsProvider>().reloadFromStorage();
+      await context.read<RamuzaBarcodeLogProvider>().reloadFromStorage();
 
       _showMessage('Backup restaurado com sucesso.');
     } catch (_) {

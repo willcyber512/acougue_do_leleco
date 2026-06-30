@@ -10,10 +10,12 @@ import '../../models/sale_cart_item.dart';
 import '../../providers/customers_provider.dart';
 import '../../providers/inventory_provider.dart';
 import '../../providers/ramuza_settings_provider.dart';
+import '../../providers/ramuza_barcode_log_provider.dart';
 import '../../providers/sales_provider.dart';
 import '../../services/ramuza_barcode_parser.dart';
 import '../../widgets/sale_receipt_dialog.dart';
 import '../../widgets/quick_product_from_barcode_dialog.dart';
+import '../../models/ramuza_barcode_event.dart';
 
 class SalesScreen extends StatelessWidget {
   const SalesScreen({super.key});
@@ -608,16 +610,35 @@ Future<void> _handleSalesInput(BuildContext context, String value) async {
       );
 
       if (product == null) {
+        _logRamuzaBarcodeRead(
+          context: context,
+          parsed: parsed,
+          product: null,
+          status: RamuzaBarcodeStatus.canceledQuickRegister,
+          message: 'PLU ${parsed.productCode} não cadastrado. Cadastro rápido cancelado.',
+          screen: 'PDV',
+        );
+
         sales.setSearchTerm('');
         return;
       }
     }
 
     if (product.isDeleted) {
+      _logRamuzaBarcodeRead(
+        context: context,
+        parsed: parsed,
+        product: product,
+        status: RamuzaBarcodeStatus.productDeleted,
+        message: 'Produto está na lixeira.',
+        screen: 'PDV',
+      );
+
       _showMessage(
         context,
         'Etiqueta lida. Produto ${product.name} está na lixeira.',
       );
+
       sales.setSearchTerm('');
       return;
     }
@@ -625,19 +646,40 @@ Future<void> _handleSalesInput(BuildContext context, String value) async {
     final quantity = parsed.quantityForProduct(product);
 
     if (quantity == null || quantity <= 0) {
+      _logRamuzaBarcodeRead(
+        context: context,
+        parsed: parsed,
+        product: product,
+        status: RamuzaBarcodeStatus.invalidQuantity,
+        message: 'Não foi possível calcular a quantidade/valor.',
+        screen: 'PDV',
+      );
+
       _showMessage(
         context,
         'Etiqueta lida, mas não deu para calcular quantidade/valor.',
       );
+
       sales.setSearchTerm('');
       return;
     }
 
     if (product.stockQuantity <= 0) {
+      _logRamuzaBarcodeRead(
+        context: context,
+        parsed: parsed,
+        product: product,
+        status: RamuzaBarcodeStatus.stockEmpty,
+        message: 'Estoque zerado.',
+        screen: 'PDV',
+        quantity: quantity,
+      );
+
       _showMessage(
         context,
         'Etiqueta lida: ${product.name}, mas o estoque está zerado.',
       );
+
       sales.setSearchTerm('');
       return;
     }
@@ -645,16 +687,37 @@ Future<void> _handleSalesInput(BuildContext context, String value) async {
     final error = _validateQuantity(product, quantity);
 
     if (error != null) {
+      _logRamuzaBarcodeRead(
+        context: context,
+        parsed: parsed,
+        product: product,
+        status: RamuzaBarcodeStatus.invalidQuantity,
+        message: error,
+        screen: 'PDV',
+        quantity: quantity,
+      );
+
       _showMessage(
         context,
         'Etiqueta lida: ${product.name}. $error',
       );
+
       sales.setSearchTerm('');
       return;
     }
 
     sales.addProduct(product, quantity: quantity);
     sales.setSearchTerm('');
+
+    _logRamuzaBarcodeRead(
+      context: context,
+      parsed: parsed,
+      product: product,
+      status: RamuzaBarcodeStatus.success,
+      message: 'Produto adicionado ao carrinho.',
+      screen: 'PDV',
+      quantity: quantity,
+    );
 
     _showMessage(
       context,
@@ -678,6 +741,34 @@ Future<void> _handleSalesInput(BuildContext context, String value) async {
     context,
     '${product.name} adicionado com 1 ${product.unit.label}.',
   );
+}
+
+void _logRamuzaBarcodeRead({
+  required BuildContext context,
+  required RamuzaParsedBarcode parsed,
+  required Product? product,
+  required RamuzaBarcodeStatus status,
+  required String message,
+  required String screen,
+  double? quantity,
+}) {
+  final now = DateTime.now();
+
+  context.read<RamuzaBarcodeLogProvider>().addEvent(
+        RamuzaBarcodeEvent(
+          id: now.microsecondsSinceEpoch.toString(),
+          rawBarcode: parsed.raw,
+          digits: parsed.digits,
+          productCode: parsed.productCode,
+          productName: product?.name,
+          quantity: quantity,
+          totalPrice: parsed.totalPrice,
+          status: status,
+          message: message,
+          screen: screen,
+          createdAt: now,
+        ),
+      );
 }
 
 Product? _findByRamuzaCode(List<Product> products, String code) {
