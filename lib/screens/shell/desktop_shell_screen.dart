@@ -6,6 +6,7 @@ import '../../widgets/leleco_top_bar.dart';
 import '../home/home_dashboard_screen.dart';
 import '../inventory/inventory_screen.dart';
 import '../cash/cash_screen.dart';
+import '../alerts/alerts_screen.dart';
 import '../customers/customers_screen.dart';
 import '../sales/sales_screen.dart';
 import '../settings/settings_screen.dart';
@@ -102,6 +103,10 @@ class _DesktopShellScreenState extends State<DesktopShellScreen> {
 
     if (index == 5) {
       return const ReportsScreen();
+    }
+
+    if (index == 6) {
+      return const AlertsScreen();
     }
 
     if (index == 7) {
