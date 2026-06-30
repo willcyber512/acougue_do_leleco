@@ -87,6 +87,16 @@ class CustomersProvider extends ChangeNotifier {
     }).fold(0.0, (total, entry) => total + entry.amount);
   }
 
+  Future<void> reloadFromStorage() async {
+    _isLoading = true;
+    notifyListeners();
+
+    _customers.clear();
+    _entries.clear();
+
+    await _loadData();
+  }
+
   void setSearchTerm(String value) {
     _searchTerm = value;
     notifyListeners();

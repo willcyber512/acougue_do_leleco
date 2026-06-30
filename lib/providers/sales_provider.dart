@@ -88,6 +88,12 @@ class SalesProvider extends ChangeNotifier {
     }
   }
 
+  Future<void> reloadFromStorage() async {
+    _sales.clear();
+    await _loadSales();
+    notifyListeners();
+  }
+
   void setSearchTerm(String value) {
     _searchTerm = value;
     notifyListeners();

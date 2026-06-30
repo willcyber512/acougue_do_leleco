@@ -128,6 +128,17 @@ class InventoryProvider extends ChangeNotifier {
     );
   }
 
+  Future<void> reloadFromStorage() async {
+    _isLoading = true;
+    notifyListeners();
+
+    _products.clear();
+    _events.clear();
+    _losses.clear();
+
+    await _loadData();
+  }
+
   void setSearchTerm(String value) {
     _searchTerm = value;
     notifyListeners();
