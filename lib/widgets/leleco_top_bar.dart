@@ -6,6 +6,7 @@ import '../providers/theme_provider.dart';
 import 'cash_closure_dialog.dart';
 import 'inventory_categories_dialog.dart';
 import 'leleco_logo.dart';
+import 'operation_mode_button.dart';
 import 'shortcuts_config_dialog.dart';
 import 'universal_search_dialog.dart';
 
@@ -84,6 +85,10 @@ class LelecoTopBar extends StatelessWidget {
               icon: const Icon(Icons.category_rounded),
               label: const Text('Categorias'),
             ),
+          ],
+          if (title == 'Venda') ...[
+            const SizedBox(width: 12),
+            const OperationModeButton(),
           ],
           if (title == 'Caixa') ...[
             const SizedBox(width: 12),
