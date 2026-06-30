@@ -7,6 +7,7 @@ import '../../models/sale.dart';
 import '../../providers/inventory_provider.dart';
 import '../../providers/sales_provider.dart';
 import '../../widgets/leleco_metric_card.dart';
+import '../../widgets/sale_receipt_dialog.dart';
 
 class CashScreen extends StatefulWidget {
   const CashScreen({super.key});
@@ -406,6 +407,11 @@ Future<void> _openSaleDetails(BuildContext context, SaleRecord sale) async {
           ),
         ),
         actions: [
+          OutlinedButton.icon(
+            onPressed: () => showSaleReceiptDialog(context, sale),
+            icon: const Icon(Icons.receipt_long_rounded),
+            label: const Text('Comprovante'),
+          ),
           if (!sale.isCanceled)
             OutlinedButton.icon(
               onPressed: () {

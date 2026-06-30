@@ -10,6 +10,7 @@ import '../../models/sale_cart_item.dart';
 import '../../providers/customers_provider.dart';
 import '../../providers/inventory_provider.dart';
 import '../../providers/sales_provider.dart';
+import '../../widgets/sale_receipt_dialog.dart';
 
 class SalesScreen extends StatelessWidget {
   const SalesScreen({super.key});
@@ -349,6 +350,10 @@ class _CartPanel extends StatelessWidget {
                                   context,
                                   'Venda #${sale.shortId} finalizada.',
                                 );
+
+                                if (!context.mounted) return;
+
+                                await showSaleReceiptDialog(context, sale);
                               }
                             : null,
                         icon: const Icon(Icons.check_circle_rounded),
