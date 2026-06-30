@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 
 import '../../core/constants/app_colors.dart';
+import '../../providers/cash_closure_provider.dart';
 import '../../providers/customers_provider.dart';
 import '../../providers/inventory_provider.dart';
 import '../../providers/notes_provider.dart';
@@ -142,6 +143,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
       await context.read<SalesProvider>().reloadFromStorage();
       await context.read<CustomersProvider>().reloadFromStorage();
       await context.read<NotesProvider>().reloadFromStorage();
+      await context.read<CashClosureProvider>().reloadFromStorage();
 
       _showMessage('Backup restaurado com sucesso.');
     } catch (_) {

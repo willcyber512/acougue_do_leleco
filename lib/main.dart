@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import 'app.dart';
+import 'providers/cash_closure_provider.dart';
 import 'providers/customers_provider.dart';
 import 'providers/inventory_provider.dart';
 import 'providers/notes_provider.dart';
@@ -16,6 +17,7 @@ void main() {
         ChangeNotifierProvider(create: (_) => InventoryProvider()),
         ChangeNotifierProvider(create: (_) => SalesProvider()),
         ChangeNotifierProvider(create: (_) => CustomersProvider()),
+        ChangeNotifierProvider(create: (_) => CashClosureProvider()),
         ChangeNotifierProvider(create: (_) => NotesProvider()),
       ],
       child: const LelecoApp(),
