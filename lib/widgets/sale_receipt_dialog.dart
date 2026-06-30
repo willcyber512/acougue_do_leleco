@@ -4,6 +4,7 @@ import 'package:flutter/services.dart';
 import '../core/constants/app_colors.dart';
 import '../models/payment_method.dart';
 import '../models/sale.dart';
+import '../services/receipt_pdf_service.dart';
 
 Future<void> showSaleReceiptDialog(
   BuildContext context,
@@ -79,6 +80,13 @@ class SaleReceiptDialog extends StatelessWidget {
           },
           icon: const Icon(Icons.copy_rounded),
           label: const Text('Copiar'),
+        ),
+        OutlinedButton.icon(
+          onPressed: () async {
+            await ReceiptPdfService.openReceiptPdf(sale);
+          },
+          icon: const Icon(Icons.picture_as_pdf_rounded),
+          label: const Text('PDF'),
         ),
         FilledButton(
           onPressed: () => Navigator.of(context).pop(),
