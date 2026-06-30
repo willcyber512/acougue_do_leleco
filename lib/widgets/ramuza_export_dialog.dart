@@ -4,10 +4,10 @@ import 'package:provider/provider.dart';
 
 import '../core/constants/app_colors.dart';
 import '../models/product.dart';
-import '../models/product_category.dart';
 import '../models/product_unit.dart';
 import '../providers/inventory_provider.dart';
 import '../services/ramuza_export_service.dart';
+import 'ramuza_barcode_config_dialog.dart';
 
 Future<void> showRamuzaExportDialog(BuildContext context) async {
   await showDialog<void>(
@@ -26,114 +26,128 @@ class RamuzaExportDialog extends StatefulWidget {
 }
 
 class _RamuzaExportDialogState extends State<RamuzaExportDialog> {
+  RamuzaExportFormat selectedFormat = RamuzaExportFormat.pluCsvHeader;
+
   final Set<String> selectedIds = {};
 
-  String searchTerm = '';
-  int validityDays = 5;
-  bool includeHeader = true;
   bool removeAccents = true;
-  bool showInstructions = false;
+  bool onlyFavorites = false;
+  bool initializedSelection = false;
+
+  int validityDays = 3;
 
   @override
   Widget build(BuildContext context) {
     return Consumer<InventoryProvider>(
       builder: (context, inventory, _) {
-        final products = _filterProducts(inventory.products, searchTerm);
+        final activeProducts = inventory.products.where((product) {
+          if (product.isDeleted) return false;
+          if (onlyFavorites && !product.favorite) return false;
 
-        final selectedProducts = inventory.products.where((product) {
-          return selectedIds.contains(product.id) && !product.isDeleted;
+          return true;
+        }).toList()
+          ..sort((a, b) => a.name.compareTo(b.name));
+
+        if (!initializedSelection) {
+          selectedIds.addAll(activeProducts.map((product) => product.id));
+          initializedSelection = true;
+        }
+
+        final selectedProducts = activeProducts.where((product) {
+          return selectedIds.contains(product.id);
         }).toList();
 
-        final csvText = RamuzaExportService.buildCsv(
-          products: selectedProducts,
-          validityDays: validityDays,
-          includeHeader: includeHeader,
-          removeAccents: removeAccents,
-        );
+        final validation = RamuzaExportService.validateProducts(selectedProducts);
 
-        final txtText = RamuzaExportService.buildTxt(
+        final file = RamuzaExportService.buildFile(
           products: selectedProducts,
+          format: selectedFormat,
           validityDays: validityDays,
-          includeHeader: includeHeader,
           removeAccents: removeAccents,
         );
 
         return AlertDialog(
-          title: const Text('Integração Ramuza Atena II'),
+          title: const Text('Exportação Ramuza blindada'),
           content: SizedBox(
-            width: 1050,
-            height: 680,
-            child: Column(
+            width: 1100,
+            height: 720,
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                _RamuzaHeader(selectedCount: selectedProducts.length),
-                const SizedBox(height: 14),
-                _OptionsBar(
-                  validityDays: validityDays,
-                  includeHeader: includeHeader,
-                  removeAccents: removeAccents,
-                  showInstructions: showInstructions,
-                  onValidityChanged: (value) {
-                    setState(() => validityDays = value);
-                  },
-                  onIncludeHeaderChanged: (value) {
-                    setState(() => includeHeader = value);
-                  },
-                  onRemoveAccentsChanged: (value) {
-                    setState(() => removeAccents = value);
-                  },
-                  onShowInstructionsChanged: (value) {
-                    setState(() => showInstructions = value);
-                  },
+                SizedBox(
+                  width: 360,
+                  child: _LeftPanel(
+                    activeProducts: activeProducts,
+                    selectedIds: selectedIds,
+                    onlyFavorites: onlyFavorites,
+                    removeAccents: removeAccents,
+                    validityDays: validityDays,
+                    onOnlyFavoritesChanged: (value) {
+                      setState(() {
+                        onlyFavorites = value;
+                        selectedIds
+                          ..clear()
+                          ..addAll(
+                            inventory.products
+                                .where((product) {
+                                  if (product.isDeleted) return false;
+                                  if (value && !product.favorite) return false;
+                                  return true;
+                                })
+                                .map((product) => product.id),
+                          );
+                      });
+                    },
+                    onRemoveAccentsChanged: (value) {
+                      setState(() => removeAccents = value);
+                    },
+                    onValidityChanged: (value) {
+                      setState(() => validityDays = value);
+                    },
+                    onToggleProduct: (product, selected) {
+                      setState(() {
+                        if (selected) {
+                          selectedIds.add(product.id);
+                        } else {
+                          selectedIds.remove(product.id);
+                        }
+                      });
+                    },
+                    onSelectAll: () {
+                      setState(() {
+                        selectedIds
+                          ..clear()
+                          ..addAll(activeProducts.map((product) => product.id));
+                      });
+                    },
+                    onClearAll: () {
+                      setState(() => selectedIds.clear());
+                    },
+                  ),
                 ),
-                const SizedBox(height: 14),
+                const SizedBox(width: 16),
                 Expanded(
-                  child: Row(
-                    children: [
-                      Expanded(
-                        flex: 5,
-                        child: _ProductSelectorPanel(
-                          products: products,
-                          selectedIds: selectedIds,
-                          onSearchChanged: (value) {
-                            setState(() => searchTerm = value);
-                          },
-                          onSelectVisible: () {
-                            setState(() {
-                              for (final product in products) {
-                                selectedIds.add(product.id);
-                              }
-                            });
-                          },
-                          onClear: () {
-                            setState(selectedIds.clear);
-                          },
-                          onToggle: (product, selected) {
-                            setState(() {
-                              if (selected) {
-                                selectedIds.add(product.id);
-                              } else {
-                                selectedIds.remove(product.id);
-                              }
-                            });
-                          },
-                        ),
-                      ),
-                      const SizedBox(width: 14),
-                      Expanded(
-                        flex: 4,
-                        child: showInstructions
-                            ? _InstructionsPanel(
-                                text: RamuzaExportService.buildInstructions(),
-                              )
-                            : _PreviewPanel(text: csvText),
-                      ),
-                    ],
+                  child: _RightPanel(
+                    selectedFormat: selectedFormat,
+                    selectedProducts: selectedProducts,
+                    validation: validation,
+                    file: file,
+                    onFormatChanged: (format) {
+                      setState(() => selectedFormat = format);
+                    },
                   ),
                 ),
               ],
             ),
           ),
           actions: [
+            TextButton.icon(
+              onPressed: () {
+                showRamuzaBarcodeConfigDialog(context);
+              },
+              icon: const Icon(Icons.qr_code_scanner_rounded),
+              label: const Text('Configurar leitura'),
+            ),
             TextButton(
               onPressed: () => Navigator.of(context).pop(),
               child: const Text('Fechar'),
@@ -141,24 +155,21 @@ class _RamuzaExportDialogState extends State<RamuzaExportDialog> {
             OutlinedButton.icon(
               onPressed: selectedProducts.isEmpty
                   ? null
-                  : () => _copyText(
+                  : () => _copyPackage(
                         context,
-                        txtText,
-                        'TXT copiado. Cole no Bloco de Notas e salve como .txt.',
+                        products: selectedProducts,
+                        validityDays: validityDays,
+                        removeAccents: removeAccents,
                       ),
-              icon: const Icon(Icons.description_rounded),
-              label: const Text('Copiar TXT'),
+              icon: const Icon(Icons.inventory_2_rounded),
+              label: const Text('Copiar pacote completo'),
             ),
             FilledButton.icon(
               onPressed: selectedProducts.isEmpty
                   ? null
-                  : () => _copyText(
-                        context,
-                        csvText,
-                        'CSV copiado. Cole no Excel ou Bloco de Notas e salve como .csv.',
-                      ),
-              icon: const Icon(Icons.table_chart_rounded),
-              label: const Text('Copiar CSV'),
+                  : () => _copyFile(context, file),
+              icon: const Icon(Icons.copy_rounded),
+              label: const Text('Copiar formato atual'),
             ),
           ],
         );
@@ -167,119 +178,201 @@ class _RamuzaExportDialogState extends State<RamuzaExportDialog> {
   }
 }
 
-class _RamuzaHeader extends StatelessWidget {
-  const _RamuzaHeader({required this.selectedCount});
+class _LeftPanel extends StatelessWidget {
+  const _LeftPanel({
+    required this.activeProducts,
+    required this.selectedIds,
+    required this.onlyFavorites,
+    required this.removeAccents,
+    required this.validityDays,
+    required this.onOnlyFavoritesChanged,
+    required this.onRemoveAccentsChanged,
+    required this.onValidityChanged,
+    required this.onToggleProduct,
+    required this.onSelectAll,
+    required this.onClearAll,
+  });
 
-  final int selectedCount;
+  final List<Product> activeProducts;
+  final Set<String> selectedIds;
+  final bool onlyFavorites;
+  final bool removeAccents;
+  final int validityDays;
+  final ValueChanged<bool> onOnlyFavoritesChanged;
+  final ValueChanged<bool> onRemoveAccentsChanged;
+  final ValueChanged<int> onValidityChanged;
+  final void Function(Product product, bool selected) onToggleProduct;
+  final VoidCallback onSelectAll;
+  final VoidCallback onClearAll;
 
   @override
   Widget build(BuildContext context) {
-    return Card(
-      child: Container(
-        width: double.infinity,
-        padding: const EdgeInsets.all(16),
-        child: Row(
+    return Column(
+      children: [
+        _ExportSummary(
+          total: activeProducts.length,
+          selected: selectedIds.length,
+        ),
+        const SizedBox(height: 12),
+        SwitchListTile(
+          value: onlyFavorites,
+          onChanged: onOnlyFavoritesChanged,
+          title: const Text('Somente favoritos'),
+          contentPadding: EdgeInsets.zero,
+        ),
+        SwitchListTile(
+          value: removeAccents,
+          onChanged: onRemoveAccentsChanged,
+          title: const Text('Remover acentos'),
+          contentPadding: EdgeInsets.zero,
+        ),
+        Row(
           children: [
-            Container(
-              width: 54,
-              height: 54,
-              decoration: BoxDecoration(
-                color: AppColors.wine900,
-                borderRadius: BorderRadius.circular(18),
-              ),
-              child: const Icon(
-                Icons.scale_rounded,
-                color: AppColors.beige100,
-              ),
-            ),
-            const SizedBox(width: 14),
             const Expanded(
               child: Text(
-                'Exportação inicial de produtos/PLU para importar no software da Ramuza. Depois o software envia para a balança Atena II.',
-                style: TextStyle(fontWeight: FontWeight.w700),
+                'Validade padrão',
+                style: TextStyle(fontWeight: FontWeight.w800),
               ),
             ),
-            const SizedBox(width: 14),
-            Text(
-              '$selectedCount produto(s)',
-              style: const TextStyle(fontWeight: FontWeight.w900),
+            DropdownButton<int>(
+              value: validityDays,
+              items: const [1, 2, 3, 5, 7, 10, 15, 30].map((days) {
+                return DropdownMenuItem(
+                  value: days,
+                  child: Text('$days dia(s)'),
+                );
+              }).toList(),
+              onChanged: (value) {
+                if (value == null) return;
+                onValidityChanged(value);
+              },
             ),
           ],
         ),
-      ),
+        const SizedBox(height: 12),
+        Row(
+          children: [
+            Expanded(
+              child: OutlinedButton(
+                onPressed: onSelectAll,
+                child: const Text('Todos'),
+              ),
+            ),
+            const SizedBox(width: 8),
+            Expanded(
+              child: OutlinedButton(
+                onPressed: onClearAll,
+                child: const Text('Limpar'),
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 12),
+        Expanded(
+          child: activeProducts.isEmpty
+              ? const Center(
+                  child: Text('Nenhum produto ativo.'),
+                )
+              : ListView.separated(
+                  itemCount: activeProducts.length,
+                  separatorBuilder: (_, __) => const SizedBox(height: 6),
+                  itemBuilder: (context, index) {
+                    final product = activeProducts[index];
+
+                    return CheckboxListTile(
+                      value: selectedIds.contains(product.id),
+                      onChanged: (value) {
+                        onToggleProduct(product, value ?? false);
+                      },
+                      title: Text(
+                        product.name,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(fontWeight: FontWeight.w800),
+                      ),
+                      subtitle: Text(
+                        '${product.code} • ${_formatMoney(product.salePrice)} / ${product.unit.label}',
+                      ),
+                      dense: true,
+                      contentPadding: EdgeInsets.zero,
+                    );
+                  },
+                ),
+        ),
+      ],
     );
   }
 }
 
-class _OptionsBar extends StatelessWidget {
-  const _OptionsBar({
-    required this.validityDays,
-    required this.includeHeader,
-    required this.removeAccents,
-    required this.showInstructions,
-    required this.onValidityChanged,
-    required this.onIncludeHeaderChanged,
-    required this.onRemoveAccentsChanged,
-    required this.onShowInstructionsChanged,
+class _RightPanel extends StatelessWidget {
+  const _RightPanel({
+    required this.selectedFormat,
+    required this.selectedProducts,
+    required this.validation,
+    required this.file,
+    required this.onFormatChanged,
   });
 
-  final int validityDays;
-  final bool includeHeader;
-  final bool removeAccents;
-  final bool showInstructions;
-  final ValueChanged<int> onValidityChanged;
-  final ValueChanged<bool> onIncludeHeaderChanged;
-  final ValueChanged<bool> onRemoveAccentsChanged;
-  final ValueChanged<bool> onShowInstructionsChanged;
+  final RamuzaExportFormat selectedFormat;
+  final List<Product> selectedProducts;
+  final RamuzaExportValidation validation;
+  final RamuzaExportFile file;
+  final ValueChanged<RamuzaExportFormat> onFormatChanged;
 
   @override
   Widget build(BuildContext context) {
-    return Row(
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        SizedBox(
-          width: 170,
-          child: DropdownButtonFormField<int>(
-            value: validityDays,
-            decoration: const InputDecoration(
-              labelText: 'Validade padrão',
+        DropdownButtonFormField<RamuzaExportFormat>(
+          value: selectedFormat,
+          decoration: const InputDecoration(
+            labelText: 'Formato para testar',
+          ),
+          items: RamuzaExportFormat.values.map((format) {
+            return DropdownMenuItem(
+              value: format,
+              child: Text(format.label),
+            );
+          }).toList(),
+          onChanged: (value) {
+            if (value == null) return;
+            onFormatChanged(value);
+          },
+        ),
+        const SizedBox(height: 12),
+        _FormatInfo(format: selectedFormat),
+        const SizedBox(height: 12),
+        _ValidationBox(validation: validation),
+        const SizedBox(height: 12),
+        Text(
+          'Prévia: ${file.fileName}',
+          style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                fontWeight: FontWeight.w900,
+              ),
+        ),
+        const SizedBox(height: 8),
+        Expanded(
+          child: Container(
+            width: double.infinity,
+            padding: const EdgeInsets.all(14),
+            decoration: BoxDecoration(
+              color: Theme.of(context).colorScheme.surfaceContainerHighest,
+              borderRadius: BorderRadius.circular(18),
             ),
-            items: const [1, 2, 3, 5, 7, 10, 15, 30].map((value) {
-              return DropdownMenuItem(
-                value: value,
-                child: Text('$value dia(s)'),
-              );
-            }).toList(),
-            onChanged: (value) {
-              if (value == null) return;
-              onValidityChanged(value);
-            },
-          ),
-        ),
-        const SizedBox(width: 12),
-        Expanded(
-          child: CheckboxListTile(
-            value: includeHeader,
-            onChanged: (value) => onIncludeHeaderChanged(value ?? true),
-            title: const Text('Incluir cabeçalho'),
-            controlAffinity: ListTileControlAffinity.leading,
-            contentPadding: EdgeInsets.zero,
-          ),
-        ),
-        Expanded(
-          child: CheckboxListTile(
-            value: removeAccents,
-            onChanged: (value) => onRemoveAccentsChanged(value ?? true),
-            title: const Text('Remover acentos'),
-            controlAffinity: ListTileControlAffinity.leading,
-            contentPadding: EdgeInsets.zero,
-          ),
-        ),
-        Expanded(
-          child: SwitchListTile(
-            value: showInstructions,
-            onChanged: onShowInstructionsChanged,
-            title: const Text('Instruções'),
-            contentPadding: EdgeInsets.zero,
+            child: selectedProducts.isEmpty
+                ? const Center(
+                    child: Text('Selecione pelo menos um produto.'),
+                  )
+                : SingleChildScrollView(
+                    child: SelectableText(
+                      file.content,
+                      style: const TextStyle(
+                        fontFamily: 'monospace',
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                  ),
           ),
         ),
       ],
@@ -287,179 +380,40 @@ class _OptionsBar extends StatelessWidget {
   }
 }
 
-class _ProductSelectorPanel extends StatelessWidget {
-  const _ProductSelectorPanel({
-    required this.products,
-    required this.selectedIds,
-    required this.onSearchChanged,
-    required this.onSelectVisible,
-    required this.onClear,
-    required this.onToggle,
-  });
-
-  final List<Product> products;
-  final Set<String> selectedIds;
-  final ValueChanged<String> onSearchChanged;
-  final VoidCallback onSelectVisible;
-  final VoidCallback onClear;
-  final void Function(Product product, bool selected) onToggle;
-
-  @override
-  Widget build(BuildContext context) {
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(14),
-        child: Column(
-          children: [
-            Row(
-              children: [
-                Expanded(
-                  child: TextField(
-                    onChanged: onSearchChanged,
-                    decoration: InputDecoration(
-                      hintText: 'Buscar produto, código ou categoria...',
-                      prefixIcon: const Icon(Icons.search_rounded),
-                      filled: true,
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(22),
-                        borderSide: BorderSide.none,
-                      ),
-                    ),
-                  ),
-                ),
-                const SizedBox(width: 10),
-                OutlinedButton(
-                  onPressed: onSelectVisible,
-                  child: const Text('Selecionar'),
-                ),
-                const SizedBox(width: 8),
-                OutlinedButton(
-                  onPressed: onClear,
-                  child: const Text('Limpar'),
-                ),
-              ],
-            ),
-            const SizedBox(height: 12),
-            Expanded(
-              child: products.isEmpty
-                  ? const Center(
-                      child: Text('Nenhum produto encontrado.'),
-                    )
-                  : ListView.separated(
-                      itemCount: products.length,
-                      separatorBuilder: (_, __) => const SizedBox(height: 8),
-                      itemBuilder: (context, index) {
-                        final product = products[index];
-
-                        return _ProductTile(
-                          product: product,
-                          selected: selectedIds.contains(product.id),
-                          onChanged: (selected) {
-                            onToggle(product, selected);
-                          },
-                        );
-                      },
-                    ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-class _ProductTile extends StatelessWidget {
-  const _ProductTile({
-    required this.product,
+class _ExportSummary extends StatelessWidget {
+  const _ExportSummary({
+    required this.total,
     required this.selected,
-    required this.onChanged,
   });
 
-  final Product product;
-  final bool selected;
-  final ValueChanged<bool> onChanged;
+  final int total;
+  final int selected;
 
   @override
   Widget build(BuildContext context) {
-    return CheckboxListTile(
-      value: selected,
-      onChanged: (value) => onChanged(value ?? false),
-      controlAffinity: ListTileControlAffinity.leading,
-      activeColor: AppColors.wine700,
-      title: Text(
-        product.name,
-        style: const TextStyle(fontWeight: FontWeight.w900),
-      ),
-      subtitle: Text(
-        'Código ${product.code} • ${product.category.label} • ${_formatMoney(product.salePrice)} / ${product.unit.label}',
-      ),
-      secondary: Container(
-        width: 48,
-        height: 48,
-        decoration: BoxDecoration(
-          color: product.isLowStock ? AppColors.warning : AppColors.wine900,
-          borderRadius: BorderRadius.circular(16),
-        ),
-        child: const Icon(
-          Icons.inventory_2_rounded,
-          color: AppColors.beige100,
-        ),
-      ),
-    );
-  }
-}
-
-class _PreviewPanel extends StatelessWidget {
-  const _PreviewPanel({required this.text});
-
-  final String text;
-
-  @override
-  Widget build(BuildContext context) {
-    final preview = text.length > 5000
-        ? '${text.substring(0, 5000)}\n...'
-        : text;
-
     return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
+      child: Container(
+        width: double.infinity,
+        padding: const EdgeInsets.all(14),
+        child: Row(
           children: [
-            Row(
-              children: [
-                const Icon(Icons.visibility_rounded, color: AppColors.wine700),
-                const SizedBox(width: 10),
-                Text(
-                  'Prévia do CSV',
-                  style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                        fontWeight: FontWeight.w900,
-                      ),
-                ),
-              ],
+            Container(
+              width: 48,
+              height: 48,
+              decoration: BoxDecoration(
+                color: AppColors.wine900,
+                borderRadius: BorderRadius.circular(16),
+              ),
+              child: const Icon(
+                Icons.scale_rounded,
+                color: AppColors.beige100,
+              ),
             ),
-            const SizedBox(height: 12),
+            const SizedBox(width: 12),
             Expanded(
-              child: Container(
-                width: double.infinity,
-                padding: const EdgeInsets.all(12),
-                decoration: BoxDecoration(
-                  color: Theme.of(context).brightness == Brightness.dark
-                      ? AppColors.darkSurfaceAlt
-                      : AppColors.white,
-                  borderRadius: BorderRadius.circular(18),
-                ),
-                child: SingleChildScrollView(
-                  child: SelectableText(
-                    preview.isEmpty
-                        ? 'Selecione produtos para gerar a prévia.'
-                        : preview,
-                    style: const TextStyle(
-                      fontFamily: 'monospace',
-                      fontSize: 12,
-                    ),
-                  ),
-                ),
+              child: Text(
+                '$selected de $total produto(s) selecionado(s)',
+                style: const TextStyle(fontWeight: FontWeight.w900),
               ),
             ),
           ],
@@ -469,18 +423,19 @@ class _PreviewPanel extends StatelessWidget {
   }
 }
 
-class _InstructionsPanel extends StatelessWidget {
-  const _InstructionsPanel({required this.text});
+class _FormatInfo extends StatelessWidget {
+  const _FormatInfo({required this.format});
 
-  final String text;
+  final RamuzaExportFormat format;
 
   @override
   Widget build(BuildContext context) {
     return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: SelectableText(
-          text,
+      child: Container(
+        width: double.infinity,
+        padding: const EdgeInsets.all(14),
+        child: Text(
+          format.description,
           style: const TextStyle(fontWeight: FontWeight.w700),
         ),
       ),
@@ -488,39 +443,89 @@ class _InstructionsPanel extends StatelessWidget {
   }
 }
 
-List<Product> _filterProducts(List<Product> products, String searchTerm) {
-  final term = searchTerm.trim().toLowerCase();
+class _ValidationBox extends StatelessWidget {
+  const _ValidationBox({required this.validation});
 
-  final result = products.where((product) {
-    if (product.isDeleted) return false;
+  final RamuzaExportValidation validation;
 
-    if (term.isEmpty) return true;
-
-    return product.name.toLowerCase().contains(term) ||
-        product.code.toLowerCase().contains(term) ||
-        product.category.label.toLowerCase().contains(term);
-  }).toList();
-
-  result.sort((a, b) {
-    if (a.favorite != b.favorite) {
-      return a.favorite ? -1 : 1;
+  @override
+  Widget build(BuildContext context) {
+    if (!validation.hasErrors && !validation.hasWarnings) {
+      return Container(
+        width: double.infinity,
+        padding: const EdgeInsets.all(14),
+        decoration: BoxDecoration(
+          color: AppColors.success.withOpacity(0.12),
+          borderRadius: BorderRadius.circular(18),
+        ),
+        child: const Text(
+          'Produtos prontos para exportação.',
+          style: TextStyle(fontWeight: FontWeight.w900),
+        ),
+      );
     }
 
-    return a.name.compareTo(b.name);
-  });
+    final items = [
+      ...validation.errors.map((item) => 'ERRO: $item'),
+      ...validation.warnings.map((item) => 'AVISO: $item'),
+    ];
 
-  return result;
+    return Container(
+      width: double.infinity,
+      constraints: const BoxConstraints(maxHeight: 130),
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: validation.hasErrors
+            ? AppColors.danger.withOpacity(0.12)
+            : AppColors.warning.withOpacity(0.12),
+        borderRadius: BorderRadius.circular(18),
+      ),
+      child: ListView(
+        shrinkWrap: true,
+        children: items.map((item) {
+          return Padding(
+            padding: const EdgeInsets.only(bottom: 4),
+            child: Text(
+              item,
+              style: const TextStyle(fontWeight: FontWeight.w800),
+            ),
+          );
+        }).toList(),
+      ),
+    );
+  }
 }
 
-Future<void> _copyText(
-  BuildContext context,
-  String text,
-  String message,
-) async {
-  await Clipboard.setData(ClipboardData(text: text));
+Future<void> _copyFile(BuildContext context, RamuzaExportFile file) async {
+  await Clipboard.setData(ClipboardData(text: file.content));
 
-  if (!context.mounted) return;
+  _showMessage(
+    context,
+    'Formato copiado: ${file.fileName}',
+  );
+}
 
+Future<void> _copyPackage(
+  BuildContext context, {
+  required List<Product> products,
+  required int validityDays,
+  required bool removeAccents,
+}) async {
+  final content = RamuzaExportService.buildPackage(
+    products: products,
+    validityDays: validityDays,
+    removeAccents: removeAccents,
+  );
+
+  await Clipboard.setData(ClipboardData(text: content));
+
+  _showMessage(
+    context,
+    'Pacote completo copiado com todos os formatos.',
+  );
+}
+
+void _showMessage(BuildContext context, String message) {
   ScaffoldMessenger.of(context)
     ..clearSnackBars()
     ..showSnackBar(
