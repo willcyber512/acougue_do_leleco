@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 
 import '../../core/constants/app_colors.dart';
@@ -30,17 +31,160 @@ class _OperationModeScreenState extends State<OperationModeScreen> {
 
   String searchTerm = '';
 
+  KeyEventResult _handleShortcut(KeyEvent event) {
+    if (event is! KeyDownEvent) {
+      return KeyEventResult.ignored;
+    }
+
+    final key = event.logicalKey;
+
+    if (key == LogicalKeyboardKey.f2) {
+      _clearScanner();
+      _showMessage(context, 'Campo de leitura limpo.', success: true);
+      return KeyEventResult.handled;
+    }
+
+    final isCtrlPressed = HardwareKeyboard.instance.isControlPressed;
+
+    if (key == LogicalKeyboardKey.f4 ||
+        (isCtrlPressed && key == LogicalKeyboardKey.enter)) {
+      _finishFromShortcut();
+      return KeyEventResult.handled;
+    }
+
+    if (key == LogicalKeyboardKey.f6 ||
+        (isCtrlPressed && key == LogicalKeyboardKey.digit6) ||
+        (isCtrlPressed && key == LogicalKeyboardKey.numpad6)) {
+      _cyclePaymentMethod();
+      return KeyEventResult.handled;
+    }
+
+    if (key == LogicalKeyboardKey.escape) {
+      Navigator.of(context).pop();
+      return KeyEventResult.handled;
+    }
+
+    if (key == LogicalKeyboardKey.add ||
+        key == LogicalKeyboardKey.numpadAdd ||
+        key == LogicalKeyboardKey.equal) {
+      _increaseLastCartItem();
+      return KeyEventResult.handled;
+    }
+
+    if (key == LogicalKeyboardKey.minus ||
+        key == LogicalKeyboardKey.numpadSubtract) {
+      _decreaseLastCartItem();
+      return KeyEventResult.handled;
+    }
+
+    return KeyEventResult.ignored;
+  }
+
+  Future<void> _finishFromShortcut() async {
+    final sales = context.read<SalesProvider>();
+
+    if (!sales.hasItems) {
+      _showMessage(context, 'Carrinho vazio.', error: true);
+      _refocusScanner();
+      return;
+    }
+
+    await _finishOperationSale(context);
+    _refocusScanner();
+  }
+
+  void _cyclePaymentMethod() {
+    final sales = context.read<SalesProvider>();
+
+    final methods = PaymentMethod.values.where((method) {
+      return method != PaymentMethod.fiado;
+    }).toList();
+
+    final current = methods.contains(sales.paymentMethod)
+        ? sales.paymentMethod
+        : PaymentMethod.dinheiro;
+
+    final currentIndex = methods.indexOf(current);
+    final next = methods[(currentIndex + 1) % methods.length];
+
+    sales.setPaymentMethod(next);
+
+    _showMessage(
+      context,
+      'Pagamento: ${next.label}',
+      success: true,
+    );
+
+    _refocusScanner();
+  }
+
+  void _increaseLastCartItem() {
+    final sales = context.read<SalesProvider>();
+
+    if (sales.items.isEmpty) {
+      _showMessage(context, 'Carrinho vazio.', error: true);
+      _refocusScanner();
+      return;
+    }
+
+    final item = sales.items.last;
+
+    sales.increaseQuantity(item.product.id);
+
+    _showMessage(
+      context,
+      '+ ${item.product.name}',
+      success: true,
+    );
+
+    _refocusScanner();
+  }
+
+  void _decreaseLastCartItem() {
+    final sales = context.read<SalesProvider>();
+
+    if (sales.items.isEmpty) {
+      _showMessage(context, 'Carrinho vazio.', error: true);
+      _refocusScanner();
+      return;
+    }
+
+    final item = sales.items.last;
+
+    sales.decreaseQuantity(item.product.id);
+
+    _showMessage(
+      context,
+      '- ${item.product.name}',
+      success: true,
+    );
+
+    _refocusScanner();
+  }
+
   @override
   void initState() {
     super.initState();
+
+    HardwareKeyboard.instance.addHandler(_handleGlobalShortcut);
 
     WidgetsBinding.instance.addPostFrameCallback((_) {
       scannerFocus.requestFocus();
     });
   }
 
+  bool _handleGlobalShortcut(KeyEvent event) {
+    if (!mounted) return false;
+
+    final result = _handleShortcut(event);
+
+    return result == KeyEventResult.handled;
+  }
+
   @override
   void dispose() {
+    HardwareKeyboard.instance.removeHandler(_handleGlobalShortcut);
+
     scannerController.dispose();
     scannerFocus.dispose();
     super.dispose();
@@ -67,9 +211,12 @@ class _OperationModeScreenState extends State<OperationModeScreen> {
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
 
-    return Scaffold(
-      backgroundColor: isDark ? AppColors.darkBackground : AppColors.beige100,
-      body: SafeArea(
+    return Focus(
+      autofocus: true,
+      onKeyEvent: (node, event) => _handleShortcut(event),
+      child: Scaffold(
+        backgroundColor: isDark ? AppColors.darkBackground : AppColors.beige100,
+        body: SafeArea(
         child: GestureDetector(
           behavior: HitTestBehavior.translucent,
           onTap: _refocusScanner,
@@ -142,6 +289,7 @@ class _OperationModeScreenState extends State<OperationModeScreen> {
             ),
           ),
         ),
+        ),
       ),
     );
   }
@@ -201,7 +349,7 @@ class _OperationModeScreenState extends State<OperationModeScreen> {
           message: 'Produto está na lixeira.',
         );
 
-        _showMessage(context, '${product.name} está na lixeira.');
+        _showMessage(context, '${product.name} está na lixeira.', error: true);
         _clearScanner();
         return;
       }
@@ -217,7 +365,7 @@ class _OperationModeScreenState extends State<OperationModeScreen> {
           message: 'Quantidade inválida na etiqueta.',
         );
 
-        _showMessage(context, 'Quantidade inválida na etiqueta.');
+        _showMessage(context, 'Quantidade inválida na etiqueta.', error: true);
         _clearScanner();
         return;
       }
@@ -234,7 +382,7 @@ class _OperationModeScreenState extends State<OperationModeScreen> {
           quantity: quantity,
         );
 
-        _showMessage(context, validation);
+        _showMessage(context, validation, error: true);
         _clearScanner();
         return;
       }
@@ -253,6 +401,7 @@ class _OperationModeScreenState extends State<OperationModeScreen> {
       _showMessage(
         context,
         'Etiqueta OK: ${product.name} • ${_formatNumber(quantity)} ${product.unit.label}.',
+        success: true,
       );
 
       _clearScanner();
@@ -262,7 +411,7 @@ class _OperationModeScreenState extends State<OperationModeScreen> {
     final product = _findByCodeOrName(inventory.products, text);
 
     if (product == null) {
-      _showMessage(context, 'Produto não encontrado.');
+      _showMessage(context, 'Produto não encontrado.', error: true);
       _clearScanner();
       return;
     }
@@ -275,7 +424,7 @@ class _OperationModeScreenState extends State<OperationModeScreen> {
     final validation = _validateQuantity(product, 1);
 
     if (validation != null) {
-      _showMessage(context, validation);
+      _showMessage(context, validation, error: true);
       _refocusScanner();
       return;
     }
@@ -342,7 +491,7 @@ class _OperationHeader extends StatelessWidget {
                 decoration: InputDecoration(
                   hintText: compact
                       ? 'Leia ou digite...'
-                      : 'Leia a etiqueta, código ou nome do produto...',
+                      : 'Leia etiqueta/código • F4 ou Ctrl+Enter finaliza • F6 ou Ctrl+6 pagamento',
                   prefixIcon: const Icon(Icons.qr_code_scanner_rounded),
                   suffixIcon: const Icon(Icons.keyboard_return_rounded),
                   filled: true,
@@ -793,27 +942,27 @@ Future<void> _finishOperationSale(BuildContext context) async {
   final validationError = inventory.validateSaleItems(sales.items);
 
   if (validationError != null) {
-    _showMessage(context, validationError);
+    _showMessage(context, validationError, error: true);
     return;
   }
 
   final sale = sales.createSaleRecord();
 
   if (sale == null) {
-    _showMessage(context, 'Adicione produtos ao carrinho.');
+    _showMessage(context, 'Adicione produtos ao carrinho.', error: true);
     return;
   }
 
   final stockOk = inventory.deductSaleRecord(sale);
 
   if (!stockOk) {
-    _showMessage(context, 'Não foi possível baixar o estoque.');
+    _showMessage(context, 'Não foi possível baixar o estoque.', error: true);
     return;
   }
 
   sales.completeSale(sale);
 
-  _showMessage(context, 'Venda #${sale.shortId} finalizada.');
+  _showMessage(context, 'Venda #${sale.shortId} finalizada.', success: true);
 
   await showSaleReceiptDialog(context, sale);
 }
@@ -1082,10 +1231,28 @@ String _formatNumber(double value) {
   return value.toStringAsFixed(3).replaceAll('.', ',');
 }
 
-void _showMessage(BuildContext context, String message) {
+void _showMessage(
+  BuildContext context,
+  String message, {
+  bool success = false,
+  bool error = false,
+}) {
+  if (error) {
+    SystemSound.play(SystemSoundType.alert);
+  } else if (success) {
+    SystemSound.play(SystemSoundType.click);
+  }
+
   ScaffoldMessenger.of(context)
     ..clearSnackBars()
     ..showSnackBar(
-      SnackBar(content: Text(message)),
+      SnackBar(
+        content: Text(message),
+        backgroundColor: error
+            ? AppColors.danger
+            : success
+                ? AppColors.success
+                : null,
+      ),
     );
 }
