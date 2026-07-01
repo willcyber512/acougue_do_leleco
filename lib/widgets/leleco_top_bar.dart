@@ -15,6 +15,7 @@ import 'safe_restore_dialog.dart';
 import 'shortcuts_config_dialog.dart';
 import 'system_diagnostics_dialog.dart';
 import 'universal_search_dialog.dart';
+import 'daily_report_pdf_dialog.dart';
 
 class LelecoTopBar extends StatelessWidget {
   const LelecoTopBar({
@@ -213,6 +214,24 @@ class LelecoTopBar extends StatelessWidget {
       );
     }
 
+    if (title == 'Relatórios') {
+      gap(10);
+
+      actions.add(
+        compact
+            ? IconButton.filledTonal(
+                onPressed: () => showDailyReportPdfDialog(context),
+                tooltip: 'Relatório PDF do dia',
+                icon: const Icon(Icons.picture_as_pdf_rounded),
+              )
+            : FilledButton.icon(
+                onPressed: () => showDailyReportPdfDialog(context),
+                icon: const Icon(Icons.picture_as_pdf_rounded),
+                label: const Text('PDF do dia'),
+              ),
+      );
+    }
+
     if (title == 'Caixa') {
       gap(10);
 
@@ -221,6 +240,16 @@ class LelecoTopBar extends StatelessWidget {
           onPressed: () => showEndDayBackupDialog(context),
           tooltip: 'Backup / fim do dia',
           icon: const Icon(Icons.backup_rounded),
+        ),
+      );
+
+      gap();
+
+      actions.add(
+        IconButton.filledTonal(
+          onPressed: () => showDailyReportPdfDialog(context),
+          tooltip: 'Relatório PDF do dia',
+          icon: const Icon(Icons.picture_as_pdf_rounded),
         ),
       );
 
