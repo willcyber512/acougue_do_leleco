@@ -6,6 +6,7 @@ import 'package:printing/printing.dart';
 
 import '../core/constants/app_constants.dart';
 import '../models/payment_method.dart';
+import '../models/cash_closure.dart';
 import '../models/product.dart';
 import '../models/product_category.dart';
 import '../models/product_unit.dart';
@@ -20,6 +21,7 @@ class DailyReportPdfOptions {
     this.includeCategorySales = false,
     this.includeDetailedSales = false,
     this.includeLowStock = false,
+    this.includeCashClosure = false,
   });
 
   final bool keepOnePage;
@@ -29,6 +31,7 @@ class DailyReportPdfOptions {
   final bool includeCategorySales;
   final bool includeDetailedSales;
   final bool includeLowStock;
+  final bool includeCashClosure;
 }
 
 class DailyReportPdfService {
@@ -38,12 +41,14 @@ class DailyReportPdfService {
     required List<SaleRecord> sales,
     required List<Product> products,
     required double openCredit,
+    CashClosure? cashClosure,
     DailyReportPdfOptions options = const DailyReportPdfOptions(),
   }) async {
     final bytes = await buildDailyReport(
       sales: sales,
       products: products,
       openCredit: openCredit,
+      cashClosure: cashClosure,
       options: options,
     );
 
@@ -57,6 +62,7 @@ class DailyReportPdfService {
     required List<SaleRecord> sales,
     required List<Product> products,
     required double openCredit,
+    required CashClosure? cashClosure,
     required DailyReportPdfOptions options,
   }) async {
     final pdf = pw.Document();
@@ -148,6 +154,16 @@ class DailyReportPdfService {
               lowStock.isEmpty
                   ? _emptyText('Nenhum produto em estoque baixo.')
                   : _stockTable(lowStock.take(stockLimit).toList()),
+              pw.SizedBox(height: 14),
+            ]);
+          }
+
+          if (options.includeCashClosure) {
+            widgets.addAll([
+              _sectionTitle('Fechamento de caixa'),
+              cashClosure == null
+                  ? _emptyText('Nenhum fechamento de caixa salvo para hoje.')
+                  : _cashClosureTable(cashClosure),
               pw.SizedBox(height: 14),
             ]);
           }
@@ -286,6 +302,23 @@ class DailyReportPdfService {
     return _table(
       headers: ['Venda', 'Hora', 'Pagamento', 'Itens', 'Total'],
       rows: rows,
+    );
+  }
+
+  static pw.Widget _cashClosureTable(CashClosure closure) {
+    return _table(
+      headers: ['Item', 'Valor'],
+      rows: [
+        ['Valor inicial', _formatMoney(closure.openingAmount)],
+        ['Vendas em dinheiro', _formatMoney(closure.moneySales)],
+        ['Reforço / entrada', _formatMoney(closure.cashInAmount)],
+        ['Sangria / retirada', _formatMoney(closure.cashOutAmount)],
+        ['Dinheiro esperado', _formatMoney(closure.expectedCash)],
+        ['Dinheiro contado', _formatMoney(closure.countedAmount)],
+        ['Diferença', _formatMoney(closure.difference)],
+        ['Status', closure.statusLabel],
+        if (closure.notes.trim().isNotEmpty) ['Observações', closure.notes],
+      ],
     );
   }
 

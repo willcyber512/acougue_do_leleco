@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 
 import '../core/constants/app_colors.dart';
 import '../providers/customers_provider.dart';
+import '../providers/cash_closure_provider.dart';
 import '../providers/inventory_provider.dart';
 import '../providers/sales_provider.dart';
 import '../services/daily_report_pdf_service.dart';
@@ -31,12 +32,15 @@ class _DailyReportPdfDialogState extends State<DailyReportPdfDialog> {
   bool includeCategorySales = false;
   bool includeDetailedSales = false;
   bool includeLowStock = false;
+  bool includeCashClosure = false;
 
   @override
   Widget build(BuildContext context) {
     final sales = context.watch<SalesProvider>();
     final inventory = context.watch<InventoryProvider>();
     final customers = context.watch<CustomersProvider>();
+    final closures = context.watch<CashClosureProvider>();
+    final todayClosure = closures.closureForDay(DateTime.now());
 
     final lowStock = inventory.products.where((product) {
       return !product.isDeleted && product.isLowStock;
@@ -131,6 +135,16 @@ class _DailyReportPdfDialogState extends State<DailyReportPdfDialog> {
                       setState(() => includeLowStock = value);
                     },
                   ),
+                  _OptionTile(
+                    value: includeCashClosure,
+                    title: 'Fechamento de caixa',
+                    subtitle: todayClosure == null
+                        ? 'Ainda não há fechamento salvo para hoje.'
+                        : 'Inclui valor inicial, sangria, reforço, esperado e diferença.',
+                    onChanged: (value) {
+                      setState(() => includeCashClosure = value);
+                    },
+                  ),
                   const SizedBox(height: 8),
                   const Text(
                     'A parte da Ramuza não entra no PDF de fechamento. Ela continua disponível no histórico próprio da Ramuza.',
@@ -157,6 +171,7 @@ class _DailyReportPdfDialogState extends State<DailyReportPdfDialog> {
                     sales: sales.todaySales,
                     products: inventory.products,
                     openCredit: customers.totalOpenCredit,
+                    cashClosure: todayClosure,
                     options: DailyReportPdfOptions(
                       keepOnePage: keepOnePage,
                       includeSummary: includeSummary,
@@ -165,6 +180,7 @@ class _DailyReportPdfDialogState extends State<DailyReportPdfDialog> {
                       includeCategorySales: includeCategorySales,
                       includeDetailedSales: includeDetailedSales,
                       includeLowStock: includeLowStock,
+                      includeCashClosure: includeCashClosure,
                     ),
                   );
 
