@@ -12,12 +12,19 @@ import '../../providers/sales_provider.dart';
 
 enum _ReportSection {
   overview,
-  productSales,
-  categorySales,
+  products,
+  categories,
   payments,
   lowStock,
   credit,
-  detailedSales,
+  detailed,
+}
+
+enum _ReportPeriod {
+  today,
+  sevenDays,
+  thirtyDays,
+  all,
 }
 
 class ReportsScreen extends StatefulWidget {
@@ -28,21 +35,25 @@ class ReportsScreen extends StatefulWidget {
 }
 
 class _ReportsScreenState extends State<ReportsScreen> {
-  _ReportSection selected = _ReportSection.overview;
+  _ReportSection selectedSection = _ReportSection.overview;
+  _ReportPeriod selectedPeriod = _ReportPeriod.today;
 
   @override
   Widget build(BuildContext context) {
     return Consumer3<SalesProvider, InventoryProvider, CustomersProvider>(
-      builder: (context, sales, inventory, customers, _) {
-        final todaySales = sales.todaySales;
-        final revenue = sales.todayRevenue;
-        final averageTicket =
-            todaySales.isEmpty ? 0.0 : revenue / todaySales.length;
+      builder: (context, salesProvider, inventory, customers, _) {
+        final sales = _filterSalesByPeriod(
+          salesProvider.sales,
+          selectedPeriod,
+        );
 
-        final paymentTotals = _paymentTotals(todaySales);
-        final productTotals = _productTotals(todaySales);
+        final revenue = _salesRevenue(sales);
+        final averageTicket = sales.isEmpty ? 0.0 : revenue / sales.length;
+
+        final paymentTotals = _paymentTotals(sales);
+        final productTotals = _productTotals(sales);
         final categoryTotals = _categoryTotals(
-          todaySales,
+          sales,
           inventory.products,
         );
 
@@ -54,23 +65,32 @@ class _ReportsScreenState extends State<ReportsScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              _ReportsHero(
-                salesCount: todaySales.length,
+              _HeaderPanel(
+                periodLabel: _periodLabel(selectedPeriod),
+                salesCount: sales.length,
                 revenue: revenue,
                 averageTicket: averageTicket,
                 openCredit: customers.totalOpenCredit,
               ),
               const SizedBox(height: 14),
-              _ReportMenu(
-                selected: selected,
-                onSelected: (value) {
-                  setState(() => selected = value);
+              _PeriodSelector(
+                selected: selectedPeriod,
+                onChanged: (period) {
+                  setState(() => selectedPeriod = period);
                 },
               ),
               const SizedBox(height: 14),
-              _SelectedReportContent(
-                selected: selected,
-                todaySales: todaySales,
+              _ReportSelector(
+                selected: selectedSection,
+                onChanged: (section) {
+                  setState(() => selectedSection = section);
+                },
+              ),
+              const SizedBox(height: 14),
+              _ReportContent(
+                section: selectedSection,
+                periodLabel: _periodLabel(selectedPeriod),
+                sales: sales,
                 revenue: revenue,
                 averageTicket: averageTicket,
                 paymentTotals: paymentTotals,
@@ -87,14 +107,16 @@ class _ReportsScreenState extends State<ReportsScreen> {
   }
 }
 
-class _ReportsHero extends StatelessWidget {
-  const _ReportsHero({
+class _HeaderPanel extends StatelessWidget {
+  const _HeaderPanel({
+    required this.periodLabel,
     required this.salesCount,
     required this.revenue,
     required this.averageTicket,
     required this.openCredit,
   });
 
+  final String periodLabel;
   final int salesCount;
   final double revenue;
   final double averageTicket;
@@ -102,187 +124,235 @@ class _ReportsHero extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Card(
-      child: Container(
-        width: double.infinity,
-        padding: const EdgeInsets.all(22),
-        child: LayoutBuilder(
-          builder: (context, constraints) {
-            final compact = constraints.maxWidth < 760;
-
-            return Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
+    return _NiceCard(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              _IconBox(icon: Icons.bar_chart_rounded),
+              const SizedBox(width: 14),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Container(
-                      width: 58,
-                      height: 58,
-                      decoration: BoxDecoration(
-                        color: AppColors.wine900,
-                        borderRadius: BorderRadius.circular(20),
-                      ),
-                      child: const Icon(
-                        Icons.bar_chart_rounded,
-                        color: AppColors.beige100,
-                      ),
+                    Text(
+                      'Central de relatórios',
+                      style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+                            fontWeight: FontWeight.w900,
+                            color: _textColor(context),
+                          ),
                     ),
-                    const SizedBox(width: 14),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            'Central de relatórios',
-                            style: Theme.of(context)
-                                .textTheme
-                                .headlineSmall
-                                ?.copyWith(fontWeight: FontWeight.w900),
-                          ),
-                          const SizedBox(height: 3),
-                          const Text(
-                            'Escolha abaixo o tipo de relatório que deseja visualizar.',
-                            style: TextStyle(fontWeight: FontWeight.w700),
-                          ),
-                        ],
+                    const SizedBox(height: 4),
+                    Text(
+                      'Período selecionado: $periodLabel',
+                      style: TextStyle(
+                        fontWeight: FontWeight.w700,
+                        color: _mutedTextColor(context),
                       ),
                     ),
                   ],
                 ),
-                const SizedBox(height: 18),
-                Wrap(
-                  spacing: 12,
-                  runSpacing: 12,
-                  children: [
-                    _SmallMetric(
-                      width: compact ? 160 : 190,
-                      icon: Icons.point_of_sale_rounded,
-                      label: 'Vendas hoje',
-                      value: salesCount.toString(),
-                    ),
-                    _SmallMetric(
-                      width: compact ? 160 : 190,
-                      icon: Icons.payments_rounded,
-                      label: 'Faturamento',
-                      value: _formatMoney(revenue),
-                    ),
-                    _SmallMetric(
-                      width: compact ? 160 : 190,
-                      icon: Icons.receipt_long_rounded,
-                      label: 'Ticket médio',
-                      value: _formatMoney(averageTicket),
-                    ),
-                    _SmallMetric(
-                      width: compact ? 160 : 190,
-                      icon: Icons.person_rounded,
-                      label: 'Fiado aberto',
-                      value: _formatMoney(openCredit),
-                    ),
-                  ],
-                ),
-              ],
-            );
-          },
-        ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 18),
+          Wrap(
+            spacing: 12,
+            runSpacing: 12,
+            children: [
+              _MetricBox(
+                icon: Icons.point_of_sale_rounded,
+                label: 'Vendas',
+                value: salesCount.toString(),
+              ),
+              _MetricBox(
+                icon: Icons.payments_rounded,
+                label: 'Faturamento',
+                value: _formatMoney(revenue),
+              ),
+              _MetricBox(
+                icon: Icons.receipt_long_rounded,
+                label: 'Ticket médio',
+                value: _formatMoney(averageTicket),
+              ),
+              _MetricBox(
+                icon: Icons.person_rounded,
+                label: 'Fiado aberto',
+                value: _formatMoney(openCredit),
+              ),
+            ],
+          ),
+        ],
       ),
     );
   }
 }
 
-class _ReportMenu extends StatelessWidget {
-  const _ReportMenu({
+class _PeriodSelector extends StatelessWidget {
+  const _PeriodSelector({
     required this.selected,
-    required this.onSelected,
+    required this.onChanged,
   });
 
-  final _ReportSection selected;
-  final ValueChanged<_ReportSection> onSelected;
+  final _ReportPeriod selected;
+  final ValueChanged<_ReportPeriod> onChanged;
 
   @override
   Widget build(BuildContext context) {
     final items = [
-      _ReportMenuItem(
-        section: _ReportSection.overview,
-        icon: Icons.dashboard_rounded,
-        title: 'Visão geral',
-        subtitle: 'Resumo do dia',
-      ),
-      _ReportMenuItem(
-        section: _ReportSection.productSales,
-        icon: Icons.shopping_basket_rounded,
-        title: 'Produtos',
-        subtitle: 'Vendas por produto',
-      ),
-      _ReportMenuItem(
-        section: _ReportSection.categorySales,
-        icon: Icons.category_rounded,
-        title: 'Categorias',
-        subtitle: 'Bovina, frango...',
-      ),
-      _ReportMenuItem(
-        section: _ReportSection.payments,
-        icon: Icons.credit_card_rounded,
-        title: 'Pagamentos',
-        subtitle: 'Dinheiro, Pix...',
-      ),
-      _ReportMenuItem(
-        section: _ReportSection.lowStock,
-        icon: Icons.warning_rounded,
-        title: 'Estoque baixo',
-        subtitle: 'Reposição',
-      ),
-      _ReportMenuItem(
-        section: _ReportSection.credit,
-        icon: Icons.person_rounded,
-        title: 'Fiado',
-        subtitle: 'Saldo aberto',
-      ),
-      _ReportMenuItem(
-        section: _ReportSection.detailedSales,
-        icon: Icons.receipt_long_rounded,
-        title: 'Detalhadas',
-        subtitle: 'Venda por venda',
-      ),
+      (_ReportPeriod.today, 'Hoje', Icons.today_rounded),
+      (_ReportPeriod.sevenDays, '7 dias', Icons.date_range_rounded),
+      (_ReportPeriod.thirtyDays, '30 dias', Icons.calendar_month_rounded),
+      (_ReportPeriod.all, 'Tudo', Icons.all_inclusive_rounded),
     ];
 
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Wrap(
-          spacing: 12,
-          runSpacing: 12,
-          children: items.map((item) {
-            return _ReportMenuCard(
-              item: item,
-              selected: selected == item.section,
-              onTap: () => onSelected(item.section),
-            );
-          }).toList(),
-        ),
+    return _NiceCard(
+      padding: const EdgeInsets.all(14),
+      child: Row(
+        children: [
+          const Icon(Icons.filter_alt_rounded, color: AppColors.wine700),
+          const SizedBox(width: 10),
+          Text(
+            'Período',
+            style: TextStyle(
+              fontWeight: FontWeight.w900,
+              color: _textColor(context),
+            ),
+          ),
+          const SizedBox(width: 14),
+          Expanded(
+            child: SingleChildScrollView(
+              scrollDirection: Axis.horizontal,
+              child: Row(
+                children: items.map((item) {
+                  final active = selected == item.$1;
+
+                  return Padding(
+                    padding: const EdgeInsets.only(right: 8),
+                    child: ChoiceChip(
+                      selected: active,
+                      selectedColor: AppColors.wine900,
+                      backgroundColor: _surfaceAltColor(context),
+                      side: BorderSide(color: _borderColor(context)),
+                      avatar: Icon(
+                        item.$3,
+                        size: 18,
+                        color: active ? AppColors.beige100 : AppColors.wine700,
+                      ),
+                      label: Text(item.$2),
+                      labelStyle: TextStyle(
+                        color: active ? AppColors.beige100 : _textColor(context),
+                        fontWeight: FontWeight.w900,
+                      ),
+                      onSelected: (_) => onChanged(item.$1),
+                    ),
+                  );
+                }).toList(),
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }
 }
 
-class _ReportMenuCard extends StatelessWidget {
-  const _ReportMenuCard({
-    required this.item,
+class _ReportSelector extends StatelessWidget {
+  const _ReportSelector({
     required this.selected,
+    required this.onChanged,
+  });
+
+  final _ReportSection selected;
+  final ValueChanged<_ReportSection> onChanged;
+
+  @override
+  Widget build(BuildContext context) {
+    final items = [
+      _ReportOption(
+        section: _ReportSection.overview,
+        title: 'Visão geral',
+        subtitle: 'Resumo',
+        icon: Icons.dashboard_rounded,
+      ),
+      _ReportOption(
+        section: _ReportSection.products,
+        title: 'Produtos',
+        subtitle: 'Por produto',
+        icon: Icons.shopping_basket_rounded,
+      ),
+      _ReportOption(
+        section: _ReportSection.categories,
+        title: 'Categorias',
+        subtitle: 'Por categoria',
+        icon: Icons.category_rounded,
+      ),
+      _ReportOption(
+        section: _ReportSection.payments,
+        title: 'Pagamentos',
+        subtitle: 'Formas',
+        icon: Icons.credit_card_rounded,
+      ),
+      _ReportOption(
+        section: _ReportSection.lowStock,
+        title: 'Estoque baixo',
+        subtitle: 'Reposição',
+        icon: Icons.warning_rounded,
+      ),
+      _ReportOption(
+        section: _ReportSection.credit,
+        title: 'Fiado',
+        subtitle: 'Aberto',
+        icon: Icons.person_rounded,
+      ),
+      _ReportOption(
+        section: _ReportSection.detailed,
+        title: 'Detalhadas',
+        subtitle: 'Venda por venda',
+        icon: Icons.receipt_long_rounded,
+      ),
+    ];
+
+    return _NiceCard(
+      padding: const EdgeInsets.all(16),
+      child: Wrap(
+        spacing: 12,
+        runSpacing: 12,
+        children: items.map((item) {
+          final active = selected == item.section;
+
+          return _ReportOptionCard(
+            option: item,
+            active: active,
+            onTap: () => onChanged(item.section),
+          );
+        }).toList(),
+      ),
+    );
+  }
+}
+
+class _ReportOptionCard extends StatelessWidget {
+  const _ReportOptionCard({
+    required this.option,
+    required this.active,
     required this.onTap,
   });
 
-  final _ReportMenuItem item;
-  final bool selected;
+  final _ReportOption option;
+  final bool active;
   final VoidCallback onTap;
 
   @override
   Widget build(BuildContext context) {
-    final background = selected ? AppColors.wine900 : null;
-    final foreground = selected ? AppColors.beige100 : AppColors.wine700;
+    final background = active ? AppColors.wine900 : _surfaceAltColor(context);
+    final textColor = active ? AppColors.beige100 : _textColor(context);
+    final subtitleColor = active ? AppColors.beige100 : _mutedTextColor(context);
 
     return SizedBox(
-      width: 180,
-      height: 104,
+      width: 170,
+      height: 106,
       child: Material(
         color: background,
         borderRadius: BorderRadius.circular(22),
@@ -294,29 +364,33 @@ class _ReportMenuCard extends StatelessWidget {
             decoration: BoxDecoration(
               borderRadius: BorderRadius.circular(22),
               border: Border.all(
-                color: selected ? AppColors.wine900 : AppColors.beige300,
+                color: active ? AppColors.wine900 : _borderColor(context),
               ),
             ),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Icon(item.icon, color: foreground),
+                Icon(
+                  option.icon,
+                  color: active ? AppColors.beige100 : AppColors.wine700,
+                ),
                 const Spacer(),
                 Text(
-                  item.title,
+                  option.title,
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   style: TextStyle(
-                    color: foreground,
+                    color: textColor,
                     fontWeight: FontWeight.w900,
                   ),
                 ),
+                const SizedBox(height: 2),
                 Text(
-                  item.subtitle,
+                  option.subtitle,
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   style: TextStyle(
-                    color: selected ? AppColors.beige100 : null,
+                    color: subtitleColor,
                     fontWeight: FontWeight.w700,
                     fontSize: 12,
                   ),
@@ -330,10 +404,11 @@ class _ReportMenuCard extends StatelessWidget {
   }
 }
 
-class _SelectedReportContent extends StatelessWidget {
-  const _SelectedReportContent({
-    required this.selected,
-    required this.todaySales,
+class _ReportContent extends StatelessWidget {
+  const _ReportContent({
+    required this.section,
+    required this.periodLabel,
+    required this.sales,
     required this.revenue,
     required this.averageTicket,
     required this.paymentTotals,
@@ -343,8 +418,9 @@ class _SelectedReportContent extends StatelessWidget {
     required this.openCredit,
   });
 
-  final _ReportSection selected;
-  final List<dynamic> todaySales;
+  final _ReportSection section;
+  final String periodLabel;
+  final List<dynamic> sales;
   final double revenue;
   final double averageTicket;
   final Map<PaymentMethod, double> paymentTotals;
@@ -355,10 +431,11 @@ class _SelectedReportContent extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    switch (selected) {
+    switch (section) {
       case _ReportSection.overview:
         return _OverviewReport(
-          salesCount: todaySales.length,
+          periodLabel: periodLabel,
+          salesCount: sales.length,
           revenue: revenue,
           averageTicket: averageTicket,
           openCredit: openCredit,
@@ -367,24 +444,37 @@ class _SelectedReportContent extends StatelessWidget {
           paymentTotals: paymentTotals,
           lowStock: lowStock,
         );
-      case _ReportSection.productSales:
-        return _ProductSalesReport(productTotals: productTotals);
-      case _ReportSection.categorySales:
-        return _CategorySalesReport(categoryTotals: categoryTotals);
+      case _ReportSection.products:
+        return _ProductsReport(
+          periodLabel: periodLabel,
+          productTotals: productTotals,
+        );
+      case _ReportSection.categories:
+        return _CategoriesReport(
+          periodLabel: periodLabel,
+          categoryTotals: categoryTotals,
+        );
       case _ReportSection.payments:
-        return _PaymentReport(paymentTotals: paymentTotals);
+        return _PaymentsReport(
+          periodLabel: periodLabel,
+          paymentTotals: paymentTotals,
+        );
       case _ReportSection.lowStock:
         return _LowStockReport(products: lowStock);
       case _ReportSection.credit:
         return _CreditReport(openCredit: openCredit);
-      case _ReportSection.detailedSales:
-        return _DetailedSalesReport(sales: todaySales);
+      case _ReportSection.detailed:
+        return _DetailedSalesReport(
+          periodLabel: periodLabel,
+          sales: sales,
+        );
     }
   }
 }
 
 class _OverviewReport extends StatelessWidget {
   const _OverviewReport({
+    required this.periodLabel,
     required this.salesCount,
     required this.revenue,
     required this.averageTicket,
@@ -395,6 +485,7 @@ class _OverviewReport extends StatelessWidget {
     required this.lowStock,
   });
 
+  final String periodLabel;
   final int salesCount;
   final double revenue;
   final double averageTicket;
@@ -406,36 +497,36 @@ class _OverviewReport extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return _SectionCard(
-      title: 'Visão geral do dia',
-      subtitle: 'Resumo rápido para conferência',
+    return _ReportSectionCard(
+      title: 'Visão geral',
+      subtitle: 'Resumo do período: $periodLabel',
       child: Column(
         children: [
           Wrap(
             spacing: 12,
             runSpacing: 12,
             children: [
-              _SmallMetric(
+              _MetricBox(
                 icon: Icons.point_of_sale_rounded,
                 label: 'Quantidade de vendas',
                 value: salesCount.toString(),
               ),
-              _SmallMetric(
+              _MetricBox(
                 icon: Icons.payments_rounded,
                 label: 'Total vendido',
                 value: _formatMoney(revenue),
               ),
-              _SmallMetric(
+              _MetricBox(
                 icon: Icons.receipt_long_rounded,
                 label: 'Ticket médio',
                 value: _formatMoney(averageTicket),
               ),
-              _SmallMetric(
+              _MetricBox(
                 icon: Icons.person_rounded,
                 label: 'Fiado aberto',
                 value: _formatMoney(openCredit),
               ),
-              _SmallMetric(
+              _MetricBox(
                 icon: Icons.warning_rounded,
                 label: 'Estoque baixo',
                 value: lowStock.length.toString(),
@@ -443,36 +534,67 @@ class _OverviewReport extends StatelessWidget {
             ],
           ),
           const SizedBox(height: 18),
-          _MiniTablesGrid(
-            children: [
-              _MiniTableCard(
-                title: 'Top produtos',
-                emptyText: 'Nenhum produto vendido hoje.',
-                headers: const ['Produto', 'Total'],
-                rows: productTotals.take(5).map((item) {
-                  return [item.name, _formatMoney(item.total)];
-                }).toList(),
-              ),
-              _MiniTableCard(
-                title: 'Categorias',
-                emptyText: 'Nenhuma categoria vendida hoje.',
-                headers: const ['Categoria', 'Total'],
-                rows: categoryTotals.take(5).map((item) {
-                  return [item.category, _formatMoney(item.total)];
-                }).toList(),
-              ),
-              _MiniTableCard(
-                title: 'Pagamentos',
-                emptyText: 'Sem pagamentos hoje.',
-                headers: const ['Forma', 'Total'],
-                rows: PaymentMethod.values.map((method) {
-                  return [
-                    method.label,
-                    _formatMoney(paymentTotals[method] ?? 0.0),
-                  ];
-                }).toList(),
-              ),
-            ],
+          LayoutBuilder(
+            builder: (context, constraints) {
+              final compact = constraints.maxWidth < 900;
+
+              final tables = [
+                _MiniReportTable(
+                  title: 'Top produtos',
+                  emptyText: 'Nenhum produto vendido.',
+                  headers: const ['Produto', 'Total'],
+                  rows: productTotals.take(5).map((item) {
+                    return [item.name, _formatMoney(item.total)];
+                  }).toList(),
+                ),
+                _MiniReportTable(
+                  title: 'Categorias',
+                  emptyText: 'Nenhuma categoria vendida.',
+                  headers: const ['Categoria', 'Total'],
+                  rows: categoryTotals.take(5).map((item) {
+                    return [item.category, _formatMoney(item.total)];
+                  }).toList(),
+                ),
+                _MiniReportTable(
+                  title: 'Pagamentos',
+                  emptyText: 'Sem pagamentos.',
+                  headers: const ['Forma', 'Total'],
+                  rows: PaymentMethod.values.map((method) {
+                    return [
+                      method.label,
+                      _formatMoney(paymentTotals[method] ?? 0.0),
+                    ];
+                  }).toList(),
+                ),
+              ];
+
+              if (compact) {
+                return Column(
+                  children: tables
+                      .map(
+                        (table) => Padding(
+                          padding: const EdgeInsets.only(bottom: 12),
+                          child: table,
+                        ),
+                      )
+                      .toList(),
+                );
+              }
+
+              return Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: tables
+                    .map(
+                      (table) => Expanded(
+                        child: Padding(
+                          padding: const EdgeInsets.only(right: 12),
+                          child: table,
+                        ),
+                      ),
+                    )
+                    .toList(),
+              );
+            },
           ),
         ],
       ),
@@ -480,19 +602,23 @@ class _OverviewReport extends StatelessWidget {
   }
 }
 
-class _ProductSalesReport extends StatelessWidget {
-  const _ProductSalesReport({required this.productTotals});
+class _ProductsReport extends StatelessWidget {
+  const _ProductsReport({
+    required this.periodLabel,
+    required this.productTotals,
+  });
 
+  final String periodLabel;
   final List<_ProductTotal> productTotals;
 
   @override
   Widget build(BuildContext context) {
-    return _SectionCard(
+    return _ReportSectionCard(
       title: 'Vendas por produto',
-      subtitle: 'Mostra quais produtos venderam mais no dia',
+      subtitle: 'Período: $periodLabel',
       child: productTotals.isEmpty
-          ? const _EmptyReportText('Nenhum produto vendido hoje.')
-          : _ReportTable(
+          ? const _EmptyState('Nenhum produto vendido nesse período.')
+          : _ProfessionalTable(
               headers: const ['Produto', 'Qtd vendida', 'Total vendido'],
               rows: productTotals.map((item) {
                 return [
@@ -506,19 +632,23 @@ class _ProductSalesReport extends StatelessWidget {
   }
 }
 
-class _CategorySalesReport extends StatelessWidget {
-  const _CategorySalesReport({required this.categoryTotals});
+class _CategoriesReport extends StatelessWidget {
+  const _CategoriesReport({
+    required this.periodLabel,
+    required this.categoryTotals,
+  });
 
+  final String periodLabel;
   final List<_CategoryTotal> categoryTotals;
 
   @override
   Widget build(BuildContext context) {
-    return _SectionCard(
+    return _ReportSectionCard(
       title: 'Vendas por categoria',
-      subtitle: 'Resumo separado por tipo de produto',
+      subtitle: 'Período: $periodLabel',
       child: categoryTotals.isEmpty
-          ? const _EmptyReportText('Nenhuma categoria vendida hoje.')
-          : _ReportTable(
+          ? const _EmptyState('Nenhuma categoria vendida nesse período.')
+          : _ProfessionalTable(
               headers: const ['Categoria', 'Qtd vendida', 'Total vendido'],
               rows: categoryTotals.map((item) {
                 return [
@@ -532,9 +662,13 @@ class _CategorySalesReport extends StatelessWidget {
   }
 }
 
-class _PaymentReport extends StatelessWidget {
-  const _PaymentReport({required this.paymentTotals});
+class _PaymentsReport extends StatelessWidget {
+  const _PaymentsReport({
+    required this.periodLabel,
+    required this.paymentTotals,
+  });
 
+  final String periodLabel;
   final Map<PaymentMethod, double> paymentTotals;
 
   @override
@@ -544,17 +678,17 @@ class _PaymentReport extends StatelessWidget {
       (sum, value) => sum + value,
     );
 
-    return _SectionCard(
+    return _ReportSectionCard(
       title: 'Totais por forma de pagamento',
-      subtitle: 'Ajuda na conferência do caixa',
+      subtitle: 'Período: $periodLabel',
       child: Column(
         children: [
-          _BigTotalCard(
-            label: 'Total recebido no dia',
+          _TotalPanel(
+            label: 'Total recebido no período',
             value: _formatMoney(total),
           ),
           const SizedBox(height: 14),
-          _ReportTable(
+          _ProfessionalTable(
             headers: const ['Forma', 'Total'],
             rows: PaymentMethod.values.map((method) {
               return [
@@ -576,12 +710,12 @@ class _LowStockReport extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return _SectionCard(
+    return _ReportSectionCard(
       title: 'Estoque baixo',
-      subtitle: 'Produtos que precisam de atenção',
+      subtitle: 'Mostra o estoque atual, não depende do período.',
       child: products.isEmpty
-          ? const _EmptyReportText('Nenhum produto em estoque baixo.')
-          : _ReportTable(
+          ? const _EmptyState('Nenhum produto em estoque baixo.')
+          : _ProfessionalTable(
               headers: const ['Código', 'Produto', 'Estoque', 'Mínimo'],
               rows: products.map((product) {
                 return [
@@ -603,18 +737,18 @@ class _CreditReport extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return _SectionCard(
+    return _ReportSectionCard(
       title: 'Relatório de fiado',
-      subtitle: 'Resumo do valor em aberto',
+      subtitle: 'Resumo atual do valor em aberto.',
       child: Column(
         children: [
-          _BigTotalCard(
+          _TotalPanel(
             label: 'Total em aberto no fiado',
             value: _formatMoney(openCredit),
           ),
           const SizedBox(height: 12),
-          const _EmptyReportText(
-            'Para ver cliente por cliente, abra a aba Fiado. Aqui fica o resumo para conferência rápida.',
+          const _EmptyState(
+            'Para ver cliente por cliente, abra a aba Fiado.',
           ),
         ],
       ),
@@ -623,23 +757,30 @@ class _CreditReport extends StatelessWidget {
 }
 
 class _DetailedSalesReport extends StatelessWidget {
-  const _DetailedSalesReport({required this.sales});
+  const _DetailedSalesReport({
+    required this.periodLabel,
+    required this.sales,
+  });
 
+  final String periodLabel;
   final List<dynamic> sales;
 
   @override
   Widget build(BuildContext context) {
-    return _SectionCard(
+    return _ReportSectionCard(
       title: 'Vendas detalhadas',
-      subtitle: 'Lista venda por venda do dia',
+      subtitle: 'Período: $periodLabel',
       child: sales.isEmpty
-          ? const _EmptyReportText('Nenhuma venda hoje.')
-          : _ReportTable(
-              headers: const ['Venda', 'Hora', 'Pagamento', 'Itens', 'Total'],
+          ? const _EmptyState('Nenhuma venda nesse período.')
+          : _ProfessionalTable(
+              headers: const ['Venda', 'Data', 'Hora', 'Pagamento', 'Itens', 'Total'],
               rows: sales.map((sale) {
+                final date = sale.createdAt as DateTime;
+
                 return [
                   '#${sale.shortId}',
-                  _formatTime(sale.createdAt as DateTime),
+                  _formatDate(date),
+                  _formatTime(date),
                   (sale.paymentMethod as PaymentMethod).label,
                   sale.totalItems.toString(),
                   _formatMoney(sale.total as double),
@@ -650,8 +791,34 @@ class _DetailedSalesReport extends StatelessWidget {
   }
 }
 
-class _SectionCard extends StatelessWidget {
-  const _SectionCard({
+class _NiceCard extends StatelessWidget {
+  const _NiceCard({
+    required this.child,
+    this.padding = const EdgeInsets.all(22),
+  });
+
+  final Widget child;
+  final EdgeInsetsGeometry padding;
+
+  @override
+  Widget build(BuildContext context) {
+    return Card(
+      elevation: 0,
+      color: _surfaceColor(context),
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(26),
+        side: BorderSide(color: _borderColor(context)),
+      ),
+      child: Padding(
+        padding: padding,
+        child: child,
+      ),
+    );
+  }
+}
+
+class _ReportSectionCard extends StatelessWidget {
+  const _ReportSectionCard({
     required this.title,
     required this.subtitle,
     required this.child,
@@ -663,33 +830,114 @@ class _SectionCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(18),
+    return _NiceCard(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              _IconBox(icon: Icons.analytics_rounded),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      title,
+                      style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                            fontWeight: FontWeight.w900,
+                            color: _textColor(context),
+                          ),
+                    ),
+                    const SizedBox(height: 3),
+                    Text(
+                      subtitle,
+                      style: TextStyle(
+                        fontWeight: FontWeight.w700,
+                        color: _mutedTextColor(context),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 18),
+          child,
+        ],
+      ),
+    );
+  }
+}
+
+class _IconBox extends StatelessWidget {
+  const _IconBox({required this.icon});
+
+  final IconData icon;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: 46,
+      height: 46,
+      decoration: BoxDecoration(
+        color: AppColors.wine900,
+        borderRadius: BorderRadius.circular(16),
+      ),
+      child: Icon(
+        icon,
+        color: AppColors.beige100,
+      ),
+    );
+  }
+}
+
+class _MetricBox extends StatelessWidget {
+  const _MetricBox({
+    required this.icon,
+    required this.label,
+    required this.value,
+  });
+
+  final IconData icon;
+  final String label;
+  final String value;
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      width: 190,
+      height: 116,
+      child: Container(
+        padding: const EdgeInsets.all(14),
+        decoration: BoxDecoration(
+          color: _surfaceAltColor(context),
+          borderRadius: BorderRadius.circular(22),
+          border: Border.all(color: _borderColor(context)),
+        ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Row(
-              children: [
-                const Icon(Icons.analytics_rounded, color: AppColors.wine700),
-                const SizedBox(width: 10),
-                Expanded(
-                  child: Text(
-                    title,
-                    style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                          fontWeight: FontWeight.w900,
-                        ),
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 4),
+            Icon(icon, color: AppColors.wine700),
+            const Spacer(),
             Text(
-              subtitle,
-              style: const TextStyle(fontWeight: FontWeight.w700),
+              value,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                    fontWeight: FontWeight.w900,
+                    color: _textColor(context),
+                  ),
             ),
-            const SizedBox(height: 16),
-            child,
+            Text(
+              label,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: TextStyle(
+                fontWeight: FontWeight.w700,
+                color: _mutedTextColor(context),
+              ),
+            ),
           ],
         ),
       ),
@@ -697,56 +945,8 @@ class _SectionCard extends StatelessWidget {
   }
 }
 
-class _SmallMetric extends StatelessWidget {
-  const _SmallMetric({
-    required this.icon,
-    required this.label,
-    required this.value,
-    this.width = 190,
-  });
-
-  final IconData icon;
-  final String label;
-  final String value;
-  final double width;
-
-  @override
-  Widget build(BuildContext context) {
-    return SizedBox(
-      width: width,
-      height: 112,
-      child: Card(
-        child: Padding(
-          padding: const EdgeInsets.all(14),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Icon(icon, color: AppColors.wine700),
-              const Spacer(),
-              Text(
-                value,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                      fontWeight: FontWeight.w900,
-                    ),
-              ),
-              Text(
-                label,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: const TextStyle(fontWeight: FontWeight.w700),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-class _BigTotalCard extends StatelessWidget {
-  const _BigTotalCard({
+class _TotalPanel extends StatelessWidget {
+  const _TotalPanel({
     required this.label,
     required this.value,
   });
@@ -758,28 +958,49 @@ class _BigTotalCard extends StatelessWidget {
   Widget build(BuildContext context) {
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.all(18),
+      padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
         color: AppColors.wine900,
-        borderRadius: BorderRadius.circular(22),
+        borderRadius: BorderRadius.circular(24),
       ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+      child: Row(
         children: [
-          Text(
-            label,
-            style: const TextStyle(
+          Container(
+            width: 48,
+            height: 48,
+            decoration: BoxDecoration(
               color: AppColors.beige100,
-              fontWeight: FontWeight.w800,
+              borderRadius: BorderRadius.circular(16),
+            ),
+            child: const Icon(
+              Icons.payments_rounded,
+              color: AppColors.wine900,
             ),
           ),
-          const SizedBox(height: 5),
-          Text(
-            value,
-            style: const TextStyle(
-              color: AppColors.beige100,
-              fontSize: 28,
-              fontWeight: FontWeight.w900,
+          const SizedBox(width: 14),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  label,
+                  style: const TextStyle(
+                    color: AppColors.beige100,
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  value,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(
+                    color: AppColors.beige100,
+                    fontSize: 30,
+                    fontWeight: FontWeight.w900,
+                  ),
+                ),
+              ],
             ),
           ),
         ],
@@ -788,50 +1009,66 @@ class _BigTotalCard extends StatelessWidget {
   }
 }
 
-class _MiniTablesGrid extends StatelessWidget {
-  const _MiniTablesGrid({required this.children});
+class _ProfessionalTable extends StatelessWidget {
+  const _ProfessionalTable({
+    required this.headers,
+    required this.rows,
+  });
 
-  final List<Widget> children;
+  final List<String> headers;
+  final List<List<String>> rows;
 
   @override
   Widget build(BuildContext context) {
     return LayoutBuilder(
       builder: (context, constraints) {
-        final compact = constraints.maxWidth < 950;
+        final minWidth = headers.length * 170.0;
+        final availableWidth = constraints.maxWidth.isFinite
+            ? constraints.maxWidth
+            : minWidth;
 
-        if (compact) {
-          return Column(
-            children: children
-                .map(
-                  (child) => Padding(
-                    padding: const EdgeInsets.only(bottom: 12),
-                    child: child,
-                  ),
-                )
-                .toList(),
-          );
-        }
+        final tableWidth = availableWidth > minWidth ? availableWidth : minWidth;
 
-        return Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: children
-              .map(
-                (child) => Expanded(
-                  child: Padding(
-                    padding: const EdgeInsets.only(right: 12),
-                    child: child,
-                  ),
+        return ClipRRect(
+          borderRadius: BorderRadius.circular(20),
+          child: SingleChildScrollView(
+            scrollDirection: Axis.horizontal,
+            child: SizedBox(
+              width: tableWidth,
+              child: Container(
+                decoration: BoxDecoration(
+                  color: _surfaceAltColor(context),
+                  border: Border.all(color: _borderColor(context)),
+                  borderRadius: BorderRadius.circular(20),
                 ),
-              )
-              .toList(),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    _TableLine(
+                      cells: headers,
+                      isHeader: true,
+                      striped: false,
+                    ),
+                    ...rows.asMap().entries.map((entry) {
+                      return _TableLine(
+                        cells: entry.value,
+                        isHeader: false,
+                        striped: entry.key.isOdd,
+                      );
+                    }),
+                  ],
+                ),
+              ),
+            ),
+          ),
         );
       },
     );
   }
 }
 
-class _MiniTableCard extends StatelessWidget {
-  const _MiniTableCard({
+class _MiniReportTable extends StatelessWidget {
+  const _MiniReportTable({
     required this.title,
     required this.emptyText,
     required this.headers,
@@ -845,75 +1082,106 @@ class _MiniTableCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(14),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(title, style: const TextStyle(fontWeight: FontWeight.w900)),
-            const SizedBox(height: 10),
-            rows.isEmpty
-                ? Text(emptyText)
-                : _ReportTable(
-                    headers: headers,
-                    rows: rows,
-                    compact: true,
+    return Container(
+      decoration: BoxDecoration(
+        color: _surfaceAltColor(context),
+        borderRadius: BorderRadius.circular(22),
+        border: Border.all(color: _borderColor(context)),
+      ),
+      padding: const EdgeInsets.all(14),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            title,
+            style: TextStyle(
+              fontWeight: FontWeight.w900,
+              color: _textColor(context),
+            ),
+          ),
+          const SizedBox(height: 10),
+          rows.isEmpty
+              ? Text(
+                  emptyText,
+                  style: TextStyle(
+                    fontWeight: FontWeight.w700,
+                    color: _mutedTextColor(context),
                   ),
-          ],
-        ),
+                )
+              : _ProfessionalTable(
+                  headers: headers,
+                  rows: rows,
+                ),
+        ],
       ),
     );
   }
 }
 
-class _ReportTable extends StatelessWidget {
-  const _ReportTable({
-    required this.headers,
-    required this.rows,
-    this.compact = false,
+class _TableLine extends StatelessWidget {
+  const _TableLine({
+    required this.cells,
+    required this.isHeader,
+    required this.striped,
   });
 
-  final List<String> headers;
-  final List<List<String>> rows;
-  final bool compact;
+  final List<String> cells;
+  final bool isHeader;
+  final bool striped;
 
   @override
   Widget build(BuildContext context) {
-    return SingleChildScrollView(
-      scrollDirection: Axis.horizontal,
-      child: DataTable(
-        dataRowMinHeight: compact ? 38 : 46,
-        dataRowMaxHeight: compact ? 46 : 56,
-        headingTextStyle: const TextStyle(fontWeight: FontWeight.w900),
-        columns: headers.map((header) {
-          return DataColumn(label: Text(header));
-        }).toList(),
-        rows: rows.map((row) {
-          return DataRow(
-            cells: row.map((cell) {
-              return DataCell(
-                ConstrainedBox(
-                  constraints: BoxConstraints(
-                    maxWidth: compact ? 130 : 260,
-                  ),
-                  child: Text(
-                    cell,
-                    maxLines: compact ? 1 : 2,
-                    overflow: TextOverflow.ellipsis,
-                  ),
+    final background = isHeader
+        ? AppColors.wine900
+        : striped
+            ? _surfaceColor(context)
+            : _surfaceAltColor(context);
+
+    final foreground = isHeader ? AppColors.beige100 : _textColor(context);
+
+    return Container(
+      decoration: BoxDecoration(
+        color: background,
+        border: isHeader
+            ? null
+            : Border(
+                top: BorderSide(color: _borderColor(context)),
+              ),
+      ),
+      padding: const EdgeInsets.symmetric(
+        horizontal: 14,
+        vertical: 13,
+      ),
+      child: Row(
+        children: List.generate(cells.length, (index) {
+          final cell = cells[index];
+
+          return Expanded(
+            flex: index == 0 ? 3 : 2,
+            child: Padding(
+              padding: EdgeInsets.only(
+                right: index == cells.length - 1 ? 0 : 12,
+              ),
+              child: Text(
+                cell,
+                maxLines: isHeader ? 1 : 2,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(
+                  color: foreground,
+                  fontWeight: isHeader ? FontWeight.w900 : FontWeight.w700,
+                  fontSize: 13,
                 ),
-              );
-            }).toList(),
+              ),
+            ),
           );
-        }).toList(),
+        }),
       ),
     );
   }
 }
 
-class _EmptyReportText extends StatelessWidget {
-  const _EmptyReportText(this.text);
+class _EmptyState extends StatelessWidget {
+  const _EmptyState(this.text);
 
   final String text;
 
@@ -923,31 +1191,84 @@ class _EmptyReportText extends StatelessWidget {
       width: double.infinity,
       padding: const EdgeInsets.all(18),
       decoration: BoxDecoration(
-        color: Theme.of(context).brightness == Brightness.dark
-            ? AppColors.darkSurfaceAlt
-            : AppColors.beige100,
+        color: _surfaceAltColor(context),
         borderRadius: BorderRadius.circular(18),
+        border: Border.all(color: _borderColor(context)),
       ),
-      child: Text(
-        text,
-        style: const TextStyle(fontWeight: FontWeight.w800),
+      child: Row(
+        children: [
+          const Icon(Icons.info_outline_rounded, color: AppColors.wine700),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Text(
+              text,
+              style: TextStyle(
+                fontWeight: FontWeight.w800,
+                color: _textColor(context),
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }
 }
 
-class _ReportMenuItem {
-  const _ReportMenuItem({
+class _ReportOption {
+  const _ReportOption({
     required this.section,
-    required this.icon,
     required this.title,
     required this.subtitle,
+    required this.icon,
   });
 
   final _ReportSection section;
-  final IconData icon;
   final String title;
   final String subtitle;
+  final IconData icon;
+}
+
+List<dynamic> _filterSalesByPeriod(List<dynamic> sales, _ReportPeriod period) {
+  final now = DateTime.now();
+  final todayStart = DateTime(now.year, now.month, now.day);
+
+  final filtered = sales.where((sale) {
+    final createdAt = sale.createdAt as DateTime;
+
+    switch (period) {
+      case _ReportPeriod.today:
+        return _sameDay(createdAt, now);
+
+      case _ReportPeriod.sevenDays:
+        return !createdAt.isBefore(
+          todayStart.subtract(const Duration(days: 6)),
+        );
+
+      case _ReportPeriod.thirtyDays:
+        return !createdAt.isBefore(
+          todayStart.subtract(const Duration(days: 29)),
+        );
+
+      case _ReportPeriod.all:
+        return true;
+    }
+  }).toList();
+
+  filtered.sort((a, b) {
+    final aDate = a.createdAt as DateTime;
+    final bDate = b.createdAt as DateTime;
+
+    return bDate.compareTo(aDate);
+  });
+
+  return filtered;
+}
+
+double _salesRevenue(List<dynamic> sales) {
+  return sales.fold<double>(
+    0,
+    (sum, sale) => sum + (sale.total as double),
+  );
 }
 
 Map<PaymentMethod, double> _paymentTotals(List<dynamic> sales) {
@@ -993,10 +1314,10 @@ List<_CategoryTotal> _categoryTotals(
   List<dynamic> sales,
   List<Product> products,
 ) {
-  final categories = <String, String>{};
+  final productCategoryById = <String, String>{};
 
   for (final product in products) {
-    categories[product.id] = product.category.label;
+    productCategoryById[product.id] = product.category.label;
   }
 
   final map = <String, _CategoryTotal>{};
@@ -1004,7 +1325,7 @@ List<_CategoryTotal> _categoryTotals(
   for (final sale in sales) {
     for (final item in sale.items) {
       final productId = item.productId as String;
-      final category = categories[productId] ?? 'Sem categoria';
+      final category = productCategoryById[productId] ?? 'Sem categoria';
       final existing = map[category];
 
       if (existing == null) {
@@ -1027,6 +1348,47 @@ List<_CategoryTotal> _categoryTotals(
   return result;
 }
 
+String _periodLabel(_ReportPeriod period) {
+  switch (period) {
+    case _ReportPeriod.today:
+      return 'Hoje';
+    case _ReportPeriod.sevenDays:
+      return 'Últimos 7 dias';
+    case _ReportPeriod.thirtyDays:
+      return 'Últimos 30 dias';
+    case _ReportPeriod.all:
+      return 'Todo o histórico';
+  }
+}
+
+bool _sameDay(DateTime a, DateTime b) {
+  return a.year == b.year && a.month == b.month && a.day == b.day;
+}
+
+Color _surfaceColor(BuildContext context) {
+  return Theme.of(context).cardColor;
+}
+
+Color _surfaceAltColor(BuildContext context) {
+  return Theme.of(context).brightness == Brightness.dark
+      ? AppColors.darkSurfaceAlt
+      : AppColors.beige100;
+}
+
+Color _textColor(BuildContext context) {
+  return Theme.of(context).colorScheme.onSurface;
+}
+
+Color _mutedTextColor(BuildContext context) {
+  return Theme.of(context).colorScheme.onSurfaceVariant;
+}
+
+Color _borderColor(BuildContext context) {
+  return Theme.of(context).brightness == Brightness.dark
+      ? AppColors.wine700.withOpacity(0.35)
+      : AppColors.beige300;
+}
+
 String _formatMoney(double value) {
   final fixed = value.toStringAsFixed(2).replaceAll('.', ',');
   return 'R\$ $fixed';
@@ -1034,7 +1396,16 @@ String _formatMoney(double value) {
 
 String _formatNumber(double value) {
   if (value % 1 == 0) return value.toStringAsFixed(0);
+
   return value.toStringAsFixed(3).replaceAll('.', ',');
+}
+
+String _formatDate(DateTime value) {
+  final day = value.day.toString().padLeft(2, '0');
+  final month = value.month.toString().padLeft(2, '0');
+  final year = value.year.toString();
+
+  return '$day/$month/$year';
 }
 
 String _formatTime(DateTime value) {
