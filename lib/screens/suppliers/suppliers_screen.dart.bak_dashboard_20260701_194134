@@ -82,13 +82,10 @@ class _SuppliersScreenState extends State<SuppliersScreen> {
 
         return Container(
           color: _pageBackground(context),
-          child: SingleChildScrollView(
-            padding: const EdgeInsets.only(bottom: 24),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-              _SupplierHeader(
-                selectedPeriod: selectedPeriod,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              _SupplierHero(
                 periodLabel: _periodLabel(selectedPeriod),
                 totalPurchased: totalPurchased,
                 openAmount: openAmount,
@@ -96,14 +93,15 @@ class _SuppliersScreenState extends State<SuppliersScreen> {
                 suppliersCount: suppliersCount,
                 purchasesCount: periodPurchases.length,
                 onAdd: () => _openPurchaseDialog(context),
+              ),
+              const SizedBox(height: 14),
+              _SupplierFilters(
+                selectedPeriod: selectedPeriod,
+                searchTerm: searchTerm,
+                showOnlyOpen: showOnlyOpen,
                 onPeriodChanged: (period) {
                   setState(() => selectedPeriod = period);
                 },
-              ),
-              const SizedBox(height: 14),
-              _SupplierSearchBar(
-                searchTerm: searchTerm,
-                showOnlyOpen: showOnlyOpen,
                 onSearchChanged: (value) {
                   setState(() => searchTerm = value);
                 },
@@ -112,24 +110,22 @@ class _SuppliersScreenState extends State<SuppliersScreen> {
                 },
               ),
               const SizedBox(height: 14),
-              LayoutBuilder(
-                builder: (context, constraints) {
-                    final compact = constraints.maxWidth < 1050;
+              Expanded(
+                child: LayoutBuilder(
+                  builder: (context, constraints) {
+                    final compact = constraints.maxWidth < 1030;
 
                     if (compact) {
-                      return Column(
+                      return ListView(
                         children: [
-                          _SideDashboard(
+                          _SummaryStack(
                             supplierTotals: supplierTotals,
                             categoryTotals: categoryTotals,
                             itemTotals: itemTotals,
-                            totalPurchased: totalPurchased,
-                            openAmount: openAmount,
                           ),
                           const SizedBox(height: 14),
-                          _PurchasesBoard(
+                          _PurchasesPanel(
                             purchases: filteredPurchases,
-                            fillHeight: false,
                             onEdit: (purchase) {
                               _openPurchaseDialog(context, purchase: purchase);
                             },
@@ -147,11 +143,18 @@ class _SuppliersScreenState extends State<SuppliersScreen> {
                     return Row(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
+                        SizedBox(
+                          width: 390,
+                          child: _SummaryStack(
+                            supplierTotals: supplierTotals,
+                            categoryTotals: categoryTotals,
+                            itemTotals: itemTotals,
+                          ),
+                        ),
+                        const SizedBox(width: 14),
                         Expanded(
-                          flex: 7,
-                          child: _PurchasesBoard(
+                          child: _PurchasesPanel(
                             purchases: filteredPurchases,
-                            fillHeight: false,
                             onEdit: (purchase) {
                               _openPurchaseDialog(context, purchase: purchase);
                             },
@@ -163,23 +166,12 @@ class _SuppliersScreenState extends State<SuppliersScreen> {
                             },
                           ),
                         ),
-                        const SizedBox(width: 14),
-                        SizedBox(
-                          width: 380,
-                          child: _SideDashboard(
-                            supplierTotals: supplierTotals,
-                            categoryTotals: categoryTotals,
-                            itemTotals: itemTotals,
-                            totalPurchased: totalPurchased,
-                            openAmount: openAmount,
-                          ),
-                        ),
                       ],
                     );
                   },
                 ),
-              ],
-            ),
+              ),
+            ],
           ),
         );
       },
@@ -187,12 +179,14 @@ class _SuppliersScreenState extends State<SuppliersScreen> {
   }
 
   void _togglePaid(BuildContext context, SupplierPurchase purchase) {
-    context.read<SuppliersProvider>().updatePurchase(
-          purchase.copyWith(
-            paid: !purchase.paid,
-            updatedAt: DateTime.now(),
-          ),
-        );
+    final provider = context.read<SuppliersProvider>();
+
+    provider.updatePurchase(
+      purchase.copyWith(
+        paid: !purchase.paid,
+        updatedAt: DateTime.now(),
+      ),
+    );
 
     ScaffoldMessenger.of(context)
       ..clearSnackBars()
@@ -245,9 +239,8 @@ class _SuppliersScreenState extends State<SuppliersScreen> {
   }
 }
 
-class _SupplierHeader extends StatelessWidget {
-  const _SupplierHeader({
-    required this.selectedPeriod,
+class _SupplierHero extends StatelessWidget {
+  const _SupplierHero({
     required this.periodLabel,
     required this.totalPurchased,
     required this.openAmount,
@@ -255,10 +248,8 @@ class _SupplierHeader extends StatelessWidget {
     required this.suppliersCount,
     required this.purchasesCount,
     required this.onAdd,
-    required this.onPeriodChanged,
   });
 
-  final _SupplierPeriod selectedPeriod;
   final String periodLabel;
   final double totalPurchased;
   final double openAmount;
@@ -266,91 +257,52 @@ class _SupplierHeader extends StatelessWidget {
   final int suppliersCount;
   final int purchasesCount;
   final VoidCallback onAdd;
-  final ValueChanged<_SupplierPeriod> onPeriodChanged;
 
   @override
   Widget build(BuildContext context) {
-    return _DarkSupplierPanel(
+    return _LelecoPanel(
+      padding: const EdgeInsets.all(20),
       child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          LayoutBuilder(
-            builder: (context, constraints) {
-              final compact = constraints.maxWidth < 820;
-
-              final title = Row(
-                children: [
-                  _DarkIconBox(icon: Icons.local_shipping_rounded),
-                  const SizedBox(width: 14),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        const Text(
-                          'Fornecedores',
-                          style: TextStyle(
-                            color: AppColors.beige100,
-                            fontSize: 28,
-                            fontWeight: FontWeight.w900,
-                          ),
-                        ),
-                        const SizedBox(height: 4),
-                        Text(
-                          'Compras, custos e controle de pagamento • $periodLabel',
-                          style: TextStyle(
-                            color: AppColors.beige100.withOpacity(0.72),
-                            fontWeight: FontWeight.w700,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ],
-              );
-
-              final actions = Wrap(
-                spacing: 8,
-                runSpacing: 8,
-                crossAxisAlignment: WrapCrossAlignment.center,
-                children: [
-                  _PeriodPills(
-                    selected: selectedPeriod,
-                    onChanged: onPeriodChanged,
-                  ),
-                  FilledButton.icon(
-                    onPressed: onAdd,
-                    icon: const Icon(Icons.add_rounded),
-                    label: const Text('Nova compra'),
-                  ),
-                ],
-              );
-
-              if (compact) {
-                return Column(
+          Row(
+            children: [
+              const _IconBadge(icon: Icons.local_shipping_rounded),
+              const SizedBox(width: 14),
+              Expanded(
+                child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    title,
-                    const SizedBox(height: 16),
-                    actions,
+                    Text(
+                      'Fornecedores e compras',
+                      style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+                            fontWeight: FontWeight.w900,
+                            color: _titleColor(context),
+                          ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      'Controle do que foi comprado • $periodLabel',
+                      style: TextStyle(
+                        fontWeight: FontWeight.w700,
+                        color: _mutedColor(context),
+                      ),
+                    ),
                   ],
-                );
-              }
-
-              return Row(
-                children: [
-                  Expanded(child: title),
-                  const SizedBox(width: 16),
-                  actions,
-                ],
-              );
-            },
+                ),
+              ),
+              FilledButton.icon(
+                onPressed: onAdd,
+                icon: const Icon(Icons.add_rounded),
+                label: const Text('Nova compra'),
+              ),
+            ],
           ),
-          const SizedBox(height: 20),
+          const SizedBox(height: 18),
           LayoutBuilder(
             builder: (context, constraints) {
-              final columns = constraints.maxWidth >= 1000
+              final columns = constraints.maxWidth >= 980
                   ? 4
-                  : constraints.maxWidth >= 660
+                  : constraints.maxWidth >= 650
                       ? 2
                       : 1;
 
@@ -359,25 +311,25 @@ class _SupplierHeader extends StatelessWidget {
                   (constraints.maxWidth - gap * (columns - 1)) / columns;
 
               final cards = [
-                _DarkMetricCard(
+                _SupplierMetric(
                   icon: Icons.payments_rounded,
-                  label: 'Comprado',
+                  label: 'Comprado no período',
                   value: _formatMoney(totalPurchased),
-                  subtitle: 'Total no período',
+                  subtitle: 'Total das compras',
                 ),
-                _DarkMetricCard(
+                _SupplierMetric(
                   icon: Icons.pending_actions_rounded,
                   label: 'Em aberto',
                   value: _formatMoney(openAmount),
-                  subtitle: 'Ainda falta pagar',
+                  subtitle: 'Ainda não pago',
                 ),
-                _DarkMetricCard(
+                _SupplierMetric(
                   icon: Icons.verified_rounded,
                   label: 'Pago',
                   value: _formatMoney(paidAmount),
-                  subtitle: 'Compras quitadas',
+                  subtitle: 'Já quitado',
                 ),
-                _DarkMetricCard(
+                _SupplierMetric(
                   icon: Icons.store_rounded,
                   label: 'Fornecedores',
                   value: suppliersCount.toString(),
@@ -400,74 +352,8 @@ class _SupplierHeader extends StatelessWidget {
   }
 }
 
-class _PeriodPills extends StatelessWidget {
-  const _PeriodPills({
-    required this.selected,
-    required this.onChanged,
-  });
-
-  final _SupplierPeriod selected;
-  final ValueChanged<_SupplierPeriod> onChanged;
-
-  @override
-  Widget build(BuildContext context) {
-    final items = [
-      (_SupplierPeriod.today, 'Hoje', Icons.today_rounded),
-      (_SupplierPeriod.sevenDays, '7 dias', Icons.date_range_rounded),
-      (_SupplierPeriod.thirtyDays, '30 dias', Icons.calendar_month_rounded),
-      (_SupplierPeriod.all, 'Tudo', Icons.all_inclusive_rounded),
-    ];
-
-    return Wrap(
-      spacing: 8,
-      runSpacing: 8,
-      children: items.map((item) {
-        final active = selected == item.$1;
-
-        return InkWell(
-          onTap: () => onChanged(item.$1),
-          borderRadius: BorderRadius.circular(14),
-          child: AnimatedContainer(
-            duration: const Duration(milliseconds: 160),
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 9),
-            decoration: BoxDecoration(
-              color: active
-                  ? AppColors.beige100
-                  : AppColors.beige100.withOpacity(0.08),
-              borderRadius: BorderRadius.circular(14),
-              border: Border.all(
-                color: active
-                    ? AppColors.beige100
-                    : AppColors.beige100.withOpacity(0.18),
-              ),
-            ),
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Icon(
-                  item.$3,
-                  size: 16,
-                  color: active ? AppColors.wine900 : AppColors.beige100,
-                ),
-                const SizedBox(width: 6),
-                Text(
-                  item.$2,
-                  style: TextStyle(
-                    color: active ? AppColors.wine900 : AppColors.beige100,
-                    fontWeight: FontWeight.w900,
-                  ),
-                ),
-              ],
-            ),
-          ),
-        );
-      }).toList(),
-    );
-  }
-}
-
-class _DarkMetricCard extends StatelessWidget {
-  const _DarkMetricCard({
+class _SupplierMetric extends StatelessWidget {
+  const _SupplierMetric({
     required this.icon,
     required this.label,
     required this.value,
@@ -482,34 +368,36 @@ class _DarkMetricCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      height: 144,
+      height: 126,
       padding: const EdgeInsets.all(15),
       decoration: BoxDecoration(
-        color: AppColors.beige100.withOpacity(0.075),
+        color: _cardBackground(context),
         borderRadius: BorderRadius.circular(22),
-        border: Border.all(color: AppColors.beige100.withOpacity(0.12)),
+        border: Border.all(color: _borderColor(context)),
+        boxShadow: _softShadow(context),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Icon(icon, color: AppColors.beige100),
+          Icon(icon, color: AppColors.wine700),
           const Spacer(),
           Text(
             value,
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
-            style: const TextStyle(
-              color: AppColors.beige100,
-              fontWeight: FontWeight.w900,
-              fontSize: 22,
-            ),
+            style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                  fontWeight: FontWeight.w900,
+                  color: _titleColor(context),
+                ),
           ),
           const SizedBox(height: 2),
           Text(
             label,
-            style: const TextStyle(
-              color: AppColors.beige100,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: TextStyle(
               fontWeight: FontWeight.w900,
+              color: _bodyColor(context),
             ),
           ),
           Text(
@@ -517,9 +405,9 @@ class _DarkMetricCard extends StatelessWidget {
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
             style: TextStyle(
-              color: AppColors.beige100.withOpacity(0.64),
               fontWeight: FontWeight.w700,
               fontSize: 12,
+              color: _mutedColor(context),
             ),
           ),
         ],
@@ -528,26 +416,71 @@ class _DarkMetricCard extends StatelessWidget {
   }
 }
 
-class _SupplierSearchBar extends StatelessWidget {
-  const _SupplierSearchBar({
+class _SupplierFilters extends StatelessWidget {
+  const _SupplierFilters({
+    required this.selectedPeriod,
     required this.searchTerm,
     required this.showOnlyOpen,
+    required this.onPeriodChanged,
     required this.onSearchChanged,
     required this.onOpenChanged,
   });
 
+  final _SupplierPeriod selectedPeriod;
   final String searchTerm;
   final bool showOnlyOpen;
+  final ValueChanged<_SupplierPeriod> onPeriodChanged;
   final ValueChanged<String> onSearchChanged;
   final ValueChanged<bool> onOpenChanged;
 
   @override
   Widget build(BuildContext context) {
-    return _LightPanel(
+    final items = [
+      (_SupplierPeriod.today, 'Hoje', Icons.today_rounded),
+      (_SupplierPeriod.sevenDays, '7 dias', Icons.date_range_rounded),
+      (_SupplierPeriod.thirtyDays, '30 dias', Icons.calendar_month_rounded),
+      (_SupplierPeriod.all, 'Tudo', Icons.all_inclusive_rounded),
+    ];
+
+    return _LelecoPanel(
       padding: const EdgeInsets.all(14),
       child: LayoutBuilder(
         builder: (context, constraints) {
-          final compact = constraints.maxWidth < 720;
+          final compact = constraints.maxWidth < 840;
+
+          final periodChips = SingleChildScrollView(
+            scrollDirection: Axis.horizontal,
+            child: Row(
+              children: items.map((item) {
+                final active = selectedPeriod == item.$1;
+
+                return Padding(
+                  padding: const EdgeInsets.only(right: 8),
+                  child: ChoiceChip(
+                    selected: active,
+                    selectedColor: AppColors.wine900,
+                    backgroundColor: _chipBackground(context),
+                    side: BorderSide(
+                      color: active ? AppColors.wine900 : _borderColor(context),
+                    ),
+                    avatar: Icon(
+                      item.$3,
+                      size: 18,
+                      color:
+                          active ? AppColors.beige100 : AppColors.wine700,
+                    ),
+                    label: Text(item.$2),
+                    labelStyle: TextStyle(
+                      color:
+                          active ? AppColors.beige100 : _titleColor(context),
+                      fontWeight: FontWeight.w900,
+                    ),
+                    onSelected: (_) => onPeriodChanged(item.$1),
+                  ),
+                );
+              }).toList(),
+            ),
+          );
 
           final search = TextField(
             onChanged: onSearchChanged,
@@ -567,10 +500,10 @@ class _SupplierSearchBar extends StatelessWidget {
             ),
           );
 
-          final chip = FilterChip(
+          final openChip = FilterChip(
             selected: showOnlyOpen,
             selectedColor: AppColors.wine900,
-            backgroundColor: _cardBackground(context),
+            backgroundColor: _chipBackground(context),
             side: BorderSide(color: _borderColor(context)),
             avatar: Icon(
               Icons.pending_actions_rounded,
@@ -588,18 +521,22 @@ class _SupplierSearchBar extends StatelessWidget {
             return Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
+                periodChips,
+                const SizedBox(height: 12),
                 search,
                 const SizedBox(height: 10),
-                chip,
+                openChip,
               ],
             );
           }
 
           return Row(
             children: [
-              Expanded(child: search),
+              Expanded(flex: 4, child: periodChips),
               const SizedBox(width: 12),
-              chip,
+              Expanded(flex: 5, child: search),
+              const SizedBox(width: 12),
+              openChip,
             ],
           );
         },
@@ -608,99 +545,255 @@ class _SupplierSearchBar extends StatelessWidget {
   }
 }
 
-class _PurchasesBoard extends StatelessWidget {
-  const _PurchasesBoard({
+class _SummaryStack extends StatelessWidget {
+  const _SummaryStack({
+    required this.supplierTotals,
+    required this.categoryTotals,
+    required this.itemTotals,
+  });
+
+  final List<_SupplierTotal> supplierTotals;
+  final List<_CategoryPurchaseTotal> categoryTotals;
+  final List<_ItemPurchaseTotal> itemTotals;
+
+  @override
+  Widget build(BuildContext context) {
+    return ListView(
+      shrinkWrap: true,
+      physics: const NeverScrollableScrollPhysics(),
+      children: [
+        _SummaryCard(
+          title: 'Resumo por fornecedor',
+          emptyText: 'Nenhum fornecedor no período.',
+          icon: Icons.store_rounded,
+          children: supplierTotals.take(8).map((item) {
+            return _SummaryLine(
+              title: item.supplierName,
+              subtitle: '${item.count} compra(s)',
+              value: _formatMoney(item.total),
+            );
+          }).toList(),
+        ),
+        const SizedBox(height: 14),
+        _SummaryCard(
+          title: 'Resumo por categoria',
+          emptyText: 'Nenhuma categoria no período.',
+          icon: Icons.category_rounded,
+          children: categoryTotals.take(8).map((item) {
+            return _SummaryLine(
+              title: item.category,
+              subtitle: '${_formatNumber(item.quantity)} comprado',
+              value: _formatMoney(item.total),
+            );
+          }).toList(),
+        ),
+        const SizedBox(height: 14),
+        _SummaryCard(
+          title: 'Itens mais comprados',
+          emptyText: 'Nenhum item comprado no período.',
+          icon: Icons.inventory_2_rounded,
+          children: itemTotals.take(8).map((item) {
+            return _SummaryLine(
+              title: item.itemName,
+              subtitle: '${_formatNumber(item.quantity)} comprado',
+              value: _formatMoney(item.total),
+            );
+          }).toList(),
+        ),
+      ],
+    );
+  }
+}
+
+class _SummaryCard extends StatelessWidget {
+  const _SummaryCard({
+    required this.title,
+    required this.emptyText,
+    required this.icon,
+    required this.children,
+  });
+
+  final String title;
+  final String emptyText;
+  final IconData icon;
+  final List<Widget> children;
+
+  @override
+  Widget build(BuildContext context) {
+    return _LelecoPanel(
+      padding: const EdgeInsets.all(16),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              _SmallIcon(icon: icon),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Text(
+                  title,
+                  style: TextStyle(
+                    fontWeight: FontWeight.w900,
+                    color: _titleColor(context),
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 14),
+          if (children.isEmpty)
+            Text(
+              emptyText,
+              style: TextStyle(
+                fontWeight: FontWeight.w700,
+                color: _mutedColor(context),
+              ),
+            )
+          else
+            ...children,
+        ],
+      ),
+    );
+  }
+}
+
+class _SummaryLine extends StatelessWidget {
+  const _SummaryLine({
+    required this.title,
+    required this.subtitle,
+    required this.value,
+  });
+
+  final String title;
+  final String subtitle;
+  final String value;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 12),
+      child: Row(
+        children: [
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  title,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    fontWeight: FontWeight.w900,
+                    color: _bodyColor(context),
+                  ),
+                ),
+                Text(
+                  subtitle,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    fontWeight: FontWeight.w700,
+                    color: _mutedColor(context),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(width: 10),
+          Text(
+            value,
+            style: TextStyle(
+              fontWeight: FontWeight.w900,
+              color: AppColors.wine700,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _PurchasesPanel extends StatelessWidget {
+  const _PurchasesPanel({
     required this.purchases,
-    required this.fillHeight,
     required this.onEdit,
     required this.onDelete,
     required this.onTogglePaid,
   });
 
   final List<SupplierPurchase> purchases;
-  final bool fillHeight;
   final ValueChanged<SupplierPurchase> onEdit;
   final ValueChanged<SupplierPurchase> onDelete;
   final ValueChanged<SupplierPurchase> onTogglePaid;
 
   @override
   Widget build(BuildContext context) {
-    final list = purchases.isEmpty
-        ? const _EmptySuppliers()
-        : ListView.separated(
-            shrinkWrap: !fillHeight,
-            physics: fillHeight
-                ? null
-                : const NeverScrollableScrollPhysics(),
-            itemCount: purchases.length,
-            separatorBuilder: (_, __) => const SizedBox(height: 12),
-            itemBuilder: (context, index) {
-              final purchase = purchases[index];
-
-              return _PurchaseCard(
-                purchase: purchase,
-                onEdit: () => onEdit(purchase),
-                onDelete: () => onDelete(purchase),
-                onTogglePaid: () => onTogglePaid(purchase),
-              );
-            },
-          );
-
-    return _LightPanel(
+    return _LelecoPanel(
       padding: const EdgeInsets.all(16),
-      child: fillHeight
-          ? Column(
-              children: [
-                _BoardHeader(count: purchases.length),
-                const SizedBox(height: 14),
-                Expanded(child: list),
-              ],
-            )
-          : Column(
-              children: [
-                _BoardHeader(count: purchases.length),
-                const SizedBox(height: 14),
-                list,
-              ],
-            ),
+      child: Column(
+        children: [
+          Row(
+            children: [
+              const _IconBadge(icon: Icons.receipt_long_rounded),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Text(
+                  'Compras registradas',
+                  style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                        fontWeight: FontWeight.w900,
+                        color: _titleColor(context),
+                      ),
+                ),
+              ),
+              _CountBadge(value: purchases.length.toString()),
+            ],
+          ),
+          const SizedBox(height: 14),
+          Expanded(
+            child: purchases.isEmpty
+                ? const _EmptySuppliers()
+                : ListView.separated(
+                    itemCount: purchases.length,
+                    separatorBuilder: (_, __) => const SizedBox(height: 12),
+                    itemBuilder: (context, index) {
+                      final purchase = purchases[index];
+
+                      return _PurchaseCard(
+                        purchase: purchase,
+                        onEdit: () => onEdit(purchase),
+                        onDelete: () => onDelete(purchase),
+                        onTogglePaid: () => onTogglePaid(purchase),
+                      );
+                    },
+                  ),
+          ),
+        ],
+      ),
     );
   }
 }
 
-class _BoardHeader extends StatelessWidget {
-  const _BoardHeader({required this.count});
+class _LelecoPanel extends StatelessWidget {
+  const _LelecoPanel({
+    required this.child,
+    this.padding = const EdgeInsets.all(16),
+  });
 
-  final int count;
+  final Widget child;
+  final EdgeInsetsGeometry padding;
 
   @override
   Widget build(BuildContext context) {
-    return Row(
-      children: [
-        const _IconBadge(icon: Icons.receipt_long_rounded),
-        const SizedBox(width: 12),
-        Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                'Compras registradas',
-                style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                      fontWeight: FontWeight.w900,
-                      color: _titleColor(context),
-                    ),
-              ),
-              Text(
-                'Histórico de entradas e custos',
-                style: TextStyle(
-                  fontWeight: FontWeight.w700,
-                  color: _mutedColor(context),
-                ),
-              ),
-            ],
-          ),
-        ),
-        _CountBadge(value: count.toString()),
-      ],
+    return Container(
+      width: double.infinity,
+      padding: padding,
+      decoration: BoxDecoration(
+        color: _sectionBackground(context),
+        borderRadius: BorderRadius.circular(26),
+        border: Border.all(color: _borderColor(context)),
+        boxShadow: _softShadow(context),
+      ),
+      child: child,
     );
   }
 }
@@ -736,24 +829,29 @@ class _PurchaseCard extends StatelessWidget {
           padding: const EdgeInsets.all(16),
           child: LayoutBuilder(
             builder: (context, constraints) {
-              final compact = constraints.maxWidth < 720;
+              final compact = constraints.maxWidth < 740;
 
-              final main = Row(
+              final mainInfo = Row(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  _PurchaseIcon(category: purchase.category),
+                  const _IconBadge(icon: Icons.inventory_2_rounded),
                   const SizedBox(width: 14),
-                  Expanded(child: _PurchaseMainInfo(purchase: purchase)),
+                  Expanded(
+                    child: _PurchaseMainInfo(purchase: purchase),
+                  ),
                 ],
               );
 
-              final actions = Row(
+              final rightInfo = Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  _StatusBadge(label: statusText, color: statusColor),
+                  _StatusBadge(
+                    label: statusText,
+                    color: statusColor,
+                  ),
                   const SizedBox(width: 10),
                   SizedBox(
-                    width: 120,
+                    width: 125,
                     child: Text(
                       _formatMoney(purchase.totalCost),
                       textAlign: TextAlign.end,
@@ -790,11 +888,11 @@ class _PurchaseCard extends StatelessWidget {
                 return Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    main,
+                    mainInfo,
                     const SizedBox(height: 12),
                     SingleChildScrollView(
                       scrollDirection: Axis.horizontal,
-                      child: actions,
+                      child: rightInfo,
                     ),
                   ],
                 );
@@ -802,9 +900,9 @@ class _PurchaseCard extends StatelessWidget {
 
               return Row(
                 children: [
-                  Expanded(child: main),
+                  Expanded(child: mainInfo),
                   const SizedBox(width: 12),
-                  actions,
+                  rightInfo,
                 ],
               );
             },
@@ -822,8 +920,6 @@ class _PurchaseMainInfo extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final document = purchase.documentNumber?.trim() ?? '';
-
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -854,10 +950,10 @@ class _PurchaseMainInfo extends StatelessWidget {
             color: _mutedColor(context),
           ),
         ),
-        if (document.isNotEmpty) ...[
+        if ((purchase.documentNumber ?? '').trim().isNotEmpty) ...[
           const SizedBox(height: 4),
           Text(
-            'Doc.: $document',
+            'Doc.: ${purchase.documentNumber}',
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
             style: TextStyle(
@@ -880,328 +976,6 @@ class _PurchaseMainInfo extends StatelessWidget {
         ],
       ],
     );
-  }
-}
-
-class _SideDashboard extends StatelessWidget {
-  const _SideDashboard({
-    required this.supplierTotals,
-    required this.categoryTotals,
-    required this.itemTotals,
-    required this.totalPurchased,
-    required this.openAmount,
-  });
-
-  final List<_SupplierTotal> supplierTotals;
-  final List<_CategoryPurchaseTotal> categoryTotals;
-  final List<_ItemPurchaseTotal> itemTotals;
-  final double totalPurchased;
-  final double openAmount;
-
-  @override
-  Widget build(BuildContext context) {
-    return Column(
-      children: [
-        _DarkMiniPanel(
-          title: 'Resumo de compras',
-          subtitle: 'Gasto total e pendências',
-          icon: Icons.analytics_rounded,
-          children: [
-            _DarkSummaryNumber(
-              label: 'Total comprado',
-              value: _formatMoney(totalPurchased),
-            ),
-            const SizedBox(height: 10),
-            _DarkSummaryNumber(
-              label: 'Em aberto',
-              value: _formatMoney(openAmount),
-            ),
-          ],
-        ),
-        const SizedBox(height: 14),
-        _RankingPanel(
-          title: 'Top fornecedores',
-          emptyText: 'Nenhum fornecedor no período.',
-          icon: Icons.store_rounded,
-          rows: supplierTotals.take(6).map((item) {
-            return _RankRow(
-              title: item.supplierName,
-              subtitle: '${item.count} compra(s)',
-              value: _formatMoney(item.total),
-            );
-          }).toList(),
-        ),
-        const SizedBox(height: 14),
-        _RankingPanel(
-          title: 'Categorias compradas',
-          emptyText: 'Nenhuma categoria no período.',
-          icon: Icons.category_rounded,
-          rows: categoryTotals.take(6).map((item) {
-            return _RankRow(
-              title: item.category,
-              subtitle: '${_formatNumber(item.quantity)} comprado',
-              value: _formatMoney(item.total),
-            );
-          }).toList(),
-        ),
-        const SizedBox(height: 14),
-        _RankingPanel(
-          title: 'Itens mais comprados',
-          emptyText: 'Nenhum item comprado no período.',
-          icon: Icons.inventory_2_rounded,
-          rows: itemTotals.take(6).map((item) {
-            return _RankRow(
-              title: item.itemName,
-              subtitle: '${_formatNumber(item.quantity)} comprado',
-              value: _formatMoney(item.total),
-            );
-          }).toList(),
-        ),
-      ],
-    );
-  }
-}
-
-class _DarkMiniPanel extends StatelessWidget {
-  const _DarkMiniPanel({
-    required this.title,
-    required this.subtitle,
-    required this.icon,
-    required this.children,
-  });
-
-  final String title;
-  final String subtitle;
-  final IconData icon;
-  final List<Widget> children;
-
-  @override
-  Widget build(BuildContext context) {
-    return _DarkSupplierPanel(
-      padding: const EdgeInsets.all(18),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              _DarkIconBox(icon: icon),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      title,
-                      style: const TextStyle(
-                        color: AppColors.beige100,
-                        fontWeight: FontWeight.w900,
-                        fontSize: 17,
-                      ),
-                    ),
-                    const SizedBox(height: 3),
-                    Text(
-                      subtitle,
-                      style: TextStyle(
-                        color: AppColors.beige100.withOpacity(0.62),
-                        fontWeight: FontWeight.w700,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 16),
-          ...children,
-        ],
-      ),
-    );
-  }
-}
-
-class _DarkSummaryNumber extends StatelessWidget {
-  const _DarkSummaryNumber({
-    required this.label,
-    required this.value,
-  });
-
-  final String label;
-  final String value;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(14),
-      decoration: BoxDecoration(
-        color: AppColors.beige100.withOpacity(0.07),
-        borderRadius: BorderRadius.circular(18),
-        border: Border.all(color: AppColors.beige100.withOpacity(0.10)),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            label,
-            style: TextStyle(
-              color: AppColors.beige100.withOpacity(0.64),
-              fontWeight: FontWeight.w700,
-            ),
-          ),
-          const SizedBox(height: 4),
-          Text(
-            value,
-            style: const TextStyle(
-              color: AppColors.beige100,
-              fontWeight: FontWeight.w900,
-              fontSize: 22,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _RankingPanel extends StatelessWidget {
-  const _RankingPanel({
-    required this.title,
-    required this.emptyText,
-    required this.icon,
-    required this.rows,
-  });
-
-  final String title;
-  final String emptyText;
-  final IconData icon;
-  final List<_RankRow> rows;
-
-  @override
-  Widget build(BuildContext context) {
-    return _LightPanel(
-      padding: const EdgeInsets.all(16),
-      child: Column(
-        children: [
-          Row(
-            children: [
-              _SmallIcon(icon: icon),
-              const SizedBox(width: 10),
-              Expanded(
-                child: Text(
-                  title,
-                  style: TextStyle(
-                    color: _titleColor(context),
-                    fontWeight: FontWeight.w900,
-                  ),
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 14),
-          if (rows.isEmpty)
-            Align(
-              alignment: Alignment.centerLeft,
-              child: Text(
-                emptyText,
-                style: TextStyle(
-                  color: _mutedColor(context),
-                  fontWeight: FontWeight.w700,
-                ),
-              ),
-            )
-          else
-            ...rows,
-        ],
-      ),
-    );
-  }
-}
-
-class _RankRow extends StatelessWidget {
-  const _RankRow({
-    required this.title,
-    required this.subtitle,
-    required this.value,
-  });
-
-  final String title;
-  final String subtitle;
-  final String value;
-
-  @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 12),
-      child: Row(
-        children: [
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  title,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: TextStyle(
-                    color: _bodyColor(context),
-                    fontWeight: FontWeight.w900,
-                  ),
-                ),
-                Text(
-                  subtitle,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: TextStyle(
-                    color: _mutedColor(context),
-                    fontWeight: FontWeight.w700,
-                    fontSize: 12,
-                  ),
-                ),
-              ],
-            ),
-          ),
-          const SizedBox(width: 10),
-          Text(
-            value,
-            style: TextStyle(
-              color: AppColors.wine700,
-              fontWeight: FontWeight.w900,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _PurchaseIcon extends StatelessWidget {
-  const _PurchaseIcon({required this.category});
-
-  final ProductCategory category;
-
-  @override
-  Widget build(BuildContext context) {
-    final name = category.name.toLowerCase();
-
-    IconData icon;
-
-    if (name.contains('bovina') || name.contains('boi')) {
-      icon = Icons.set_meal_rounded;
-    } else if (name.contains('suina') || name.contains('porco')) {
-      icon = Icons.restaurant_rounded;
-    } else if (name.contains('frango') || name.contains('ave')) {
-      icon = Icons.egg_alt_rounded;
-    } else if (name.contains('charque')) {
-      icon = Icons.inventory_2_rounded;
-    } else if (name.contains('carvao')) {
-      icon = Icons.local_fire_department_rounded;
-    } else if (name.contains('tempero') || name.contains('pimenta')) {
-      icon = Icons.spa_rounded;
-    } else {
-      icon = Icons.inventory_2_rounded;
-    }
-
-    return _IconBadge(icon: icon);
   }
 }
 
@@ -1243,8 +1017,8 @@ class _CountBadge extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      width: 46,
-      height: 38,
+      width: 44,
+      height: 36,
       alignment: Alignment.center,
       decoration: BoxDecoration(
         color: _tagBackground(context),
@@ -1256,28 +1030,6 @@ class _CountBadge extends StatelessWidget {
           color: AppColors.wine700,
           fontWeight: FontWeight.w900,
         ),
-      ),
-    );
-  }
-}
-
-class _IconBadge extends StatelessWidget {
-  const _IconBadge({required this.icon});
-
-  final IconData icon;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      width: 46,
-      height: 46,
-      decoration: BoxDecoration(
-        color: AppColors.wine900,
-        borderRadius: BorderRadius.circular(16),
-      ),
-      child: Icon(
-        icon,
-        color: AppColors.beige100,
       ),
     );
   }
@@ -1306,8 +1058,8 @@ class _SmallIcon extends StatelessWidget {
   }
 }
 
-class _DarkIconBox extends StatelessWidget {
-  const _DarkIconBox({required this.icon});
+class _IconBadge extends StatelessWidget {
+  const _IconBadge({required this.icon});
 
   final IconData icon;
 
@@ -1317,12 +1069,12 @@ class _DarkIconBox extends StatelessWidget {
       width: 46,
       height: 46,
       decoration: BoxDecoration(
-        color: AppColors.beige100,
+        color: AppColors.wine900,
         borderRadius: BorderRadius.circular(16),
       ),
       child: Icon(
         icon,
-        color: AppColors.wine900,
+        color: AppColors.beige100,
       ),
     );
   }
@@ -1341,62 +1093,6 @@ class _EmptySuppliers extends StatelessWidget {
           color: _mutedColor(context),
         ),
       ),
-    );
-  }
-}
-
-class _DarkSupplierPanel extends StatelessWidget {
-  const _DarkSupplierPanel({
-    required this.child,
-    this.padding = const EdgeInsets.all(20),
-  });
-
-  final Widget child;
-  final EdgeInsetsGeometry padding;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      width: double.infinity,
-      padding: padding,
-      decoration: BoxDecoration(
-        gradient: const LinearGradient(
-          colors: [
-            AppColors.wine900,
-            AppColors.wine700,
-          ],
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-        ),
-        borderRadius: BorderRadius.circular(28),
-        boxShadow: _softShadow(context),
-      ),
-      child: child,
-    );
-  }
-}
-
-class _LightPanel extends StatelessWidget {
-  const _LightPanel({
-    required this.child,
-    this.padding = const EdgeInsets.all(16),
-  });
-
-  final Widget child;
-  final EdgeInsetsGeometry padding;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      width: double.infinity,
-      padding: padding,
-      decoration: BoxDecoration(
-        color: _sectionBackground(context),
-        borderRadius: BorderRadius.circular(26),
-        border: Border.all(color: _borderColor(context)),
-        boxShadow: _softShadow(context),
-      ),
-      child: child,
     );
   }
 }
@@ -1439,8 +1135,7 @@ class _PurchaseDialogState extends State<_PurchaseDialog> {
 
     final purchase = widget.purchase;
 
-    supplierController =
-        TextEditingController(text: purchase?.supplierName ?? '');
+    supplierController = TextEditingController(text: purchase?.supplierName ?? '');
     itemController = TextEditingController(text: purchase?.itemName ?? '');
     quantityController = TextEditingController(
       text: purchase == null ? '' : _formatNumber(purchase.quantity),
@@ -1448,8 +1143,7 @@ class _PurchaseDialogState extends State<_PurchaseDialog> {
     unitCostController = TextEditingController(
       text: purchase == null ? '' : _moneyInput(purchase.unitCost),
     );
-    documentController =
-        TextEditingController(text: purchase?.documentNumber ?? '');
+    documentController = TextEditingController(text: purchase?.documentNumber ?? '');
     notesController = TextEditingController(text: purchase?.notes ?? '');
 
     category = purchase?.category ?? ProductCategory.bovina;
@@ -1675,6 +1369,7 @@ class _PurchaseDialogState extends State<_PurchaseDialog> {
 
     final now = DateTime.now();
     final provider = context.read<SuppliersProvider>();
+
     final old = widget.purchase;
 
     final purchase = SupplierPurchase(
@@ -1724,10 +1419,13 @@ List<SupplierPurchase> _filterByPeriod(
     switch (period) {
       case _SupplierPeriod.today:
         return _sameDay(date, now);
+
       case _SupplierPeriod.sevenDays:
         return !date.isBefore(todayStart.subtract(const Duration(days: 6)));
+
       case _SupplierPeriod.thirtyDays:
         return !date.isBefore(todayStart.subtract(const Duration(days: 29)));
+
       case _SupplierPeriod.all:
         return true;
     }
@@ -1801,8 +1499,9 @@ List<_ItemPurchaseTotal> _itemTotals(List<SupplierPurchase> purchases) {
   final map = <String, _ItemPurchaseTotal>{};
 
   for (final purchase in purchases) {
-    final key =
-        purchase.itemName.trim().isEmpty ? 'Sem item' : purchase.itemName.trim();
+    final key = purchase.itemName.trim().isEmpty
+        ? 'Sem item'
+        : purchase.itemName.trim();
 
     final existing = map[key];
 
@@ -1859,6 +1558,12 @@ Color _cardBackground(BuildContext context) {
   return _isDark(context) ? AppColors.darkSurfaceAlt : const Color(0xFFFBF6F0);
 }
 
+Color _chipBackground(BuildContext context) {
+  return _isDark(context)
+      ? Colors.white.withOpacity(0.05)
+      : const Color(0xFFFBF6F0);
+}
+
 Color _tagBackground(BuildContext context) {
   return _isDark(context)
       ? AppColors.wine700.withOpacity(0.18)
@@ -1909,6 +1614,7 @@ double _parseNumber(String value) {
 
 String _formatMoney(double value) {
   final fixed = value.toStringAsFixed(2).replaceAll('.', ',');
+
   return 'R\$ $fixed';
 }
 
@@ -1918,6 +1624,7 @@ String _moneyInput(double value) {
 
 String _formatNumber(double value) {
   if (value % 1 == 0) return value.toStringAsFixed(0);
+
   return value.toStringAsFixed(3).replaceAll('.', ',');
 }
 
