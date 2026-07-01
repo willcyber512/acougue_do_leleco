@@ -6,15 +6,18 @@ import '../../models/payment_method.dart';
 import '../../models/product.dart';
 import '../../models/product_category.dart';
 import '../../models/product_unit.dart';
+import '../../models/supplier_purchase.dart';
 import '../../providers/customers_provider.dart';
 import '../../providers/inventory_provider.dart';
 import '../../providers/sales_provider.dart';
+import '../../providers/suppliers_provider.dart';
 
 enum _ReportSection {
   overview,
   products,
   categories,
   payments,
+  suppliers,
   lowStock,
   credit,
   detailed,
@@ -40,10 +43,16 @@ class _ReportsScreenState extends State<ReportsScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return Consumer3<SalesProvider, InventoryProvider, CustomersProvider>(
-      builder: (context, salesProvider, inventory, customers, _) {
+    return Consumer4<SalesProvider, InventoryProvider, CustomersProvider,
+        SuppliersProvider>(
+      builder: (context, salesProvider, inventory, customers, suppliers, _) {
         final sales = _filterSalesByPeriod(
           salesProvider.sales,
+          selectedPeriod,
+        );
+
+        final purchases = _filterPurchasesByPeriod(
+          suppliers.purchases,
           selectedPeriod,
         );
 
@@ -55,6 +64,12 @@ class _ReportsScreenState extends State<ReportsScreen> {
         final categoryTotals = _categoryTotals(
           sales,
           inventory.products,
+        );
+
+        final supplierTotals = _supplierTotals(purchases);
+        final totalSupplierPurchases = purchases.fold<double>(
+          0,
+          (total, purchase) => total + purchase.totalCost,
         );
 
         final lowStock = inventory.products.where((product) {
@@ -71,6 +86,7 @@ class _ReportsScreenState extends State<ReportsScreen> {
                 revenue: revenue,
                 averageTicket: averageTicket,
                 openCredit: customers.totalOpenCredit,
+                supplierPurchasesTotal: totalSupplierPurchases,
               ),
               const SizedBox(height: 14),
               _PeriodSelector(
@@ -96,6 +112,9 @@ class _ReportsScreenState extends State<ReportsScreen> {
                 paymentTotals: paymentTotals,
                 productTotals: productTotals,
                 categoryTotals: categoryTotals,
+                purchases: purchases,
+                supplierTotals: supplierTotals,
+                totalSupplierPurchases: totalSupplierPurchases,
                 lowStock: lowStock,
                 openCredit: customers.totalOpenCredit,
               ),
@@ -114,6 +133,7 @@ class _HeaderPanel extends StatelessWidget {
     required this.revenue,
     required this.averageTicket,
     required this.openCredit,
+    required this.supplierPurchasesTotal,
   });
 
   final String periodLabel;
@@ -121,6 +141,7 @@ class _HeaderPanel extends StatelessWidget {
   final double revenue;
   final double averageTicket;
   final double openCredit;
+  final double supplierPurchasesTotal;
 
   @override
   Widget build(BuildContext context) {
@@ -130,7 +151,7 @@ class _HeaderPanel extends StatelessWidget {
         children: [
           Row(
             children: [
-              _IconBox(icon: Icons.bar_chart_rounded),
+              const _IconBox(icon: Icons.bar_chart_rounded),
               const SizedBox(width: 14),
               Expanded(
                 child: Column(
@@ -180,6 +201,11 @@ class _HeaderPanel extends StatelessWidget {
                 icon: Icons.person_rounded,
                 label: 'Fiado aberto',
                 value: _formatMoney(openCredit),
+              ),
+              _MetricBox(
+                icon: Icons.local_shipping_rounded,
+                label: 'Compras fornecedor',
+                value: _formatMoney(supplierPurchasesTotal),
               ),
             ],
           ),
@@ -293,6 +319,12 @@ class _ReportSelector extends StatelessWidget {
         title: 'Pagamentos',
         subtitle: 'Formas',
         icon: Icons.credit_card_rounded,
+      ),
+      _ReportOption(
+        section: _ReportSection.suppliers,
+        title: 'Fornecedores',
+        subtitle: 'Compras',
+        icon: Icons.local_shipping_rounded,
       ),
       _ReportOption(
         section: _ReportSection.lowStock,
@@ -414,6 +446,9 @@ class _ReportContent extends StatelessWidget {
     required this.paymentTotals,
     required this.productTotals,
     required this.categoryTotals,
+    required this.purchases,
+    required this.supplierTotals,
+    required this.totalSupplierPurchases,
     required this.lowStock,
     required this.openCredit,
   });
@@ -426,6 +461,9 @@ class _ReportContent extends StatelessWidget {
   final Map<PaymentMethod, double> paymentTotals;
   final List<_ProductTotal> productTotals;
   final List<_CategoryTotal> categoryTotals;
+  final List<SupplierPurchase> purchases;
+  final List<_SupplierTotal> supplierTotals;
+  final double totalSupplierPurchases;
   final List<Product> lowStock;
   final double openCredit;
 
@@ -442,6 +480,8 @@ class _ReportContent extends StatelessWidget {
           productTotals: productTotals,
           categoryTotals: categoryTotals,
           paymentTotals: paymentTotals,
+          supplierTotals: supplierTotals,
+          totalSupplierPurchases: totalSupplierPurchases,
           lowStock: lowStock,
         );
       case _ReportSection.products:
@@ -458,6 +498,13 @@ class _ReportContent extends StatelessWidget {
         return _PaymentsReport(
           periodLabel: periodLabel,
           paymentTotals: paymentTotals,
+        );
+      case _ReportSection.suppliers:
+        return _SuppliersReport(
+          periodLabel: periodLabel,
+          purchases: purchases,
+          supplierTotals: supplierTotals,
+          totalSupplierPurchases: totalSupplierPurchases,
         );
       case _ReportSection.lowStock:
         return _LowStockReport(products: lowStock);
@@ -482,6 +529,8 @@ class _OverviewReport extends StatelessWidget {
     required this.productTotals,
     required this.categoryTotals,
     required this.paymentTotals,
+    required this.supplierTotals,
+    required this.totalSupplierPurchases,
     required this.lowStock,
   });
 
@@ -493,6 +542,8 @@ class _OverviewReport extends StatelessWidget {
   final List<_ProductTotal> productTotals;
   final List<_CategoryTotal> categoryTotals;
   final Map<PaymentMethod, double> paymentTotals;
+  final List<_SupplierTotal> supplierTotals;
+  final double totalSupplierPurchases;
   final List<Product> lowStock;
 
   @override
@@ -525,6 +576,11 @@ class _OverviewReport extends StatelessWidget {
                 icon: Icons.person_rounded,
                 label: 'Fiado aberto',
                 value: _formatMoney(openCredit),
+              ),
+              _MetricBox(
+                icon: Icons.local_shipping_rounded,
+                label: 'Compras fornecedor',
+                value: _formatMoney(totalSupplierPurchases),
               ),
               _MetricBox(
                 icon: Icons.warning_rounded,
@@ -566,6 +622,17 @@ class _OverviewReport extends StatelessWidget {
                     ];
                   }).toList(),
                 ),
+                _MiniReportTable(
+                  title: 'Fornecedores',
+                  emptyText: 'Nenhuma compra registrada.',
+                  headers: const ['Fornecedor', 'Total'],
+                  rows: supplierTotals.take(5).map((item) {
+                    return [
+                      item.supplierName,
+                      _formatMoney(item.total),
+                    ];
+                  }).toList(),
+                ),
               ];
 
               if (compact) {
@@ -581,18 +648,15 @@ class _OverviewReport extends StatelessWidget {
                 );
               }
 
-              return Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: tables
-                    .map(
-                      (table) => Expanded(
-                        child: Padding(
-                          padding: const EdgeInsets.only(right: 12),
-                          child: table,
-                        ),
-                      ),
-                    )
-                    .toList(),
+              return Wrap(
+                spacing: 12,
+                runSpacing: 12,
+                children: tables.map((table) {
+                  return SizedBox(
+                    width: (constraints.maxWidth - 12) / 2,
+                    child: table,
+                  );
+                }).toList(),
               );
             },
           ),
@@ -703,6 +767,72 @@ class _PaymentsReport extends StatelessWidget {
   }
 }
 
+class _SuppliersReport extends StatelessWidget {
+  const _SuppliersReport({
+    required this.periodLabel,
+    required this.purchases,
+    required this.supplierTotals,
+    required this.totalSupplierPurchases,
+  });
+
+  final String periodLabel;
+  final List<SupplierPurchase> purchases;
+  final List<_SupplierTotal> supplierTotals;
+  final double totalSupplierPurchases;
+
+  @override
+  Widget build(BuildContext context) {
+    return _ReportSectionCard(
+      title: 'Compras de fornecedores',
+      subtitle: 'Período: $periodLabel',
+      child: Column(
+        children: [
+          _TotalPanel(
+            label: 'Total comprado no período',
+            value: _formatMoney(totalSupplierPurchases),
+          ),
+          const SizedBox(height: 14),
+          if (supplierTotals.isEmpty)
+            const _EmptyState('Nenhuma compra de fornecedor nesse período.')
+          else
+            _ProfessionalTable(
+              headers: const ['Fornecedor', 'Compras', 'Total'],
+              rows: supplierTotals.map((item) {
+                return [
+                  item.supplierName,
+                  item.count.toString(),
+                  _formatMoney(item.total),
+                ];
+              }).toList(),
+            ),
+          const SizedBox(height: 14),
+          if (purchases.isNotEmpty)
+            _ProfessionalTable(
+              headers: const [
+                'Data',
+                'Fornecedor',
+                'Item',
+                'Qtd',
+                'Total',
+                'Status'
+              ],
+              rows: purchases.map((purchase) {
+                return [
+                  _formatDate(purchase.purchaseDate),
+                  purchase.supplierName,
+                  purchase.itemName,
+                  '${_formatNumber(purchase.quantity)} ${purchase.unit.label}',
+                  _formatMoney(purchase.totalCost),
+                  purchase.paid ? 'Pago' : 'Em aberto',
+                ];
+              }).toList(),
+            ),
+        ],
+      ),
+    );
+  }
+}
+
 class _LowStockReport extends StatelessWidget {
   const _LowStockReport({required this.products});
 
@@ -773,7 +903,14 @@ class _DetailedSalesReport extends StatelessWidget {
       child: sales.isEmpty
           ? const _EmptyState('Nenhuma venda nesse período.')
           : _ProfessionalTable(
-              headers: const ['Venda', 'Data', 'Hora', 'Pagamento', 'Itens', 'Total'],
+              headers: const [
+                'Venda',
+                'Data',
+                'Hora',
+                'Pagamento',
+                'Itens',
+                'Total'
+              ],
               rows: sales.map((sale) {
                 final date = sale.createdAt as DateTime;
 
@@ -836,7 +973,7 @@ class _ReportSectionCard extends StatelessWidget {
         children: [
           Row(
             children: [
-              _IconBox(icon: Icons.analytics_rounded),
+              const _IconBox(icon: Icons.analytics_rounded),
               const SizedBox(width: 12),
               Expanded(
                 child: Column(
@@ -1020,14 +1157,15 @@ class _ProfessionalTable extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final minWidth = headers.length * 170.0;
+
     return LayoutBuilder(
       builder: (context, constraints) {
-        final minWidth = headers.length * 170.0;
-        final availableWidth = constraints.maxWidth.isFinite
-            ? constraints.maxWidth
-            : minWidth;
+        final availableWidth =
+            constraints.maxWidth.isFinite ? constraints.maxWidth : minWidth;
 
-        final tableWidth = availableWidth > minWidth ? availableWidth : minWidth;
+        final tableWidth =
+            availableWidth > minWidth ? availableWidth : minWidth;
 
         return ClipRRect(
           borderRadius: BorderRadius.circular(20),
@@ -1048,12 +1186,14 @@ class _ProfessionalTable extends StatelessWidget {
                       cells: headers,
                       isHeader: true,
                       striped: false,
+                      tableWidth: tableWidth,
                     ),
                     ...rows.asMap().entries.map((entry) {
                       return _TableLine(
                         cells: entry.value,
                         isHeader: false,
                         striped: entry.key.isOdd,
+                        tableWidth: tableWidth,
                       );
                     }),
                   ],
@@ -1123,11 +1263,13 @@ class _TableLine extends StatelessWidget {
     required this.cells,
     required this.isHeader,
     required this.striped,
+    required this.tableWidth,
   });
 
   final List<String> cells;
   final bool isHeader;
   final bool striped;
+  final double tableWidth;
 
   @override
   Widget build(BuildContext context) {
@@ -1138,8 +1280,13 @@ class _TableLine extends StatelessWidget {
             : _surfaceAltColor(context);
 
     final foreground = isHeader ? AppColors.beige100 : _textColor(context);
+    final firstWidth = cells.length <= 2 ? tableWidth * 0.55 : tableWidth * 0.34;
+    final otherWidth = cells.length <= 1
+        ? tableWidth
+        : (tableWidth - firstWidth) / (cells.length - 1);
 
     return Container(
+      width: tableWidth,
       decoration: BoxDecoration(
         color: background,
         border: isHeader
@@ -1155,9 +1302,10 @@ class _TableLine extends StatelessWidget {
       child: Row(
         children: List.generate(cells.length, (index) {
           final cell = cells[index];
+          final width = index == 0 ? firstWidth : otherWidth;
 
-          return Expanded(
-            flex: index == 0 ? 3 : 2,
+          return SizedBox(
+            width: width - 12,
             child: Padding(
               padding: EdgeInsets.only(
                 right: index == cells.length - 1 ? 0 : 12,
@@ -1264,6 +1412,36 @@ List<dynamic> _filterSalesByPeriod(List<dynamic> sales, _ReportPeriod period) {
   return filtered;
 }
 
+List<SupplierPurchase> _filterPurchasesByPeriod(
+  List<SupplierPurchase> purchases,
+  _ReportPeriod period,
+) {
+  final now = DateTime.now();
+  final todayStart = DateTime(now.year, now.month, now.day);
+
+  final filtered = purchases.where((purchase) {
+    final date = purchase.purchaseDate;
+
+    switch (period) {
+      case _ReportPeriod.today:
+        return _sameDay(date, now);
+
+      case _ReportPeriod.sevenDays:
+        return !date.isBefore(todayStart.subtract(const Duration(days: 6)));
+
+      case _ReportPeriod.thirtyDays:
+        return !date.isBefore(todayStart.subtract(const Duration(days: 29)));
+
+      case _ReportPeriod.all:
+        return true;
+    }
+  }).toList();
+
+  filtered.sort((a, b) => b.purchaseDate.compareTo(a.purchaseDate));
+
+  return filtered;
+}
+
 double _salesRevenue(List<dynamic> sales) {
   return sales.fold<double>(
     0,
@@ -1348,6 +1526,36 @@ List<_CategoryTotal> _categoryTotals(
   return result;
 }
 
+List<_SupplierTotal> _supplierTotals(List<SupplierPurchase> purchases) {
+  final map = <String, _SupplierTotal>{};
+
+  for (final purchase in purchases) {
+    final key = purchase.supplierName.trim().isEmpty
+        ? 'Sem fornecedor'
+        : purchase.supplierName.trim();
+
+    final existing = map[key];
+
+    if (existing == null) {
+      map[key] = _SupplierTotal(
+        supplierName: key,
+        count: 1,
+        total: purchase.totalCost,
+      );
+    } else {
+      map[key] = existing.copyWith(
+        count: existing.count + 1,
+        total: existing.total + purchase.totalCost,
+      );
+    }
+  }
+
+  final result = map.values.toList();
+  result.sort((a, b) => b.total.compareTo(a.total));
+
+  return result;
+}
+
 String _periodLabel(_ReportPeriod period) {
   switch (period) {
     case _ReportPeriod.today:
@@ -1391,6 +1599,7 @@ Color _borderColor(BuildContext context) {
 
 String _formatMoney(double value) {
   final fixed = value.toStringAsFixed(2).replaceAll('.', ',');
+
   return 'R\$ $fixed';
 }
 
@@ -1456,6 +1665,29 @@ class _CategoryTotal {
     return _CategoryTotal(
       category: category,
       quantity: quantity ?? this.quantity,
+      total: total ?? this.total,
+    );
+  }
+}
+
+class _SupplierTotal {
+  const _SupplierTotal({
+    required this.supplierName,
+    required this.count,
+    required this.total,
+  });
+
+  final String supplierName;
+  final int count;
+  final double total;
+
+  _SupplierTotal copyWith({
+    int? count,
+    double? total,
+  }) {
+    return _SupplierTotal(
+      supplierName: supplierName,
+      count: count ?? this.count,
       total: total ?? this.total,
     );
   }

@@ -14,6 +14,7 @@ import '../providers/ramuza_barcode_log_provider.dart';
 import '../providers/ramuza_settings_provider.dart';
 import '../providers/sales_provider.dart';
 import '../providers/shortcuts_provider.dart';
+import '../providers/suppliers_provider.dart';
 
 Future<void> showSafeRestoreDialog(BuildContext context) async {
   await showDialog<void>(
@@ -218,6 +219,7 @@ class _SafeRestoreDialogState extends State<SafeRestoreDialog> {
     await context.read<NotesProvider>().reloadFromStorage();
     await context.read<CashClosureProvider>().reloadFromStorage();
     await context.read<ShortcutsProvider>().reloadFromStorage();
+    await context.read<SuppliersProvider>().reloadFromStorage();
     await context.read<RamuzaSettingsProvider>().reloadFromStorage();
     await context.read<RamuzaBarcodeLogProvider>().reloadFromStorage();
   }
@@ -761,6 +763,10 @@ const List<_BackupKey> _backupKeys = [
   _BackupKey(
     key: 'leleco_internal_notes_v1',
     label: 'Anotações internas',
+  ),
+  _BackupKey(
+    key: 'leleco_supplier_purchases_v1',
+    label: 'Compras de fornecedores',
   ),
   _BackupKey(
     key: 'leleco_cash_closures_v1',

@@ -12,6 +12,7 @@ import '../notes/notes_screen.dart';
 import '../reports/reports_screen.dart';
 import '../sales/sales_screen.dart';
 import '../settings/settings_screen.dart';
+import '../suppliers/suppliers_screen.dart';
 
 class DesktopShellScreen extends StatefulWidget {
   const DesktopShellScreen({super.key});
@@ -30,7 +31,7 @@ class _DesktopShellScreenState extends State<DesktopShellScreen> {
     'Fiado',
     'Caixa',
     'Relatórios',
-    'Anotações',
+    'Fornecedores',
     'Alertas',
     'Ajustes',
   ];
@@ -42,7 +43,7 @@ class _DesktopShellScreenState extends State<DesktopShellScreen> {
     Icons.people_alt_rounded,
     Icons.payments_rounded,
     Icons.bar_chart_rounded,
-    Icons.note_alt_rounded,
+    Icons.local_shipping_rounded,
     Icons.notifications_rounded,
     Icons.settings_rounded,
   ];

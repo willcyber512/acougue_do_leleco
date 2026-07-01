@@ -10,6 +10,7 @@ import 'providers/ramuza_barcode_log_provider.dart';
 import 'providers/ramuza_settings_provider.dart';
 import 'providers/sales_provider.dart';
 import 'providers/shortcuts_provider.dart';
+import 'providers/suppliers_provider.dart';
 import 'providers/theme_provider.dart';
 
 void main() {
@@ -20,6 +21,7 @@ void main() {
         ChangeNotifierProvider(create: (_) => InventoryProvider()),
         ChangeNotifierProvider(create: (_) => SalesProvider()),
         ChangeNotifierProvider(create: (_) => CustomersProvider()),
+        ChangeNotifierProvider(create: (_) => SuppliersProvider()),
         ChangeNotifierProvider(create: (_) => CashClosureProvider()),
         ChangeNotifierProvider(create: (_) => NotesProvider()),
         ChangeNotifierProvider(create: (_) => ShortcutsProvider()),
