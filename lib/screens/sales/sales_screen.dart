@@ -92,7 +92,7 @@ class _ProductsPanel extends StatelessWidget {
                       gridDelegate:
                           const SliverGridDelegateWithMaxCrossAxisExtent(
                         maxCrossAxisExtent: 270,
-                        mainAxisExtent: 190,
+                        mainAxisExtent: 250,
                         crossAxisSpacing: 14,
                         mainAxisSpacing: 14,
                       ),
@@ -157,79 +157,129 @@ class _ProductSaleCard extends StatelessWidget {
     final isLow = product.isLowStock;
 
     return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                Container(
-                  width: 46,
-                  height: 46,
-                  decoration: BoxDecoration(
-                    color: AppColors.wine900,
-                    borderRadius: BorderRadius.circular(16),
+      clipBehavior: Clip.antiAlias,
+      child: InkWell(
+        onTap: () {
+          sales.addProduct(product);
+          _showMessage(
+            context,
+            '${product.name} adicionado com 1 ${product.unit.label}.',
+          );
+        },
+        child: Padding(
+          padding: const EdgeInsets.all(14),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  Container(
+                    width: 42,
+                    height: 42,
+                    decoration: BoxDecoration(
+                      color: AppColors.wine900,
+                      borderRadius: BorderRadius.circular(15),
+                    ),
+                    child: Icon(
+                      product.favorite
+                          ? Icons.star_rounded
+                          : Icons.shopping_bag_rounded,
+                      color: AppColors.beige100,
+                      size: 22,
+                    ),
                   ),
-                  child: Icon(
-                    product.favorite
-                        ? Icons.star_rounded
-                        : Icons.shopping_bag_rounded,
-                    color: AppColors.beige100,
+                  const Spacer(),
+                  Flexible(
+                    child: Text(
+                      product.code,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      textAlign: TextAlign.right,
+                      style: const TextStyle(
+                        fontWeight: FontWeight.w900,
+                        fontSize: 13,
+                      ),
+                    ),
                   ),
-                ),
-                const Spacer(),
-                Text(
-                  product.code,
-                  style: const TextStyle(fontWeight: FontWeight.w900),
-                ),
-              ],
-            ),
-            const SizedBox(height: 12),
-            Text(
-              product.name,
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                    fontWeight: FontWeight.w900,
-                  ),
-            ),
-            const SizedBox(height: 4),
-            Text(
-              '${_formatQuantity(product.stockQuantity, product.unit)} em estoque',
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              style: TextStyle(
-                color: isLow ? AppColors.warning : null,
-                fontWeight: isLow ? FontWeight.w900 : FontWeight.w500,
+                ],
               ),
-            ),
-            const Spacer(),
-            Row(
-              children: [
-                Expanded(
-                  child: Text(
-                    _formatMoney(product.salePrice),
-                    style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                          fontWeight: FontWeight.w900,
-                          color: AppColors.wine700,
+              const SizedBox(height: 10),
+              Text(
+                product.name,
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+                style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                      fontWeight: FontWeight.w900,
+                    ),
+              ),
+              const SizedBox(height: 5),
+              Text(
+                '${_formatQuantity(product.stockQuantity, product.unit)} em estoque',
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(
+                  color: isLow ? AppColors.warning : null,
+                  fontWeight: isLow ? FontWeight.w900 : FontWeight.w600,
+                  fontSize: 12,
+                ),
+              ),
+              const Spacer(),
+              Text(
+                _formatMoney(product.salePrice),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: const TextStyle(
+                  fontWeight: FontWeight.w900,
+                  fontSize: 21,
+                  color: AppColors.wine700,
+                ),
+              ),
+              const SizedBox(height: 8),
+              Row(
+                children: [
+                  Expanded(
+                    child: SizedBox(
+                      height: 32,
+                      child: OutlinedButton(
+                        onPressed: () => _openQuantityDialog(context, product),
+                        style: OutlinedButton.styleFrom(
+                          padding: EdgeInsets.zero,
                         ),
+                        child: const Text(
+                          'Qtd',
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                    ),
                   ),
-                ),
-                OutlinedButton(
-                  onPressed: () => _openQuantityDialog(context, product),
-                  child: const Text('Qtd'),
-                ),
-                const SizedBox(width: 8),
-                FilledButton(
-                  onPressed: () {
-                    sales.addProduct(product);
-                  },
-                  child: const Text('+1'),
-                ),
-              ],
-            ),
-          ],
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: SizedBox(
+                      height: 32,
+                      child: FilledButton(
+                        onPressed: () {
+                          sales.addProduct(product);
+                          _showMessage(
+                            context,
+                            '${product.name} adicionado com 1 ${product.unit.label}.',
+                          );
+                        },
+                        style: FilledButton.styleFrom(
+                          padding: EdgeInsets.zero,
+                        ),
+                        child: const Text(
+                          '+1',
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
         ),
       ),
     );
@@ -292,7 +342,7 @@ class _CartPanel extends StatelessWidget {
                       child: OutlinedButton.icon(
                         onPressed: sales.hasItems ? sales.clearCart : null,
                         icon: const Icon(Icons.delete_outline_rounded),
-                        label: const Text('Limpar'),
+                        label: const Text('Limpar', maxLines: 1, overflow: TextOverflow.ellipsis),
                       ),
                     ),
                     const SizedBox(width: 12),
@@ -369,7 +419,7 @@ class _CartPanel extends StatelessWidget {
                               }
                             : null,
                         icon: const Icon(Icons.check_circle_rounded),
-                        label: const Text('Finalizar'),
+                        label: const Text('Finalizar', maxLines: 1, overflow: TextOverflow.ellipsis),
                       ),
                     ),
                   ],
@@ -962,7 +1012,7 @@ Future<void> _openCartQuantityDialog(
               );
             },
             icon: const Icon(Icons.save_rounded),
-            label: const Text('Salvar'),
+            label: const Text('Salvar', maxLines: 1, overflow: TextOverflow.ellipsis),
           ),
         ],
       );

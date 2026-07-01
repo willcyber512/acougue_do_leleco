@@ -412,7 +412,7 @@ class _FastCartPanel extends StatelessWidget {
                       child: OutlinedButton.icon(
                         onPressed: sales.hasItems ? sales.clearCart : null,
                         icon: const Icon(Icons.delete_outline_rounded),
-                        label: const Text('Limpar'),
+                        label: const Text('Limpar', maxLines: 1, overflow: TextOverflow.ellipsis),
                       ),
                     ),
                     const SizedBox(width: 12),

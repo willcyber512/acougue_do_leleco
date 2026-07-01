@@ -17,7 +17,7 @@ class OperationModeButton extends StatelessWidget {
         );
       },
       icon: const Icon(Icons.storefront_rounded),
-      label: const Text('Modo Balcão'),
+      label: const Text('Balcão', maxLines: 1, overflow: TextOverflow.ellipsis),
     );
   }
 }

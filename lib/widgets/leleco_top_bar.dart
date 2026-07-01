@@ -44,7 +44,7 @@ class LelecoTopBar extends StatelessWidget {
           ),
           const Spacer(),
           SizedBox(
-            width: 390,
+            width: 300,
             child: TextField(
               readOnly: true,
               onTap: () {
@@ -87,7 +87,7 @@ class LelecoTopBar extends StatelessWidget {
                 showSystemDiagnosticsDialog(context);
               },
               icon: const Icon(Icons.health_and_safety_rounded),
-              label: const Text('Diagnóstico'),
+              label: const Text('Diag.', maxLines: 1, overflow: TextOverflow.ellipsis),
             ),
           ],
           if (title == 'Venda') ...[
@@ -125,7 +125,7 @@ class LelecoTopBar extends StatelessWidget {
                 showInventoryCategoriesDialog(context);
               },
               icon: const Icon(Icons.category_rounded),
-              label: const Text('Categorias'),
+              label: const Text('Cat.', maxLines: 1, overflow: TextOverflow.ellipsis),
             ),
           ],
           if (title == 'Caixa') ...[
@@ -135,7 +135,7 @@ class LelecoTopBar extends StatelessWidget {
                 showCashClosuresHistoryDialog(context);
               },
               icon: const Icon(Icons.history_rounded),
-              label: const Text('Fechamentos'),
+              label: const Text('Hist.', maxLines: 1, overflow: TextOverflow.ellipsis),
             ),
             const SizedBox(width: 8),
             FilledButton.icon(
@@ -143,7 +143,7 @@ class LelecoTopBar extends StatelessWidget {
                 showCashClosureDialog(context);
               },
               icon: const Icon(Icons.lock_clock_rounded),
-              label: const Text('Fechar dia'),
+              label: const Text('Fechar', maxLines: 1, overflow: TextOverflow.ellipsis),
             ),
           ],
           const SizedBox(width: 12),
