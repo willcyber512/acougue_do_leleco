@@ -144,28 +144,35 @@ class _SuppliersScreenState extends State<SuppliersScreen> {
                       );
                     }
 
-                    return Column(
+                    return Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        _PurchasesBoard(
-                          purchases: filteredPurchases,
-                          fillHeight: false,
-                          onEdit: (purchase) {
-                            _openPurchaseDialog(context, purchase: purchase);
-                          },
-                          onDelete: (purchase) {
-                            _deletePurchase(context, purchase);
-                          },
-                          onTogglePaid: (purchase) {
-                            _togglePaid(context, purchase);
-                          },
+                        Expanded(
+                          flex: 7,
+                          child: _PurchasesBoard(
+                            purchases: filteredPurchases,
+                            fillHeight: false,
+                            onEdit: (purchase) {
+                              _openPurchaseDialog(context, purchase: purchase);
+                            },
+                            onDelete: (purchase) {
+                              _deletePurchase(context, purchase);
+                            },
+                            onTogglePaid: (purchase) {
+                              _togglePaid(context, purchase);
+                            },
+                          ),
                         ),
-                        const SizedBox(height: 14),
-                        _SideDashboard(
-                          supplierTotals: supplierTotals,
-                          categoryTotals: categoryTotals,
-                          itemTotals: itemTotals,
-                          totalPurchased: totalPurchased,
-                          openAmount: openAmount,
+                        const SizedBox(width: 14),
+                        SizedBox(
+                          width: 380,
+                          child: _SideDashboard(
+                            supplierTotals: supplierTotals,
+                            categoryTotals: categoryTotals,
+                            itemTotals: itemTotals,
+                            totalPurchased: totalPurchased,
+                            openAmount: openAmount,
+                          ),
                         ),
                       ],
                     );
