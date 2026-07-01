@@ -13,6 +13,7 @@ import 'system_diagnostics_dialog.dart';
 import 'ramuza_export_dialog.dart';
 import 'shortcuts_config_dialog.dart';
 import 'universal_search_dialog.dart';
+import 'end_day_backup_dialog.dart';
 
 class LelecoTopBar extends StatelessWidget {
   const LelecoTopBar({
@@ -129,6 +130,14 @@ class LelecoTopBar extends StatelessWidget {
             ),
           ],
           if (title == 'Caixa') ...[
+            const SizedBox(width: 12),
+            IconButton.filledTonal(
+              onPressed: () {
+                showEndDayBackupDialog(context);
+              },
+              tooltip: 'Backup / fim do dia',
+              icon: const Icon(Icons.backup_rounded),
+            ),
             const SizedBox(width: 12),
             OutlinedButton.icon(
               onPressed: () {
