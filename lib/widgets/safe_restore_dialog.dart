@@ -6,7 +6,6 @@ import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../core/constants/app_colors.dart';
-import '../core/constants/app_constants.dart';
 import '../providers/cash_closure_provider.dart';
 import '../providers/customers_provider.dart';
 import '../providers/inventory_provider.dart';
@@ -31,12 +30,23 @@ class SafeRestoreDialog extends StatefulWidget {
 }
 
 class _SafeRestoreDialogState extends State<SafeRestoreDialog> {
-  final controller = TextEditingController();
+  static const String _emergencyKey = 'leleco_emergency_before_restore_v1';
 
-  RestorePreview preview = RestorePreview.empty();
+  final TextEditingController controller = TextEditingController();
 
-  bool acceptedRisk = false;
+  RestorePreview preview = const RestorePreview.empty();
+  EmergencyBackupInfo emergencyInfo = const EmergencyBackupInfo.empty();
+
   bool isRestoring = false;
+
+  @override
+  void initState() {
+    super.initState();
+
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _loadEmergencyInfo();
+    });
+  }
 
   @override
   void dispose() {
@@ -44,41 +54,285 @@ class _SafeRestoreDialogState extends State<SafeRestoreDialog> {
     super.dispose();
   }
 
-  void _validate() {
+  Future<void> _loadEmergencyInfo() async {
+    final prefs = await SharedPreferences.getInstance();
+    final raw = prefs.getString(_emergencyKey);
+
+    if (!mounted) return;
+
     setState(() {
-      acceptedRisk = false;
+      emergencyInfo = EmergencyBackupInfo.fromRaw(raw);
+    });
+  }
+
+  void _updatePreview() {
+    setState(() {
       preview = RestorePreview.fromText(controller.text);
     });
   }
 
+  Future<void> _pasteFromClipboard() async {
+    final data = await Clipboard.getData(Clipboard.kTextPlain);
+    final text = data?.text;
+
+    if (text == null || text.trim().isEmpty) {
+      _showMessage('Área de transferência vazia.', error: true);
+      return;
+    }
+
+    controller.text = text;
+    _updatePreview();
+  }
+
+  void _clearText() {
+    controller.clear();
+
+    setState(() {
+      preview = const RestorePreview.empty();
+    });
+  }
+
+  Future<void> _restoreFromText() async {
+    final currentPreview = RestorePreview.fromText(controller.text);
+
+    if (!currentPreview.canRestore) {
+      _showMessage(
+        currentPreview.generalError ?? 'Backup inválido.',
+        error: true,
+      );
+      return;
+    }
+
+    final confirmed = await _confirmRestore(
+      title: 'Confirmar restauração',
+      message:
+          'Antes de restaurar, o sistema vai salvar um backup de emergência do estado atual. Continuar?',
+    );
+
+    if (!confirmed) return;
+
+    setState(() => isRestoring = true);
+
+    try {
+      await _saveEmergencyBackup();
+      await _restoreDataMap(currentPreview.data);
+
+      if (!mounted) return;
+
+      await _reloadProviders(context);
+
+      await _loadEmergencyInfo();
+
+      _showMessage(
+        'Backup restaurado. Um backup de emergência foi salvo.',
+        success: true,
+      );
+    } catch (error) {
+      _showMessage('Erro ao restaurar: $error', error: true);
+    } finally {
+      if (mounted) {
+        setState(() => isRestoring = false);
+      }
+    }
+  }
+
+  Future<void> _recoverEmergencyBackup() async {
+    if (!emergencyInfo.hasBackup) {
+      _showMessage('Nenhum backup de emergência encontrado.', error: true);
+      return;
+    }
+
+    final confirmed = await _confirmRestore(
+      title: 'Recuperar backup de emergência',
+      message:
+          'Isso vai trazer de volta os dados salvos antes da última restauração. Continuar?',
+    );
+
+    if (!confirmed) return;
+
+    setState(() => isRestoring = true);
+
+    try {
+      await _restoreDataMap(emergencyInfo.data);
+
+      if (!mounted) return;
+
+      await _reloadProviders(context);
+
+      _showMessage(
+        'Backup de emergência recuperado.',
+        success: true,
+      );
+    } catch (error) {
+      _showMessage('Erro ao recuperar emergência: $error', error: true);
+    } finally {
+      if (mounted) {
+        setState(() => isRestoring = false);
+      }
+    }
+  }
+
+  Future<void> _saveEmergencyBackup() async {
+    final prefs = await SharedPreferences.getInstance();
+    final data = <String, String>{};
+
+    for (final item in _backupKeys) {
+      final value = prefs.getString(item.key);
+
+      if (value != null) {
+        data[item.key] = value;
+      }
+    }
+
+    final payload = {
+      'createdAt': DateTime.now().toIso8601String(),
+      'type': 'emergency_before_restore',
+      'data': data,
+    };
+
+    await prefs.setString(_emergencyKey, jsonEncode(payload));
+  }
+
+  Future<void> _restoreDataMap(Map<String, dynamic> data) async {
+    final prefs = await SharedPreferences.getInstance();
+
+    for (final item in _backupKeys) {
+      if (!data.containsKey(item.key)) continue;
+
+      final value = data[item.key];
+
+      if (value == null) continue;
+
+      if (value is String) {
+        await prefs.setString(item.key, value);
+      } else {
+        await prefs.setString(item.key, jsonEncode(value));
+      }
+    }
+  }
+
+  Future<void> _reloadProviders(BuildContext context) async {
+    await context.read<InventoryProvider>().reloadFromStorage();
+    await context.read<SalesProvider>().reloadFromStorage();
+    await context.read<CustomersProvider>().reloadFromStorage();
+    await context.read<NotesProvider>().reloadFromStorage();
+    await context.read<CashClosureProvider>().reloadFromStorage();
+    await context.read<ShortcutsProvider>().reloadFromStorage();
+    await context.read<RamuzaSettingsProvider>().reloadFromStorage();
+    await context.read<RamuzaBarcodeLogProvider>().reloadFromStorage();
+  }
+
+  Future<bool> _confirmRestore({
+    required String title,
+    required String message,
+  }) async {
+    final result = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) {
+        return AlertDialog(
+          title: Text(title),
+          content: Text(message),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(dialogContext).pop(false),
+              child: const Text('Cancelar'),
+            ),
+            FilledButton.icon(
+              onPressed: () => Navigator.of(dialogContext).pop(true),
+              icon: const Icon(Icons.restore_rounded),
+              label: const Text('Continuar'),
+            ),
+          ],
+        );
+      },
+    );
+
+    return result ?? false;
+  }
+
   @override
   Widget build(BuildContext context) {
-    final canRestore = preview.isValid && acceptedRisk && !isRestoring;
-
     return AlertDialog(
-      title: const Text('Restaurar backup com segurança'),
+      title: const Text('Restauração segura'),
       content: SizedBox(
-        width: 980,
-        height: 680,
-        child: Row(
+        width: 900,
+        height: 660,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
+            _WarningBox(
+              text:
+                  'Cole um backup exportado pelo sistema. Antes de restaurar, o app salva automaticamente um backup de emergência dos dados atuais.',
+            ),
+            const SizedBox(height: 12),
             Expanded(
-              child: _PastePanel(
+              flex: 4,
+              child: TextField(
                 controller: controller,
-                onChanged: _validate,
-                onPaste: _pasteFromClipboard,
+                onChanged: (_) => _updatePreview(),
+                maxLines: null,
+                expands: true,
+                textAlignVertical: TextAlignVertical.top,
+                decoration: InputDecoration(
+                  labelText: 'Backup em JSON',
+                  alignLabelWithHint: true,
+                  hintText: 'Cole aqui o backup exportado...',
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(18),
+                  ),
+                ),
+                style: const TextStyle(
+                  fontFamily: 'monospace',
+                  fontSize: 12,
+                ),
               ),
             ),
-            const SizedBox(width: 16),
+            const SizedBox(height: 10),
+            Row(
+              children: [
+                TextButton.icon(
+                  onPressed: isRestoring ? null : _pasteFromClipboard,
+                  icon: const Icon(Icons.content_paste_rounded),
+                  label: const Text('Colar backup'),
+                ),
+                const SizedBox(width: 8),
+                TextButton.icon(
+                  onPressed: isRestoring ? null : _clearText,
+                  icon: const Icon(Icons.cleaning_services_rounded),
+                  label: const Text('Limpar'),
+                ),
+                const Spacer(),
+                _PreviewCounter(
+                  label: 'Partes válidas',
+                  value: preview.recognizedKeys.length.toString(),
+                  icon: Icons.check_circle_rounded,
+                ),
+                const SizedBox(width: 8),
+                _PreviewCounter(
+                  label: 'Desconhecidas',
+                  value: preview.unknownKeys.length.toString(),
+                  icon: Icons.help_rounded,
+                ),
+              ],
+            ),
+            const SizedBox(height: 10),
             Expanded(
-              child: _PreviewPanel(
-                preview: preview,
-                acceptedRisk: acceptedRisk,
-                onAcceptedChanged: preview.isValid
-                    ? (value) {
-                        setState(() => acceptedRisk = value);
-                      }
-                    : null,
+              flex: 3,
+              child: Row(
+                children: [
+                  Expanded(
+                    child: _PreviewPanel(preview: preview),
+                  ),
+                  const SizedBox(width: 12),
+                  SizedBox(
+                    width: 320,
+                    child: _EmergencyCard(
+                      info: emergencyInfo,
+                      isBusy: isRestoring,
+                      onRecover: _recoverEmergencyBackup,
+                    ),
+                  ),
+                ],
               ),
             ),
           ],
@@ -87,572 +341,451 @@ class _SafeRestoreDialogState extends State<SafeRestoreDialog> {
       actions: [
         TextButton(
           onPressed: isRestoring ? null : () => Navigator.of(context).pop(),
-          child: const Text('Cancelar'),
+          child: const Text('Fechar'),
         ),
         FilledButton.icon(
-          onPressed: canRestore ? _restoreBackup : null,
+          onPressed: isRestoring || !preview.canRestore ? null : _restoreFromText,
           icon: const Icon(Icons.restore_rounded),
-          label: Text(isRestoring ? 'Restaurando...' : 'Restaurar agora'),
+          label: Text(isRestoring ? 'Restaurando...' : 'Restaurar backup'),
         ),
       ],
     );
   }
 
-  Future<void> _pasteFromClipboard() async {
-    final data = await Clipboard.getData('text/plain');
-    final text = data?.text ?? '';
-
-    controller.text = text;
-    _validate();
-  }
-
-  Future<void> _restoreBackup() async {
-    if (!preview.isValid) return;
-
-    setState(() => isRestoring = true);
-
-    try {
-      final prefs = await SharedPreferences.getInstance();
-
-      await _saveEmergencyBackup(prefs);
-      await _writeBackupData(prefs, preview.data);
-
-      if (!mounted) return;
-
-      await _reloadProviders(context);
-
-      if (!mounted) return;
-
-      setState(() => isRestoring = false);
-
-      ScaffoldMessenger.of(context)
-        ..clearSnackBars()
-        ..showSnackBar(
-          const SnackBar(
-            content: Text('Backup restaurado com segurança.'),
-          ),
-        );
-
-      Navigator.of(context).pop();
-    } catch (error) {
-      if (!mounted) return;
-
-      setState(() => isRestoring = false);
-
-      ScaffoldMessenger.of(context)
-        ..clearSnackBars()
-        ..showSnackBar(
-          SnackBar(
-            content: Text('Erro ao restaurar: $error'),
-          ),
-        );
-    }
+  void _showMessage(
+    String message, {
+    bool success = false,
+    bool error = false,
+  }) {
+    ScaffoldMessenger.of(context)
+      ..clearSnackBars()
+      ..showSnackBar(
+        SnackBar(
+          content: Text(message),
+          backgroundColor: error
+              ? AppColors.danger
+              : success
+                  ? AppColors.success
+                  : null,
+        ),
+      );
   }
 }
 
-class _PastePanel extends StatelessWidget {
-  const _PastePanel({
-    required this.controller,
-    required this.onChanged,
-    required this.onPaste,
-  });
+class _WarningBox extends StatelessWidget {
+  const _WarningBox({required this.text});
 
-  final TextEditingController controller;
-  final VoidCallback onChanged;
-  final VoidCallback onPaste;
+  final String text;
 
   @override
   Widget build(BuildContext context) {
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          children: [
-            Row(
-              children: [
-                Container(
-                  width: 46,
-                  height: 46,
-                  decoration: BoxDecoration(
-                    color: AppColors.wine900,
-                    borderRadius: BorderRadius.circular(16),
-                  ),
-                  child: const Icon(
-                    Icons.content_paste_rounded,
-                    color: AppColors.beige100,
-                  ),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Text(
-                    'Cole aqui o backup completo',
-                    style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                          fontWeight: FontWeight.w900,
-                        ),
-                  ),
-                ),
-              ],
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: Theme.of(context).brightness == Brightness.dark
+            ? AppColors.darkSurfaceAlt
+            : AppColors.beige100,
+        borderRadius: BorderRadius.circular(18),
+      ),
+      child: Row(
+        children: [
+          const Icon(Icons.security_rounded, color: AppColors.wine700),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Text(
+              text,
+              style: const TextStyle(fontWeight: FontWeight.w800),
             ),
-            const SizedBox(height: 14),
-            Expanded(
-              child: TextField(
-                controller: controller,
-                onChanged: (_) => onChanged(),
-                expands: true,
-                maxLines: null,
-                minLines: null,
-                textAlignVertical: TextAlignVertical.top,
-                style: const TextStyle(
-                  fontFamily: 'monospace',
-                  fontSize: 12,
-                ),
-                decoration: const InputDecoration(
-                  alignLabelWithHint: true,
-                  labelText: 'JSON do backup',
-                  hintText: '{ "app": "Açougue do Leleco", ... }',
-                ),
-              ),
-            ),
-            const SizedBox(height: 12),
-            SizedBox(
-              width: double.infinity,
-              child: OutlinedButton.icon(
-                onPressed: onPaste,
-                icon: const Icon(Icons.paste_rounded),
-                label: const Text('Colar da área de transferência'),
-              ),
-            ),
-          ],
-        ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _PreviewCounter extends StatelessWidget {
+  const _PreviewCounter({
+    required this.label,
+    required this.value,
+    required this.icon,
+  });
+
+  final String label;
+  final String value;
+  final IconData icon;
+
+  @override
+  Widget build(BuildContext context) {
+    return Chip(
+      avatar: Icon(icon, size: 18),
+      label: Text(
+        '$label: $value',
+        style: const TextStyle(fontWeight: FontWeight.w900),
       ),
     );
   }
 }
 
 class _PreviewPanel extends StatelessWidget {
-  const _PreviewPanel({
-    required this.preview,
-    required this.acceptedRisk,
-    required this.onAcceptedChanged,
-  });
+  const _PreviewPanel({required this.preview});
 
   final RestorePreview preview;
-  final bool acceptedRisk;
-  final ValueChanged<bool>? onAcceptedChanged;
 
   @override
   Widget build(BuildContext context) {
-    final color = preview.isValid ? AppColors.success : AppColors.warning;
+    if (preview.generalError != null) {
+      return _EmptyPanel(text: preview.generalError!);
+    }
+
+    if (preview.recognizedKeys.isEmpty && preview.unknownKeys.isEmpty) {
+      return const _EmptyPanel(
+        text: 'Cole um backup para ver o que será restaurado.',
+      );
+    }
 
     return Card(
-      child: ListView(
-        padding: const EdgeInsets.all(16),
-        children: [
-          Row(
-            children: [
-              Container(
-                width: 46,
-                height: 46,
-                decoration: BoxDecoration(
-                  color: color,
-                  borderRadius: BorderRadius.circular(16),
-                ),
-                child: Icon(
-                  preview.isValid
-                      ? Icons.check_circle_rounded
-                      : Icons.warning_rounded,
-                  color: AppColors.beige100,
-                ),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Text(
-                  preview.title,
-                  style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                        fontWeight: FontWeight.w900,
-                      ),
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 12),
-          Text(
-            preview.message,
-            style: const TextStyle(fontWeight: FontWeight.w700),
-          ),
-          const SizedBox(height: 16),
-          if (preview.isValid) ...[
-            _InfoLine(label: 'App', value: preview.appName),
-            _InfoLine(label: 'Versão do backup', value: preview.version),
-            _InfoLine(label: 'Tipo', value: preview.type),
-            _InfoLine(label: 'Criado em', value: preview.createdAt),
-            const SizedBox(height: 12),
-            Text(
-              'Dados que serão restaurados',
-              style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                    fontWeight: FontWeight.w900,
-                  ),
+      child: Padding(
+        padding: const EdgeInsets.all(14),
+        child: ListView(
+          children: [
+            const Text(
+              'Partes que serão restauradas',
+              style: TextStyle(fontWeight: FontWeight.w900),
             ),
-            const SizedBox(height: 8),
-            ...preview.data.keys.map((key) {
-              return _KeyTile(
-                keyName: key,
-                label: _keyLabel(key),
-              );
-            }),
-            if (preview.ignoredKeys.isNotEmpty) ...[
-              const SizedBox(height: 14),
-              Text(
-                'Chaves ignoradas',
-                style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                      fontWeight: FontWeight.w900,
-                    ),
+            const SizedBox(height: 10),
+            if (preview.recognizedKeys.isEmpty)
+              const Text('Nenhuma parte válida encontrada.')
+            else
+              ...preview.recognizedKeys.map(
+                (item) => ListTile(
+                  dense: true,
+                  leading: const Icon(
+                    Icons.check_circle_rounded,
+                    color: AppColors.success,
+                  ),
+                  title: Text(
+                    item.label,
+                    style: const TextStyle(fontWeight: FontWeight.w900),
+                  ),
+                  subtitle: Text(item.key),
+                ),
+              ),
+            if (preview.unknownKeys.isNotEmpty) ...[
+              const Divider(),
+              const Text(
+                'Partes desconhecidas ignoradas',
+                style: TextStyle(fontWeight: FontWeight.w900),
               ),
               const SizedBox(height: 8),
-              ...preview.ignoredKeys.map((key) {
-                return Text(
-                  '• $key',
-                  style: const TextStyle(fontWeight: FontWeight.w700),
-                );
-              }),
+              ...preview.unknownKeys.take(8).map(
+                    (key) => Text(
+                      '• $key',
+                      style: const TextStyle(fontWeight: FontWeight.w700),
+                    ),
+                  ),
+              if (preview.unknownKeys.length > 8)
+                Text('... e mais ${preview.unknownKeys.length - 8}.'),
             ],
-            const SizedBox(height: 16),
-            Container(
-              padding: const EdgeInsets.all(14),
-              decoration: BoxDecoration(
-                color: AppColors.warning.withOpacity(0.12),
-                borderRadius: BorderRadius.circular(18),
-              ),
-              child: const Text(
-                'A restauração vai substituir os dados locais atuais pelas informações do backup. Antes disso, o sistema salva um backup de emergência automático.',
-                style: TextStyle(fontWeight: FontWeight.w800),
-              ),
-            ),
-            CheckboxListTile(
-              value: acceptedRisk,
-              onChanged: onAcceptedChanged == null
-                  ? null
-                  : (value) => onAcceptedChanged!(value ?? false),
-              contentPadding: EdgeInsets.zero,
-              title: const Text(
-                'Entendo que os dados locais serão substituídos.',
-                style: TextStyle(fontWeight: FontWeight.w800),
-              ),
-            ),
           ],
-        ],
+        ),
       ),
     );
   }
 }
 
-class _InfoLine extends StatelessWidget {
-  const _InfoLine({
-    required this.label,
-    required this.value,
+class _EmergencyCard extends StatelessWidget {
+  const _EmergencyCard({
+    required this.info,
+    required this.isBusy,
+    required this.onRecover,
   });
 
-  final String label;
-  final String value;
+  final EmergencyBackupInfo info;
+  final bool isBusy;
+  final VoidCallback onRecover;
 
   @override
   Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 7),
-      child: Row(
-        children: [
-          SizedBox(
-            width: 130,
-            child: Text(
-              label,
-              style: const TextStyle(fontWeight: FontWeight.w700),
-            ),
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(14),
+        child: SingleChildScrollView(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Row(
+                children: [
+                  Icon(Icons.emergency_share_rounded, color: AppColors.wine700),
+                  SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      'Backup de emergência',
+                      style: TextStyle(fontWeight: FontWeight.w900),
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 10),
+              Text(
+                info.hasBackup
+                    ? 'Criado em: ${_formatDateTime(info.createdAt!)}'
+                    : 'Nenhum backup de emergência salvo ainda.',
+                style: const TextStyle(fontWeight: FontWeight.w700),
+              ),
+              const SizedBox(height: 8),
+              Text(
+                info.hasBackup
+                    ? '${info.keysCount} parte(s) recuperável(is).'
+                    : 'Ele será criado automaticamente antes de uma restauração.',
+              ),
+              const SizedBox(height: 16),
+              SizedBox(
+                width: double.infinity,
+                child: FilledButton.icon(
+                  onPressed: isBusy || !info.hasBackup ? null : onRecover,
+                  icon: const Icon(Icons.history_rounded),
+                  label: const Text('Recuperar emergência'),
+                ),
+              ),
+            ],
           ),
-          Expanded(
-            child: Text(
-              value,
-              style: const TextStyle(fontWeight: FontWeight.w900),
-            ),
-          ),
-        ],
+        ),
       ),
     );
   }
 }
 
-class _KeyTile extends StatelessWidget {
-  const _KeyTile({
-    required this.keyName,
-    required this.label,
-  });
+class _EmptyPanel extends StatelessWidget {
+  const _EmptyPanel({required this.text});
 
-  final String keyName;
-  final String label;
+  final String text;
 
   @override
   Widget build(BuildContext context) {
-    return ListTile(
-      dense: true,
-      contentPadding: EdgeInsets.zero,
-      leading: const Icon(Icons.check_circle_rounded),
-      title: Text(
-        label,
-        style: const TextStyle(fontWeight: FontWeight.w900),
+    return Card(
+      child: Center(
+        child: Padding(
+          padding: const EdgeInsets.all(18),
+          child: Text(
+            text,
+            textAlign: TextAlign.center,
+            style: const TextStyle(fontWeight: FontWeight.w800),
+          ),
+        ),
       ),
-      subtitle: Text(keyName),
     );
   }
 }
 
 class RestorePreview {
   const RestorePreview({
-    required this.isValid,
-    required this.title,
-    required this.message,
-    required this.appName,
-    required this.version,
-    required this.type,
-    required this.createdAt,
     required this.data,
-    required this.ignoredKeys,
+    required this.recognizedKeys,
+    required this.unknownKeys,
+    this.generalError,
   });
 
-  final bool isValid;
-  final String title;
-  final String message;
-  final String appName;
-  final String version;
-  final String type;
-  final String createdAt;
-  final Map<String, dynamic> data;
-  final List<String> ignoredKeys;
+  const RestorePreview.empty()
+      : data = const {},
+        recognizedKeys = const [],
+        unknownKeys = const [],
+        generalError = null;
 
-  factory RestorePreview.empty() {
-    return const RestorePreview(
-      isValid: false,
-      title: 'Aguardando backup',
-      message: 'Cole o JSON do backup completo para validar.',
-      appName: '-',
-      version: '-',
-      type: '-',
-      createdAt: '-',
-      data: {},
-      ignoredKeys: [],
-    );
-  }
+  final Map<String, dynamic> data;
+  final List<_BackupKey> recognizedKeys;
+  final List<String> unknownKeys;
+  final String? generalError;
+
+  bool get canRestore => generalError == null && recognizedKeys.isNotEmpty;
 
   factory RestorePreview.fromText(String text) {
-    final trimmed = text.trim();
+    final raw = text.trim();
 
-    if (trimmed.isEmpty) {
-      return RestorePreview.empty();
+    if (raw.isEmpty) {
+      return const RestorePreview.empty();
     }
 
     try {
-      final decoded = jsonDecode(trimmed);
+      final decoded = jsonDecode(raw);
 
-      if (decoded is! Map) {
-        return _invalid('JSON inválido', 'O backup precisa ser um objeto JSON.');
-      }
+      final data = _extractDataMap(decoded);
 
-      final map = Map<String, dynamic>.from(decoded);
-
-      final appName = map['app']?.toString() ?? 'Desconhecido';
-      final version = map['version']?.toString() ?? 'Desconhecida';
-      final type = map['type']?.toString() ?? 'backup';
-      final createdAt = map['createdAt']?.toString() ?? 'Desconhecido';
-
-      final rawData = _extractDataMap(map);
-
-      if (rawData.isEmpty) {
-        return _invalid(
-          'Backup sem dados',
-          'Não encontrei dados restauráveis dentro do JSON.',
+      if (data == null) {
+        return const RestorePreview(
+          data: {},
+          recognizedKeys: [],
+          unknownKeys: [],
+          generalError: 'JSON inválido. O backup precisa ser um objeto.',
         );
       }
 
-      final data = <String, dynamic>{};
-      final ignored = <String>[];
+      final recognized = _backupKeys.where((item) {
+        return data.containsKey(item.key);
+      }).toList();
 
-      for (final entry in rawData.entries) {
-        if (_allowedKeys.contains(entry.key)) {
-          data[entry.key] = entry.value;
-        } else {
-          ignored.add(entry.key);
-        }
-      }
+      final knownKeys = _backupKeys.map((item) => item.key).toSet();
 
-      if (data.isEmpty) {
-        return _invalid(
-          'Nenhuma chave compatível',
-          'O JSON existe, mas não tem dados compatíveis com este sistema.',
+      final unknown = data.keys.where((key) {
+        return !knownKeys.contains(key);
+      }).toList();
+
+      if (recognized.isEmpty) {
+        return RestorePreview(
+          data: data,
+          recognizedKeys: const [],
+          unknownKeys: unknown,
+          generalError: 'Nenhuma parte válida do sistema foi encontrada.',
         );
       }
 
       return RestorePreview(
-        isValid: true,
-        title: 'Backup válido',
-        message:
-            '${data.length} grupo(s) de dados podem ser restaurados. Confira antes de continuar.',
-        appName: appName,
-        version: version,
-        type: type,
-        createdAt: createdAt,
         data: data,
-        ignoredKeys: ignored,
+        recognizedKeys: recognized,
+        unknownKeys: unknown,
       );
-    } catch (error) {
-      return _invalid(
-        'Erro ao ler JSON',
-        'Não foi possível interpretar o texto colado. Detalhe: $error',
+    } catch (_) {
+      return const RestorePreview(
+        data: {},
+        recognizedKeys: [],
+        unknownKeys: [],
+        generalError: 'JSON inválido. Confira se copiou o backup inteiro.',
       );
     }
   }
 
-  static RestorePreview _invalid(String title, String message) {
-    return RestorePreview(
-      isValid: false,
-      title: title,
-      message: message,
-      appName: '-',
-      version: '-',
-      type: '-',
-      createdAt: '-',
-      data: const {},
-      ignoredKeys: const [],
-    );
-  }
+  static Map<String, dynamic>? _extractDataMap(dynamic decoded) {
+    if (decoded is! Map) return null;
 
-  static Map<String, dynamic> _extractDataMap(Map<String, dynamic> map) {
-    final data = map['data'];
+    final data = decoded['data'];
 
     if (data is Map) {
-      return Map<String, dynamic>.from(data);
+      return data.map((key, value) => MapEntry(key.toString(), value));
     }
 
-    final directData = <String, dynamic>{};
+    return decoded.map((key, value) => MapEntry(key.toString(), value));
+  }
+}
 
-    for (final key in _allowedKeys) {
-      if (map.containsKey(key)) {
-        directData[key] = map[key];
+class EmergencyBackupInfo {
+  const EmergencyBackupInfo({
+    required this.hasBackup,
+    required this.data,
+    required this.keysCount,
+    this.createdAt,
+  });
+
+  const EmergencyBackupInfo.empty()
+      : hasBackup = false,
+        data = const {},
+        keysCount = 0,
+        createdAt = null;
+
+  final bool hasBackup;
+  final Map<String, dynamic> data;
+  final int keysCount;
+  final DateTime? createdAt;
+
+  factory EmergencyBackupInfo.fromRaw(String? raw) {
+    if (raw == null || raw.trim().isEmpty) {
+      return const EmergencyBackupInfo.empty();
+    }
+
+    try {
+      final decoded = jsonDecode(raw);
+
+      if (decoded is! Map) {
+        return const EmergencyBackupInfo.empty();
       }
+
+      final rawData = decoded['data'];
+
+      if (rawData is! Map) {
+        return const EmergencyBackupInfo.empty();
+      }
+
+      final data = rawData.map((key, value) {
+        return MapEntry(key.toString(), value);
+      });
+
+      final createdAt = DateTime.tryParse(decoded['createdAt']?.toString() ?? '');
+
+      return EmergencyBackupInfo(
+        hasBackup: data.isNotEmpty,
+        data: data,
+        keysCount: data.length,
+        createdAt: createdAt,
+      );
+    } catch (_) {
+      return const EmergencyBackupInfo.empty();
     }
-
-    return directData;
   }
 }
 
-Future<void> _saveEmergencyBackup(SharedPreferences prefs) async {
-  final currentData = <String, dynamic>{};
+class _BackupKey {
+  const _BackupKey({
+    required this.key,
+    required this.label,
+  });
 
-  for (final key in _allowedKeys) {
-    if (prefs.containsKey(key)) {
-      currentData[key] = prefs.get(key);
-    }
-  }
-
-  final emergency = {
-    'app': AppConstants.appName,
-    'version': AppConstants.appVersion,
-    'type': 'emergency_before_restore',
-    'createdAt': DateTime.now().toIso8601String(),
-    'data': currentData,
-  };
-
-  await prefs.setString(
-    _emergencyBackupKey,
-    const JsonEncoder.withIndent('  ').convert(emergency),
-  );
+  final String key;
+  final String label;
 }
 
-Future<void> _writeBackupData(
-  SharedPreferences prefs,
-  Map<String, dynamic> data,
-) async {
-  for (final entry in data.entries) {
-    await _writePreference(prefs, entry.key, entry.value);
-  }
-}
-
-Future<void> _writePreference(
-  SharedPreferences prefs,
-  String key,
-  dynamic value,
-) async {
-  if (value == null) {
-    await prefs.remove(key);
-    return;
-  }
-
-  if (value is String) {
-    await prefs.setString(key, value);
-    return;
-  }
-
-  if (value is bool) {
-    await prefs.setBool(key, value);
-    return;
-  }
-
-  if (value is int) {
-    await prefs.setInt(key, value);
-    return;
-  }
-
-  if (value is double) {
-    await prefs.setDouble(key, value);
-    return;
-  }
-
-  if (value is List && value.every((item) => item is String)) {
-    await prefs.setStringList(key, value.cast<String>());
-    return;
-  }
-
-  await prefs.setString(key, jsonEncode(value));
-}
-
-Future<void> _reloadProviders(BuildContext context) async {
-  await context.read<InventoryProvider>().reloadFromStorage();
-  await context.read<SalesProvider>().reloadFromStorage();
-  await context.read<CustomersProvider>().reloadFromStorage();
-  await context.read<NotesProvider>().reloadFromStorage();
-  await context.read<CashClosureProvider>().reloadFromStorage();
-  await context.read<ShortcutsProvider>().reloadFromStorage();
-  await context.read<RamuzaSettingsProvider>().reloadFromStorage();
-  await context.read<RamuzaBarcodeLogProvider>().reloadFromStorage();
-}
-
-const String _emergencyBackupKey = 'leleco_emergency_before_restore_v1';
-
-const List<String> _allowedKeys = [
-  'leleco_inventory_products_v1',
-  'leleco_inventory_events_v1',
-  'leleco_inventory_losses_v1',
-  'leleco_sales_records_v1',
-  'leleco_customers_v1',
-  'leleco_credit_entries_v1',
-  'leleco_internal_notes_v1',
-  'leleco_cash_closures_v1',
-  'leleco_dashboard_shortcuts_v1',
-  'leleco_ramuza_barcode_settings_v1',
-  'leleco_ramuza_barcode_events_v1',
+const List<_BackupKey> _backupKeys = [
+  _BackupKey(
+    key: 'leleco_inventory_products_v1',
+    label: 'Produtos / Estoque',
+  ),
+  _BackupKey(
+    key: 'leleco_inventory_events_v1',
+    label: 'Histórico do estoque',
+  ),
+  _BackupKey(
+    key: 'leleco_inventory_losses_v1',
+    label: 'Perdas do estoque',
+  ),
+  _BackupKey(
+    key: 'leleco_sales_records_v1',
+    label: 'Vendas',
+  ),
+  _BackupKey(
+    key: 'leleco_customers_v1',
+    label: 'Clientes / Fiado',
+  ),
+  _BackupKey(
+    key: 'leleco_credit_entries_v1',
+    label: 'Movimentos do fiado',
+  ),
+  _BackupKey(
+    key: 'leleco_internal_notes_v1',
+    label: 'Anotações internas',
+  ),
+  _BackupKey(
+    key: 'leleco_cash_closures_v1',
+    label: 'Fechamentos de caixa',
+  ),
+  _BackupKey(
+    key: 'leleco_dashboard_shortcuts_v1',
+    label: 'Atalhos da tela Hoje',
+  ),
+  _BackupKey(
+    key: 'leleco_ramuza_barcode_settings_v1',
+    label: 'Configurações da Ramuza',
+  ),
+  _BackupKey(
+    key: 'leleco_ramuza_barcode_events_v1',
+    label: 'Histórico de leituras Ramuza',
+  ),
 ];
 
-String _keyLabel(String key) {
-  const labels = {
-    'leleco_inventory_products_v1': 'Produtos e estoque',
-    'leleco_inventory_events_v1': 'Histórico do estoque',
-    'leleco_inventory_losses_v1': 'Perdas',
-    'leleco_sales_records_v1': 'Vendas',
-    'leleco_customers_v1': 'Clientes',
-    'leleco_credit_entries_v1': 'Fiado',
-    'leleco_internal_notes_v1': 'Anotações internas',
-    'leleco_cash_closures_v1': 'Fechamentos de caixa',
-    'leleco_dashboard_shortcuts_v1': 'Atalhos',
-    'leleco_ramuza_barcode_settings_v1': 'Configuração Ramuza',
-    'leleco_ramuza_barcode_events_v1': 'Histórico Ramuza',
-  };
+String _formatDateTime(DateTime value) {
+  final day = value.day.toString().padLeft(2, '0');
+  final month = value.month.toString().padLeft(2, '0');
+  final year = value.year.toString();
+  final hour = value.hour.toString().padLeft(2, '0');
+  final minute = value.minute.toString().padLeft(2, '0');
 
-  return labels[key] ?? key;
+  return '$day/$month/$year $hour:$minute';
 }
