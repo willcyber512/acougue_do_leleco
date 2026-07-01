@@ -14,6 +14,13 @@ import '../../providers/inventory_provider.dart';
 import '../../providers/sales_provider.dart';
 import '../../providers/suppliers_provider.dart';
 
+const Color _orange = Color(0xFFFF7A1A);
+const Color _orange2 = Color(0xFFFFB000);
+const Color _darkBg = Color(0xFF0E0809);
+const Color _darkCard = Color(0xFF1A1012);
+const Color _darkCard2 = Color(0xFF241417);
+const Color _green = Color(0xFF4ADE80);
+
 enum _ReportSection {
   overview,
   products,
@@ -48,11 +55,7 @@ class _ReportsScreenState extends State<ReportsScreen> {
     return Consumer4<SalesProvider, InventoryProvider, CustomersProvider,
         SuppliersProvider>(
       builder: (context, salesProvider, inventory, customers, suppliers, _) {
-        final sales = _filterSalesByPeriod(
-          salesProvider.sales,
-          selectedPeriod,
-        );
-
+        final sales = _filterSalesByPeriod(salesProvider.sales, selectedPeriod);
         final purchases = _filterPurchasesByPeriod(
           suppliers.purchases,
           selectedPeriod,
@@ -76,20 +79,26 @@ class _ReportsScreenState extends State<ReportsScreen> {
         }).toList();
 
         return Container(
-          color: _pageBackground(context),
+          decoration: const BoxDecoration(
+            gradient: LinearGradient(
+              colors: [_darkBg, Color(0xFF160B0D)],
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+            ),
+          ),
           child: SingleChildScrollView(
             padding: const EdgeInsets.only(bottom: 24),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                _ReportsHeader(
-                  selectedPeriod: selectedPeriod,
+                _DashboardHeader(
                   periodLabel: _periodLabel(selectedPeriod),
+                  selectedPeriod: selectedPeriod,
                   onPeriodChanged: (period) {
                     setState(() => selectedPeriod = period);
                   },
                 ),
-                const SizedBox(height: 14),
+                const SizedBox(height: 16),
                 _KpiGrid(
                   salesCount: sales.length,
                   revenue: revenue,
@@ -98,14 +107,14 @@ class _ReportsScreenState extends State<ReportsScreen> {
                   supplierPurchases: totalSupplierPurchases,
                   lowStockCount: lowStock.length,
                 ),
-                const SizedBox(height: 14),
+                const SizedBox(height: 16),
                 _ReportMenu(
                   selected: selectedSection,
                   onChanged: (section) {
                     setState(() => selectedSection = section);
                   },
                 ),
-                const SizedBox(height: 14),
+                const SizedBox(height: 16),
                 _ReportBody(
                   section: selectedSection,
                   periodLabel: _periodLabel(selectedPeriod),
@@ -130,27 +139,27 @@ class _ReportsScreenState extends State<ReportsScreen> {
   }
 }
 
-class _ReportsHeader extends StatelessWidget {
-  const _ReportsHeader({
-    required this.selectedPeriod,
+class _DashboardHeader extends StatelessWidget {
+  const _DashboardHeader({
     required this.periodLabel,
+    required this.selectedPeriod,
     required this.onPeriodChanged,
   });
 
-  final _ReportPeriod selectedPeriod;
   final String periodLabel;
+  final _ReportPeriod selectedPeriod;
   final ValueChanged<_ReportPeriod> onPeriodChanged;
 
   @override
   Widget build(BuildContext context) {
     final items = [
-      (_ReportPeriod.today, 'Hoje', Icons.today_rounded),
-      (_ReportPeriod.sevenDays, '7 dias', Icons.date_range_rounded),
-      (_ReportPeriod.thirtyDays, '30 dias', Icons.calendar_month_rounded),
-      (_ReportPeriod.all, 'Tudo', Icons.all_inclusive_rounded),
+      (_ReportPeriod.today, 'Hoje'),
+      (_ReportPeriod.sevenDays, '7 dias'),
+      (_ReportPeriod.thirtyDays, '30 dias'),
+      (_ReportPeriod.all, 'Tudo'),
     ];
 
-    return _LelecoPanel(
+    return _GlassCard(
       padding: const EdgeInsets.all(20),
       child: LayoutBuilder(
         builder: (context, constraints) {
@@ -165,33 +174,23 @@ class _ReportsHeader extends StatelessWidget {
                 children: [
                   Expanded(
                     flex: compact ? 0 : 1,
-                    child: Row(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        _IconBadge(icon: Icons.bar_chart_rounded),
-                        const SizedBox(width: 14),
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                'Central de relatórios',
-                                style: Theme.of(context)
-                                    .textTheme
-                                    .headlineSmall
-                                    ?.copyWith(
-                                      fontWeight: FontWeight.w900,
-                                      color: _titleColor(context),
-                                    ),
-                              ),
-                              const SizedBox(height: 4),
-                              Text(
-                                'Painel geral do açougue • $periodLabel',
-                                style: TextStyle(
-                                  fontWeight: FontWeight.w700,
-                                  color: _mutedColor(context),
-                                ),
-                              ),
-                            ],
+                        const Text(
+                          'Relatórios',
+                          style: TextStyle(
+                            color: Colors.white,
+                            fontSize: 28,
+                            fontWeight: FontWeight.w900,
+                          ),
+                        ),
+                        const SizedBox(height: 6),
+                        Text(
+                          'Painel geral do açougue • $periodLabel',
+                          style: TextStyle(
+                            color: Colors.white.withOpacity(0.68),
+                            fontWeight: FontWeight.w700,
                           ),
                         ),
                       ],
@@ -206,25 +205,16 @@ class _ReportsHeader extends StatelessWidget {
 
                       return ChoiceChip(
                         selected: active,
-                        selectedColor: AppColors.wine900,
-                        backgroundColor: _chipBackground(context),
+                        selectedColor: _orange,
+                        backgroundColor: Colors.white.withOpacity(0.06),
                         side: BorderSide(
                           color: active
-                              ? AppColors.wine900
-                              : _borderColor(context),
-                        ),
-                        avatar: Icon(
-                          item.$3,
-                          size: 18,
-                          color: active
-                              ? AppColors.beige100
-                              : AppColors.wine700,
+                              ? _orange
+                              : Colors.white.withOpacity(0.12),
                         ),
                         label: Text(item.$2),
                         labelStyle: TextStyle(
-                          color: active
-                              ? AppColors.beige100
-                              : _titleColor(context),
+                          color: active ? Colors.black : Colors.white,
                           fontWeight: FontWeight.w900,
                         ),
                         onSelected: (_) => onPeriodChanged(item.$1),
@@ -266,48 +256,48 @@ class _KpiGrid extends StatelessWidget {
         value: salesCount.toString(),
         detail: 'Quantidade no período',
         icon: Icons.point_of_sale_rounded,
-        tag: 'operação',
-        values: const [2, 5, 4, 8, 6, 9, 11, 10],
+        trend: '+ operação',
+        sparkValues: const [2, 5, 4, 8, 6, 9, 11, 10],
       ),
       _KpiCard(
         title: 'Faturamento',
         value: _formatMoney(revenue),
         detail: 'Total vendido',
         icon: Icons.payments_rounded,
-        tag: 'receita',
-        values: const [5, 6, 6, 8, 7, 9, 10, 12],
+        trend: 'receita',
+        sparkValues: const [5, 6, 6, 8, 7, 9, 10, 12],
       ),
       _KpiCard(
         title: 'Ticket médio',
         value: _formatMoney(averageTicket),
         detail: 'Média por venda',
         icon: Icons.receipt_long_rounded,
-        tag: 'média',
-        values: const [4, 4, 5, 6, 6, 7, 6, 8],
+        trend: 'média',
+        sparkValues: const [4, 4, 5, 6, 6, 7, 6, 8],
       ),
       _KpiCard(
         title: 'Fornecedores',
         value: _formatMoney(supplierPurchases),
         detail: 'Compras no período',
         icon: Icons.local_shipping_rounded,
-        tag: 'compras',
-        values: const [7, 5, 6, 9, 7, 8, 10, 9],
+        trend: 'compras',
+        sparkValues: const [7, 5, 6, 9, 7, 8, 10, 9],
       ),
       _KpiCard(
         title: 'Fiado aberto',
         value: _formatMoney(openCredit),
         detail: 'Saldo atual',
         icon: Icons.person_rounded,
-        tag: 'aberto',
-        values: const [8, 7, 7, 6, 6, 5, 5, 4],
+        trend: 'aberto',
+        sparkValues: const [8, 7, 7, 6, 6, 5, 5, 4],
       ),
       _KpiCard(
         title: 'Estoque baixo',
         value: lowStockCount.toString(),
         detail: 'Itens em alerta',
         icon: Icons.warning_rounded,
-        tag: 'atenção',
-        values: const [3, 4, 2, 5, 3, 6, 4, 5],
+        trend: 'atenção',
+        sparkValues: const [3, 4, 2, 5, 3, 6, 4, 5],
       ),
     ];
 
@@ -320,14 +310,17 @@ class _KpiGrid extends StatelessWidget {
                 ? 2
                 : 1;
 
-        const gap = 14.0;
+        final gap = 14.0;
         final cardWidth = (width - gap * (columns - 1)) / columns;
 
         return Wrap(
           spacing: gap,
           runSpacing: gap,
           children: cards.map((card) {
-            return SizedBox(width: cardWidth, child: card);
+            return SizedBox(
+              width: cardWidth,
+              child: card,
+            );
           }).toList(),
         );
       },
@@ -341,92 +334,79 @@ class _KpiCard extends StatelessWidget {
     required this.value,
     required this.detail,
     required this.icon,
-    required this.tag,
-    required this.values,
+    required this.trend,
+    required this.sparkValues,
   });
 
   final String title;
   final String value;
   final String detail;
   final IconData icon;
-  final String tag;
-  final List<double> values;
+  final String trend;
+  final List<double> sparkValues;
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      height: 210,
+    return _GlassCard(
       padding: const EdgeInsets.all(18),
-      decoration: BoxDecoration(
-        color: _cardBackground(context),
-        borderRadius: BorderRadius.circular(24),
-        border: Border.all(color: _borderColor(context)),
-        boxShadow: _softShadow(context),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              _IconBadge(icon: icon),
-              const Spacer(),
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 5),
-                decoration: BoxDecoration(
-                  color: _tagBackground(context),
-                  borderRadius: BorderRadius.circular(999),
-                ),
-                child: Text(
-                  tag,
-                  style: TextStyle(
-                    color: AppColors.wine700,
-                    fontSize: 11,
-                    fontWeight: FontWeight.w900,
+      child: SizedBox(
+        height: 145,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                _OrangeIcon(icon: icon),
+                const Spacer(),
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 9,
+                    vertical: 5,
+                  ),
+                  decoration: BoxDecoration(
+                    color: _green.withOpacity(0.12),
+                    borderRadius: BorderRadius.circular(999),
+                  ),
+                  child: Text(
+                    trend,
+                    style: const TextStyle(
+                      color: _green,
+                      fontSize: 11,
+                      fontWeight: FontWeight.w900,
+                    ),
                   ),
                 ),
+              ],
+            ),
+            const SizedBox(height: 12),
+            Text(
+              value,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: const TextStyle(
+                color: Colors.white,
+                fontWeight: FontWeight.w900,
+                fontSize: 23,
               ),
-            ],
-          ),
-          const SizedBox(height: 14),
-          Text(
-            value,
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-            style: TextStyle(
-              color: _titleColor(context),
-              fontWeight: FontWeight.w900,
-              fontSize: 24,
             ),
-          ),
-          const SizedBox(height: 3),
-          Text(
-            title,
-            style: TextStyle(
-              color: _bodyColor(context),
-              fontWeight: FontWeight.w900,
-            ),
-          ),
-          const SizedBox(height: 2),
-          Text(
-            detail,
-            style: TextStyle(
-              color: _mutedColor(context),
-              fontWeight: FontWeight.w700,
-              fontSize: 12,
-            ),
-          ),
-          const Spacer(),
-          SizedBox(
-            height: 26,
-            child: CustomPaint(
-              painter: _SparkLinePainter(
-                values,
-                color: AppColors.wine700,
+            const SizedBox(height: 3),
+            Text(
+              title,
+              style: TextStyle(
+                color: Colors.white.withOpacity(0.72),
+                fontWeight: FontWeight.w800,
               ),
-              size: Size.infinite,
             ),
-          ),
-        ],
+            const Spacer(),
+            SizedBox(
+              height: 28,
+              child: CustomPaint(
+                painter: _SparkLinePainter(sparkValues),
+                size: Size.infinite,
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -454,7 +434,7 @@ class _ReportMenu extends StatelessWidget {
       _ReportOption(_ReportSection.detailed, 'Detalhadas', Icons.receipt_long_rounded),
     ];
 
-    return _LelecoPanel(
+    return _GlassCard(
       padding: const EdgeInsets.all(12),
       child: SingleChildScrollView(
         scrollDirection: Axis.horizontal,
@@ -469,19 +449,12 @@ class _ReportMenu extends StatelessWidget {
                 onTap: () => onChanged(item.section),
                 child: AnimatedContainer(
                   duration: const Duration(milliseconds: 180),
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 14,
-                    vertical: 12,
-                  ),
+                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
                   decoration: BoxDecoration(
-                    color: active
-                        ? AppColors.wine900
-                        : _chipBackground(context),
+                    color: active ? _orange : Colors.white.withOpacity(0.05),
                     borderRadius: BorderRadius.circular(18),
                     border: Border.all(
-                      color: active
-                          ? AppColors.wine900
-                          : _borderColor(context),
+                      color: active ? _orange : Colors.white.withOpacity(0.10),
                     ),
                   ),
                   child: Row(
@@ -489,17 +462,13 @@ class _ReportMenu extends StatelessWidget {
                       Icon(
                         item.icon,
                         size: 19,
-                        color: active
-                            ? AppColors.beige100
-                            : AppColors.wine700,
+                        color: active ? Colors.black : _orange,
                       ),
                       const SizedBox(width: 8),
                       Text(
                         item.label,
                         style: TextStyle(
-                          color: active
-                              ? AppColors.beige100
-                              : _titleColor(context),
+                          color: active ? Colors.black : Colors.white,
                           fontWeight: FontWeight.w900,
                         ),
                       ),
@@ -552,13 +521,13 @@ class _ReportBody extends StatelessWidget {
       case _ReportSection.overview:
         return _OverviewDashboard(
           periodLabel: periodLabel,
+          sales: sales,
           revenue: revenue,
+          paymentTotals: paymentTotals,
           productTotals: productTotals,
           categoryTotals: categoryTotals,
-          paymentTotals: paymentTotals,
           supplierTotals: supplierTotals,
           totalSupplierPurchases: totalSupplierPurchases,
-          salesCount: sales.length,
         );
 
       case _ReportSection.products:
@@ -674,7 +643,6 @@ class _ReportBody extends StatelessWidget {
           headers: const ['Venda', 'Data', 'Hora', 'Pagamento', 'Itens', 'Total'],
           rows: sales.map((sale) {
             final date = sale.createdAt as DateTime;
-
             return [
               '#${sale.shortId}',
               _formatDate(date),
@@ -693,23 +661,23 @@ class _ReportBody extends StatelessWidget {
 class _OverviewDashboard extends StatelessWidget {
   const _OverviewDashboard({
     required this.periodLabel,
+    required this.sales,
     required this.revenue,
+    required this.paymentTotals,
     required this.productTotals,
     required this.categoryTotals,
-    required this.paymentTotals,
     required this.supplierTotals,
     required this.totalSupplierPurchases,
-    required this.salesCount,
   });
 
   final String periodLabel;
+  final List<dynamic> sales;
   final double revenue;
+  final Map<PaymentMethod, double> paymentTotals;
   final List<_ProductTotal> productTotals;
   final List<_CategoryTotal> categoryTotals;
-  final Map<PaymentMethod, double> paymentTotals;
   final List<_SupplierTotal> supplierTotals;
   final double totalSupplierPurchases;
-  final int salesCount;
 
   @override
   Widget build(BuildContext context) {
@@ -721,36 +689,43 @@ class _OverviewDashboard extends StatelessWidget {
 
         final left = Column(
           children: [
-            _ChartPanel(
+            _ChartCard(
               title: 'Resumo financeiro',
               subtitle: 'Período: $periodLabel',
-              totalLabel: 'Faturamento',
-              totalValue: _formatMoney(revenue),
-              values: productTotals.take(8).map((e) => e.total).toList(),
+              value: _formatMoney(revenue),
+              child: SizedBox(
+                height: 190,
+                child: CustomPaint(
+                  painter: _BarChartPainter(
+                    productTotals.take(8).map((e) => e.total).toList(),
+                  ),
+                  size: Size.infinite,
+                ),
+              ),
             ),
             const SizedBox(height: 14),
-            _InsightPanel(
+            _InsightCard(
               revenue: revenue,
               purchases: totalSupplierPurchases,
-              salesCount: salesCount,
+              salesCount: sales.length,
             ),
           ],
         );
 
         final right = Column(
           children: [
-            _BreakdownPanel(
+            _BreakdownCard(
               title: 'Pagamentos',
               total: totalPayments,
-              rows: PaymentMethod.values.map((method) {
-                return _MiniRow(
+              items: PaymentMethod.values.map((method) {
+                return _BreakdownItem(
                   method.label,
-                  _formatMoney(paymentTotals[method] ?? 0),
+                  paymentTotals[method] ?? 0,
                 );
               }).toList(),
             ),
             const SizedBox(height: 14),
-            _MiniListPanel(
+            _MiniListDashboard(
               title: 'Top produtos',
               emptyText: 'Nenhum produto vendido.',
               rows: productTotals.take(5).map((item) {
@@ -758,7 +733,7 @@ class _OverviewDashboard extends StatelessWidget {
               }).toList(),
             ),
             const SizedBox(height: 14),
-            _MiniListPanel(
+            _MiniListDashboard(
               title: 'Categorias',
               emptyText: 'Nenhuma categoria vendida.',
               rows: categoryTotals.take(5).map((item) {
@@ -766,7 +741,7 @@ class _OverviewDashboard extends StatelessWidget {
               }).toList(),
             ),
             const SizedBox(height: 14),
-            _MiniListPanel(
+            _MiniListDashboard(
               title: 'Fornecedores',
               emptyText: 'Nenhuma compra registrada.',
               rows: supplierTotals.take(5).map((item) {
@@ -777,13 +752,7 @@ class _OverviewDashboard extends StatelessWidget {
         );
 
         if (compact) {
-          return Column(
-            children: [
-              left,
-              const SizedBox(height: 14),
-              right,
-            ],
-          );
+          return Column(children: [left, const SizedBox(height: 14), right]);
         }
 
         return Row(
@@ -820,7 +789,7 @@ class _PanelWithTable extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return _LelecoPanel(
+    return _GlassCard(
       padding: const EdgeInsets.all(18),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -833,8 +802,8 @@ class _PanelWithTable extends StatelessWidget {
           ),
           const SizedBox(height: 16),
           rows.isEmpty
-              ? _EmptyState(text: emptyText)
-              : _ReportTable(headers: headers, rows: rows),
+              ? _EmptyDark(text: emptyText)
+              : _DarkTable(headers: headers, rows: rows),
         ],
       ),
     );
@@ -858,104 +827,80 @@ class _PanelHeader extends StatelessWidget {
   Widget build(BuildContext context) {
     return Row(
       children: [
-        const _IconBadge(icon: Icons.analytics_rounded),
+        const _OrangeIcon(icon: Icons.analytics_rounded),
         const SizedBox(width: 12),
         Expanded(
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text(
-                title,
-                style: TextStyle(
-                  color: _titleColor(context),
-                  fontWeight: FontWeight.w900,
-                  fontSize: 19,
-                ),
-              ),
+              Text(title,
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontWeight: FontWeight.w900,
+                    fontSize: 19,
+                  )),
               const SizedBox(height: 3),
               Text(
                 subtitle,
                 style: TextStyle(
-                  color: _mutedColor(context),
+                  color: Colors.white.withOpacity(0.62),
                   fontWeight: FontWeight.w700,
                 ),
               ),
             ],
           ),
         ),
-        _TotalBadge(label: totalLabel, value: totalValue),
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+          decoration: BoxDecoration(
+            color: _orange.withOpacity(0.12),
+            borderRadius: BorderRadius.circular(18),
+            border: Border.all(color: _orange.withOpacity(0.35)),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.end,
+            children: [
+              Text(
+                totalLabel,
+                style: TextStyle(
+                  color: Colors.white.withOpacity(0.60),
+                  fontWeight: FontWeight.w800,
+                  fontSize: 12,
+                ),
+              ),
+              const SizedBox(height: 3),
+              Text(
+                totalValue,
+                style: const TextStyle(
+                  color: _orange2,
+                  fontWeight: FontWeight.w900,
+                  fontSize: 18,
+                ),
+              ),
+            ],
+          ),
+        ),
       ],
     );
   }
 }
 
-class _TotalBadge extends StatelessWidget {
-  const _TotalBadge({
-    required this.label,
-    required this.value,
-  });
-
-  final String label;
-  final String value;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      constraints: const BoxConstraints(maxWidth: 230),
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-      decoration: BoxDecoration(
-        color: _tagBackground(context),
-        borderRadius: BorderRadius.circular(18),
-        border: Border.all(color: _borderColor(context)),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.end,
-        children: [
-          Text(
-            label,
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-            style: TextStyle(
-              color: _mutedColor(context),
-              fontWeight: FontWeight.w700,
-              fontSize: 12,
-            ),
-          ),
-          const SizedBox(height: 3),
-          Text(
-            value,
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-            style: TextStyle(
-              color: AppColors.wine700,
-              fontWeight: FontWeight.w900,
-              fontSize: 18,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _ChartPanel extends StatelessWidget {
-  const _ChartPanel({
+class _ChartCard extends StatelessWidget {
+  const _ChartCard({
     required this.title,
     required this.subtitle,
-    required this.totalLabel,
-    required this.totalValue,
-    required this.values,
+    required this.value,
+    required this.child,
   });
 
   final String title;
   final String subtitle;
-  final String totalLabel;
-  final String totalValue;
-  final List<double> values;
+  final String value;
+  final Widget child;
 
   @override
   Widget build(BuildContext context) {
-    return _LelecoPanel(
+    return _GlassCard(
       padding: const EdgeInsets.all(18),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -963,75 +908,55 @@ class _ChartPanel extends StatelessWidget {
           _PanelHeader(
             title: title,
             subtitle: subtitle,
-            totalLabel: totalLabel,
-            totalValue: totalValue,
+            totalLabel: 'Total',
+            totalValue: value,
           ),
           const SizedBox(height: 18),
-          SizedBox(
-            height: 190,
-            child: CustomPaint(
-              painter: _BarChartPainter(
-                values,
-                color: AppColors.wine700,
-                backgroundColor: _isDark(context)
-                    ? Colors.white.withOpacity(0.08)
-                    : AppColors.beige300.withOpacity(0.4),
-              ),
-              size: Size.infinite,
-            ),
-          ),
+          child,
         ],
       ),
     );
   }
 }
 
-class _BreakdownPanel extends StatelessWidget {
-  const _BreakdownPanel({
+class _BreakdownCard extends StatelessWidget {
+  const _BreakdownCard({
     required this.title,
     required this.total,
-    required this.rows,
+    required this.items,
   });
 
   final String title;
   final double total;
-  final List<_MiniRow> rows;
+  final List<_BreakdownItem> items;
 
   @override
   Widget build(BuildContext context) {
-    return _LelecoPanel(
+    return _GlassCard(
       padding: const EdgeInsets.all(18),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(
-            title,
-            style: TextStyle(
-              color: _titleColor(context),
-              fontWeight: FontWeight.w900,
-              fontSize: 18,
-            ),
-          ),
+          Text(title,
+              style: const TextStyle(
+                color: Colors.white,
+                fontWeight: FontWeight.w900,
+                fontSize: 18,
+              )),
           const SizedBox(height: 14),
           Row(
             children: [
               SizedBox(
-                width: 128,
-                height: 128,
+                width: 138,
+                height: 138,
                 child: CustomPaint(
-                  painter: _DonutPainter(
-                    values: rows.map((row) => _moneyFromText(row.value)).toList(),
-                    primary: AppColors.wine900,
-                    secondary: AppColors.wine700,
-                    soft: AppColors.beige300,
-                    isDark: _isDark(context),
-                  ),
+                  painter: _DonutPainter(items.map((e) => e.value).toList()),
                   child: Center(
                     child: Text(
                       _formatMoney(total),
                       textAlign: TextAlign.center,
-                      style: TextStyle(
-                        color: _titleColor(context),
+                      style: const TextStyle(
+                        color: Colors.white,
                         fontWeight: FontWeight.w900,
                         fontSize: 12,
                       ),
@@ -1042,33 +967,33 @@ class _BreakdownPanel extends StatelessWidget {
               const SizedBox(width: 18),
               Expanded(
                 child: Column(
-                  children: rows.map((row) {
+                  children: items.map((item) {
                     return Padding(
                       padding: const EdgeInsets.only(bottom: 10),
                       child: Row(
                         children: [
                           Container(
-                            width: 10,
-                            height: 10,
-                            decoration: BoxDecoration(
-                              color: AppColors.wine700,
+                            width: 9,
+                            height: 9,
+                            decoration: const BoxDecoration(
+                              color: _orange,
                               shape: BoxShape.circle,
                             ),
                           ),
                           const SizedBox(width: 8),
                           Expanded(
                             child: Text(
-                              row.label,
+                              item.label,
                               style: TextStyle(
-                                color: _bodyColor(context),
-                                fontWeight: FontWeight.w700,
+                                color: Colors.white.withOpacity(0.72),
+                                fontWeight: FontWeight.w800,
                               ),
                             ),
                           ),
                           Text(
-                            row.value,
-                            style: TextStyle(
-                              color: _titleColor(context),
+                            _formatMoney(item.value),
+                            style: const TextStyle(
+                              color: Colors.white,
                               fontWeight: FontWeight.w900,
                             ),
                           ),
@@ -1086,8 +1011,8 @@ class _BreakdownPanel extends StatelessWidget {
   }
 }
 
-class _MiniListPanel extends StatelessWidget {
-  const _MiniListPanel({
+class _MiniListDashboard extends StatelessWidget {
+  const _MiniListDashboard({
     required this.title,
     required this.emptyText,
     required this.rows,
@@ -1099,25 +1024,23 @@ class _MiniListPanel extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return _LelecoPanel(
+    return _GlassCard(
       padding: const EdgeInsets.all(16),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(
-            title,
-            style: TextStyle(
-              color: _titleColor(context),
-              fontWeight: FontWeight.w900,
-              fontSize: 16,
-            ),
-          ),
+          Text(title,
+              style: const TextStyle(
+                color: Colors.white,
+                fontWeight: FontWeight.w900,
+                fontSize: 16,
+              )),
           const SizedBox(height: 12),
           if (rows.isEmpty)
             Text(
               emptyText,
               style: TextStyle(
-                color: _mutedColor(context),
+                color: Colors.white.withOpacity(0.64),
                 fontWeight: FontWeight.w700,
               ),
             )
@@ -1133,7 +1056,7 @@ class _MiniListPanel extends StatelessWidget {
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                         style: TextStyle(
-                          color: _bodyColor(context),
+                          color: Colors.white.withOpacity(0.75),
                           fontWeight: FontWeight.w800,
                         ),
                       ),
@@ -1141,8 +1064,8 @@ class _MiniListPanel extends StatelessWidget {
                     const SizedBox(width: 12),
                     Text(
                       row.value,
-                      style: TextStyle(
-                        color: AppColors.wine700,
+                      style: const TextStyle(
+                        color: _orange2,
                         fontWeight: FontWeight.w900,
                       ),
                     ),
@@ -1156,8 +1079,8 @@ class _MiniListPanel extends StatelessWidget {
   }
 }
 
-class _InsightPanel extends StatelessWidget {
-  const _InsightPanel({
+class _InsightCard extends StatelessWidget {
+  const _InsightCard({
     required this.revenue,
     required this.purchases,
     required this.salesCount,
@@ -1175,22 +1098,28 @@ class _InsightPanel extends StatelessWidget {
       width: double.infinity,
       padding: const EdgeInsets.all(18),
       decoration: BoxDecoration(
-        color: _cardBackground(context),
+        gradient: LinearGradient(
+          colors: [
+            _orange.withOpacity(0.22),
+            Colors.white.withOpacity(0.04),
+          ],
+          begin: Alignment.centerLeft,
+          end: Alignment.centerRight,
+        ),
         borderRadius: BorderRadius.circular(24),
-        border: Border.all(color: _borderColor(context)),
-        boxShadow: _softShadow(context),
+        border: Border.all(color: _orange.withOpacity(0.28)),
       ),
       child: Row(
         children: [
-          const _IconBadge(icon: Icons.auto_graph_rounded),
+          const _OrangeIcon(icon: Icons.auto_graph_rounded),
           const SizedBox(width: 14),
           Expanded(
             child: Text(
               salesCount == 0
-                  ? 'Sem vendas no período. Registre vendas para gerar análises do dia.'
+                  ? 'Sem vendas no período. Registre vendas para gerar insights.'
                   : 'Resultado aproximado do período: ${_formatMoney(balance)} depois das compras registradas.',
-              style: TextStyle(
-                color: _bodyColor(context),
+              style: const TextStyle(
+                color: Colors.white,
                 fontWeight: FontWeight.w800,
               ),
             ),
@@ -1201,8 +1130,8 @@ class _InsightPanel extends StatelessWidget {
   }
 }
 
-class _ReportTable extends StatelessWidget {
-  const _ReportTable({
+class _DarkTable extends StatelessWidget {
+  const _DarkTable({
     required this.headers,
     required this.rows,
   });
@@ -1212,7 +1141,7 @@ class _ReportTable extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final minWidth = headers.length * 160.0;
+    final minWidth = headers.length * 165.0;
 
     return LayoutBuilder(
       builder: (context, constraints) {
@@ -1222,34 +1151,27 @@ class _ReportTable extends StatelessWidget {
 
         return ClipRRect(
           borderRadius: BorderRadius.circular(18),
-          child: Container(
-            decoration: BoxDecoration(
-              color: _cardBackground(context),
-              border: Border.all(color: _borderColor(context)),
-              borderRadius: BorderRadius.circular(18),
-            ),
-            child: SingleChildScrollView(
-              scrollDirection: Axis.horizontal,
-              child: SizedBox(
-                width: tableWidth,
-                child: Column(
-                  children: [
-                    _ReportTableLine(
-                      cells: headers,
-                      header: true,
+          child: SingleChildScrollView(
+            scrollDirection: Axis.horizontal,
+            child: SizedBox(
+              width: tableWidth,
+              child: Column(
+                children: [
+                  _DarkTableLine(
+                    cells: headers,
+                    header: true,
+                    tableWidth: tableWidth,
+                    striped: false,
+                  ),
+                  ...rows.asMap().entries.map((entry) {
+                    return _DarkTableLine(
+                      cells: entry.value,
+                      header: false,
                       tableWidth: tableWidth,
-                      striped: false,
-                    ),
-                    ...rows.asMap().entries.map((entry) {
-                      return _ReportTableLine(
-                        cells: entry.value,
-                        header: false,
-                        tableWidth: tableWidth,
-                        striped: entry.key.isOdd,
-                      );
-                    }),
-                  ],
-                ),
+                      striped: entry.key.isOdd,
+                    );
+                  }),
+                ],
               ),
             ),
           ),
@@ -1259,8 +1181,8 @@ class _ReportTable extends StatelessWidget {
   }
 }
 
-class _ReportTableLine extends StatelessWidget {
-  const _ReportTableLine({
+class _DarkTableLine extends StatelessWidget {
+  const _DarkTableLine({
     required this.cells,
     required this.header,
     required this.tableWidth,
@@ -1275,18 +1197,15 @@ class _ReportTableLine extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final background = header
-        ? AppColors.wine900
+        ? _orange
         : striped
-            ? _stripeColor(context)
-            : _cardBackground(context);
+            ? Colors.white.withOpacity(0.035)
+            : Colors.white.withOpacity(0.065);
 
-    final foreground = header ? AppColors.beige100 : _bodyColor(context);
-
-    final firstWidth =
-        cells.length <= 2 ? tableWidth * 0.55 : tableWidth * 0.32;
-    final otherWidth = cells.length <= 1
-        ? tableWidth
-        : (tableWidth - firstWidth) / (cells.length - 1);
+    final foreground = header ? Colors.black : Colors.white;
+    final firstWidth = cells.length <= 2 ? tableWidth * 0.55 : tableWidth * 0.32;
+    final otherWidth =
+        cells.length <= 1 ? tableWidth : (tableWidth - firstWidth) / (cells.length - 1);
 
     return Container(
       width: tableWidth,
@@ -1295,7 +1214,9 @@ class _ReportTableLine extends StatelessWidget {
         color: background,
         border: header
             ? null
-            : Border(top: BorderSide(color: _borderColor(context))),
+            : Border(
+                top: BorderSide(color: Colors.white.withOpacity(0.07)),
+              ),
       ),
       child: Row(
         children: List.generate(cells.length, (index) {
@@ -1304,16 +1225,14 @@ class _ReportTableLine extends StatelessWidget {
           return SizedBox(
             width: width - 10,
             child: Padding(
-              padding: EdgeInsets.only(
-                right: index == cells.length - 1 ? 0 : 10,
-              ),
+              padding: EdgeInsets.only(right: index == cells.length - 1 ? 0 : 10),
               child: Text(
                 cells[index],
                 maxLines: header ? 1 : 2,
                 overflow: TextOverflow.ellipsis,
                 style: TextStyle(
                   color: foreground,
-                  fontWeight: header ? FontWeight.w900 : FontWeight.w700,
+                  fontWeight: FontWeight.w900,
                   fontSize: 13,
                 ),
               ),
@@ -1325,8 +1244,8 @@ class _ReportTableLine extends StatelessWidget {
   }
 }
 
-class _LelecoPanel extends StatelessWidget {
-  const _LelecoPanel({
+class _GlassCard extends StatelessWidget {
+  const _GlassCard({
     required this.child,
     this.padding = const EdgeInsets.all(16),
   });
@@ -1340,37 +1259,45 @@ class _LelecoPanel extends StatelessWidget {
       width: double.infinity,
       padding: padding,
       decoration: BoxDecoration(
-        color: _sectionBackground(context),
+        color: _darkCard.withOpacity(0.92),
         borderRadius: BorderRadius.circular(26),
-        border: Border.all(color: _borderColor(context)),
-        boxShadow: _softShadow(context),
+        border: Border.all(color: Colors.white.withOpacity(0.07)),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.28),
+            blurRadius: 18,
+            offset: const Offset(0, 10),
+          ),
+        ],
       ),
       child: child,
     );
   }
 }
 
-class _IconBadge extends StatelessWidget {
-  const _IconBadge({required this.icon});
+class _OrangeIcon extends StatelessWidget {
+  const _OrangeIcon({required this.icon});
 
   final IconData icon;
 
   @override
   Widget build(BuildContext context) {
     return Container(
-      width: 44,
-      height: 44,
+      width: 42,
+      height: 42,
       decoration: BoxDecoration(
-        color: AppColors.wine900,
+        gradient: const LinearGradient(
+          colors: [_orange, _orange2],
+        ),
         borderRadius: BorderRadius.circular(15),
       ),
-      child: Icon(icon, color: AppColors.beige100),
+      child: Icon(icon, color: Colors.black),
     );
   }
 }
 
-class _EmptyState extends StatelessWidget {
-  const _EmptyState({required this.text});
+class _EmptyDark extends StatelessWidget {
+  const _EmptyDark({required this.text});
 
   final String text;
 
@@ -1380,19 +1307,19 @@ class _EmptyState extends StatelessWidget {
       width: double.infinity,
       padding: const EdgeInsets.all(18),
       decoration: BoxDecoration(
-        color: _cardBackground(context),
+        color: Colors.white.withOpacity(0.05),
         borderRadius: BorderRadius.circular(18),
-        border: Border.all(color: _borderColor(context)),
+        border: Border.all(color: Colors.white.withOpacity(0.08)),
       ),
       child: Row(
         children: [
-          Icon(Icons.info_outline_rounded, color: AppColors.wine700),
+          const Icon(Icons.info_outline_rounded, color: _orange),
           const SizedBox(width: 10),
           Expanded(
             child: Text(
               text,
               style: TextStyle(
-                color: _bodyColor(context),
+                color: Colors.white.withOpacity(0.76),
                 fontWeight: FontWeight.w800,
               ),
             ),
@@ -1404,10 +1331,9 @@ class _EmptyState extends StatelessWidget {
 }
 
 class _SparkLinePainter extends CustomPainter {
-  _SparkLinePainter(this.values, {required this.color});
+  _SparkLinePainter(this.values);
 
   final List<double> values;
-  final Color color;
 
   @override
   void paint(Canvas canvas, Size size) {
@@ -1431,8 +1357,8 @@ class _SparkLinePainter extends CustomPainter {
     }
 
     final paint = Paint()
-      ..color = color
-      ..strokeWidth = 2.4
+      ..color = _orange
+      ..strokeWidth = 2.6
       ..style = PaintingStyle.stroke
       ..strokeCap = StrokeCap.round;
 
@@ -1441,20 +1367,14 @@ class _SparkLinePainter extends CustomPainter {
 
   @override
   bool shouldRepaint(covariant _SparkLinePainter oldDelegate) {
-    return oldDelegate.values != values || oldDelegate.color != color;
+    return oldDelegate.values != values;
   }
 }
 
 class _BarChartPainter extends CustomPainter {
-  _BarChartPainter(
-    this.values, {
-    required this.color,
-    required this.backgroundColor,
-  });
+  _BarChartPainter(this.values);
 
   final List<double> values;
-  final Color color;
-  final Color backgroundColor;
 
   @override
   void paint(Canvas canvas, Size size) {
@@ -1463,7 +1383,7 @@ class _BarChartPainter extends CustomPainter {
     final barWidth = size.width / (bars.length * 1.8);
 
     final gridPaint = Paint()
-      ..color = backgroundColor
+      ..color = Colors.white.withOpacity(0.07)
       ..strokeWidth = 1;
 
     for (var i = 0; i < 4; i++) {
@@ -1474,10 +1394,19 @@ class _BarChartPainter extends CustomPainter {
     for (var i = 0; i < bars.length; i++) {
       final height = (bars[i] / maxValue) * (size.height * 0.82);
       final x = i * (barWidth * 1.8) + barWidth * 0.35;
-      final rect = Rect.fromLTWH(x, size.height - height, barWidth, height);
+      final rect = Rect.fromLTWH(
+        x,
+        size.height - height,
+        barWidth,
+        height,
+      );
 
       final paint = Paint()
-        ..color = color.withOpacity(0.88);
+        ..shader = const LinearGradient(
+          colors: [_orange, _orange2],
+          begin: Alignment.bottomCenter,
+          end: Alignment.topCenter,
+        ).createShader(rect);
 
       canvas.drawRRect(
         RRect.fromRectAndRadius(rect, const Radius.circular(8)),
@@ -1488,26 +1417,14 @@ class _BarChartPainter extends CustomPainter {
 
   @override
   bool shouldRepaint(covariant _BarChartPainter oldDelegate) {
-    return oldDelegate.values != values ||
-        oldDelegate.color != color ||
-        oldDelegate.backgroundColor != backgroundColor;
+    return oldDelegate.values != values;
   }
 }
 
 class _DonutPainter extends CustomPainter {
-  _DonutPainter({
-    required this.values,
-    required this.primary,
-    required this.secondary,
-    required this.soft,
-    required this.isDark,
-  });
+  _DonutPainter(this.values);
 
   final List<double> values;
-  final Color primary;
-  final Color secondary;
-  final Color soft;
-  final bool isDark;
 
   @override
   void paint(Canvas canvas, Size size) {
@@ -1516,7 +1433,7 @@ class _DonutPainter extends CustomPainter {
     final stroke = size.width * 0.16;
 
     final basePaint = Paint()
-      ..color = isDark ? Colors.white.withOpacity(0.08) : soft.withOpacity(0.35)
+      ..color = Colors.white.withOpacity(0.08)
       ..style = PaintingStyle.stroke
       ..strokeWidth = stroke;
 
@@ -1526,11 +1443,11 @@ class _DonutPainter extends CustomPainter {
 
     var start = -math.pi / 2;
     final colors = [
-      primary,
-      secondary,
-      soft,
-      primary.withOpacity(0.58),
-      secondary.withOpacity(0.58),
+      _orange,
+      _orange2,
+      const Color(0xFFFF944D),
+      const Color(0xFFFFC266),
+      const Color(0xFFB45309),
     ];
 
     for (var i = 0; i < values.length; i++) {
@@ -1548,11 +1465,7 @@ class _DonutPainter extends CustomPainter {
 
   @override
   bool shouldRepaint(covariant _DonutPainter oldDelegate) {
-    return oldDelegate.values != values ||
-        oldDelegate.primary != primary ||
-        oldDelegate.secondary != secondary ||
-        oldDelegate.soft != soft ||
-        oldDelegate.isDark != isDark;
+    return oldDelegate.values != values;
   }
 }
 
@@ -1562,6 +1475,13 @@ class _ReportOption {
   final _ReportSection section;
   final String label;
   final IconData icon;
+}
+
+class _BreakdownItem {
+  const _BreakdownItem(this.label, this.value);
+
+  final String label;
+  final double value;
 }
 
 class _MiniRow {
@@ -1593,7 +1513,6 @@ List<dynamic> _filterSalesByPeriod(List<dynamic> sales, _ReportPeriod period) {
   filtered.sort((a, b) {
     final aDate = a.createdAt as DateTime;
     final bDate = b.createdAt as DateTime;
-
     return bDate.compareTo(aDate);
   });
 
@@ -1623,7 +1542,6 @@ List<SupplierPurchase> _filterPurchasesByPeriod(
   }).toList();
 
   filtered.sort((a, b) => b.purchaseDate.compareTo(a.purchaseDate));
-
   return filtered;
 }
 
@@ -1670,7 +1588,6 @@ List<_ProductTotal> _productTotals(List<dynamic> sales) {
 
   final result = map.values.toList();
   result.sort((a, b) => b.total.compareTo(a.total));
-
   return result;
 }
 
@@ -1709,7 +1626,6 @@ List<_CategoryTotal> _categoryTotals(
 
   final result = map.values.toList();
   result.sort((a, b) => b.total.compareTo(a.total));
-
   return result;
 }
 
@@ -1739,7 +1655,6 @@ List<_SupplierTotal> _supplierTotals(List<SupplierPurchase> purchases) {
 
   final result = map.values.toList();
   result.sort((a, b) => b.total.compareTo(a.total));
-
   return result;
 }
 
@@ -1760,87 +1675,9 @@ bool _sameDay(DateTime a, DateTime b) {
   return a.year == b.year && a.month == b.month && a.day == b.day;
 }
 
-bool _isDark(BuildContext context) {
-  return Theme.of(context).brightness == Brightness.dark;
-}
-
-Color _pageBackground(BuildContext context) {
-  return _isDark(context)
-      ? AppColors.darkBackground
-      : const Color(0xFFFBF6F0);
-}
-
-Color _sectionBackground(BuildContext context) {
-  return _isDark(context)
-      ? const Color(0xFF21171A)
-      : const Color(0xFFFBF6F0);
-}
-
-Color _cardBackground(BuildContext context) {
-  return _isDark(context)
-      ? const Color(0xFF2A1D21)
-      : const Color(0xFFFBF6F0);
-}
-
-Color _chipBackground(BuildContext context) {
-  return _isDark(context)
-      ? Colors.white.withOpacity(0.05)
-      : const Color(0xFFFBF6F0);
-}
-
-Color _tagBackground(BuildContext context) {
-  return _isDark(context)
-      ? AppColors.wine700.withOpacity(0.18)
-      : const Color(0xFFEADCCD);
-}
-
-Color _stripeColor(BuildContext context) {
-  return _isDark(context)
-      ? Colors.white.withOpacity(0.035)
-      : Colors.transparent;
-}
-
-Color _titleColor(BuildContext context) {
-  return Theme.of(context).colorScheme.onSurface;
-}
-
-Color _bodyColor(BuildContext context) {
-  return Theme.of(context).colorScheme.onSurface.withOpacity(0.86);
-}
-
-Color _mutedColor(BuildContext context) {
-  return Theme.of(context).colorScheme.onSurface.withOpacity(0.58);
-}
-
-Color _borderColor(BuildContext context) {
-  return _isDark(context)
-      ? Colors.white.withOpacity(0.08)
-      : const Color(0xFFD8C7B3);
-}
-
-List<BoxShadow> _softShadow(BuildContext context) {
-  return [
-    BoxShadow(
-      color: Colors.black.withOpacity(_isDark(context) ? 0.18 : 0.035),
-      blurRadius: 14,
-      offset: const Offset(0, 6),
-    ),
-  ];
-}
-
 String _formatMoney(double value) {
   final fixed = value.toStringAsFixed(2).replaceAll('.', ',');
   return 'R\$ $fixed';
-}
-
-double _moneyFromText(String value) {
-  final clean = value
-      .replaceAll('R\$', '')
-      .replaceAll('.', '')
-      .replaceAll(',', '.')
-      .trim();
-
-  return double.tryParse(clean) ?? 0;
 }
 
 String _formatNumber(double value) {
@@ -1852,14 +1689,12 @@ String _formatDate(DateTime value) {
   final day = value.day.toString().padLeft(2, '0');
   final month = value.month.toString().padLeft(2, '0');
   final year = value.year.toString();
-
   return '$day/$month/$year';
 }
 
 String _formatTime(DateTime value) {
   final hour = value.hour.toString().padLeft(2, '0');
   final minute = value.minute.toString().padLeft(2, '0');
-
   return '$hour:$minute';
 }
 

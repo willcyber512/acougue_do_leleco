@@ -1765,9 +1765,7 @@ bool _isDark(BuildContext context) {
 }
 
 Color _pageBackground(BuildContext context) {
-  return _isDark(context)
-      ? AppColors.darkBackground
-      : const Color(0xFFFBF6F0);
+  return _isDark(context) ? AppColors.darkBackground : AppColors.beige100;
 }
 
 Color _sectionBackground(BuildContext context) {
@@ -1785,7 +1783,7 @@ Color _cardBackground(BuildContext context) {
 Color _chipBackground(BuildContext context) {
   return _isDark(context)
       ? Colors.white.withOpacity(0.05)
-      : const Color(0xFFFBF6F0);
+      : const Color(0xFFF0E4D6);
 }
 
 Color _tagBackground(BuildContext context) {

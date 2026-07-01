@@ -70,7 +70,7 @@ class _DesktopShellScreenState extends State<DesktopShellScreen> {
           Expanded(
             child: Container(
               color:
-                  isDark ? AppColors.darkBackground : const Color(0xFFFBF6F0),
+                  isDark ? AppColors.darkBackground : AppColors.lightBackground,
               child: Column(
                 children: [
                   LelecoTopBar(

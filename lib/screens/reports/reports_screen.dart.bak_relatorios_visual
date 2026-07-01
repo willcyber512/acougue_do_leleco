@@ -355,7 +355,7 @@ class _KpiCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      height: 210,
+      height: 168,
       padding: const EdgeInsets.all(18),
       decoration: BoxDecoration(
         color: _cardBackground(context),
@@ -1765,39 +1765,33 @@ bool _isDark(BuildContext context) {
 }
 
 Color _pageBackground(BuildContext context) {
-  return _isDark(context)
-      ? AppColors.darkBackground
-      : const Color(0xFFFBF6F0);
+  return _isDark(context) ? AppColors.darkBackground : AppColors.beige100;
 }
 
 Color _sectionBackground(BuildContext context) {
-  return _isDark(context)
-      ? const Color(0xFF21171A)
-      : const Color(0xFFFBF6F0);
+  return _isDark(context) ? AppColors.darkSurface : Colors.white;
 }
 
 Color _cardBackground(BuildContext context) {
-  return _isDark(context)
-      ? const Color(0xFF2A1D21)
-      : const Color(0xFFFBF6F0);
+  return _isDark(context) ? AppColors.darkSurfaceAlt : const Color(0xFFFFFBF7);
 }
 
 Color _chipBackground(BuildContext context) {
   return _isDark(context)
       ? Colors.white.withOpacity(0.05)
-      : const Color(0xFFFBF6F0);
+      : AppColors.beige100;
 }
 
 Color _tagBackground(BuildContext context) {
   return _isDark(context)
       ? AppColors.wine700.withOpacity(0.18)
-      : const Color(0xFFEADCCD);
+      : AppColors.beige300.withOpacity(0.45);
 }
 
 Color _stripeColor(BuildContext context) {
   return _isDark(context)
       ? Colors.white.withOpacity(0.035)
-      : Colors.transparent;
+      : AppColors.beige100.withOpacity(0.55);
 }
 
 Color _titleColor(BuildContext context) {
@@ -1815,15 +1809,15 @@ Color _mutedColor(BuildContext context) {
 Color _borderColor(BuildContext context) {
   return _isDark(context)
       ? Colors.white.withOpacity(0.08)
-      : const Color(0xFFD8C7B3);
+      : AppColors.beige300.withOpacity(0.75);
 }
 
 List<BoxShadow> _softShadow(BuildContext context) {
   return [
     BoxShadow(
-      color: Colors.black.withOpacity(_isDark(context) ? 0.18 : 0.035),
-      blurRadius: 14,
-      offset: const Offset(0, 6),
+      color: Colors.black.withOpacity(_isDark(context) ? 0.18 : 0.055),
+      blurRadius: 16,
+      offset: const Offset(0, 8),
     ),
   ];
 }
