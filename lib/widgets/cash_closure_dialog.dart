@@ -11,18 +11,14 @@ import '../providers/sales_provider.dart';
 Future<void> showCashClosureDialog(BuildContext context) async {
   await showDialog<void>(
     context: context,
-    builder: (dialogContext) {
-      return const CashClosureDialog();
-    },
+    builder: (_) => const CashClosureDialog(),
   );
 }
 
 Future<void> showCashClosuresHistoryDialog(BuildContext context) async {
   await showDialog<void>(
     context: context,
-    builder: (dialogContext) {
-      return const CashClosuresHistoryDialog();
-    },
+    builder: (_) => const CashClosuresHistoryDialog(),
   );
 }
 
@@ -36,6 +32,8 @@ class CashClosureDialog extends StatefulWidget {
 class _CashClosureDialogState extends State<CashClosureDialog> {
   late final TextEditingController openingController;
   late final TextEditingController countedController;
+  late final TextEditingController cashInController;
+  late final TextEditingController cashOutController;
   late final TextEditingController notesController;
 
   @override
@@ -54,6 +52,14 @@ class _CashClosureDialogState extends State<CashClosureDialog> {
       text: closure == null ? '' : _moneyInput(closure.countedAmount),
     );
 
+    cashInController = TextEditingController(
+      text: closure == null ? '0,00' : _moneyInput(closure.cashInAmount),
+    );
+
+    cashOutController = TextEditingController(
+      text: closure == null ? '0,00' : _moneyInput(closure.cashOutAmount),
+    );
+
     notesController = TextEditingController(text: closure?.notes ?? '');
   }
 
@@ -61,6 +67,8 @@ class _CashClosureDialogState extends State<CashClosureDialog> {
   void dispose() {
     openingController.dispose();
     countedController.dispose();
+    cashInController.dispose();
+    cashOutController.dispose();
     notesController.dispose();
     super.dispose();
   }
@@ -69,33 +77,46 @@ class _CashClosureDialogState extends State<CashClosureDialog> {
   Widget build(BuildContext context) {
     return Consumer2<SalesProvider, CashClosureProvider>(
       builder: (context, salesProvider, closureProvider, _) {
+        final now = DateTime.now();
+
         final summary = _DailyCashSummary.fromSales(
           salesProvider.sales,
-          DateTime.now(),
+          now,
         );
 
         final openingAmount = _parseMoney(openingController.text);
         final countedAmount = _parseMoney(countedController.text);
-        final expectedCash = openingAmount + summary.moneySales;
+        final cashInAmount = _parseMoney(cashInController.text);
+        final cashOutAmount = _parseMoney(cashOutController.text);
+
+        final expectedCash =
+            openingAmount + summary.moneySales + cashInAmount - cashOutAmount;
+
         final difference = countedAmount - expectedCash;
-        final existingClosure = closureProvider.closureForDay(DateTime.now());
+        final existingClosure = closureProvider.closureForDay(now);
 
         return AlertDialog(
           title: Text(
             existingClosure == null
-                ? 'Fechar caixa do dia'
-                : 'Editar fechamento do dia',
+                ? 'Fechamento completo do caixa'
+                : 'Editar fechamento do caixa',
           ),
           content: SizedBox(
-            width: 940,
-            height: 650,
+            width: 980,
+            height: 700,
             child: ListView(
               children: [
                 _ClosureHeader(
-                  day: DateTime.now(),
+                  day: now,
                   existingClosure: existingClosure,
                 ),
                 const SizedBox(height: 16),
+                _SectionTitle(
+                  icon: Icons.receipt_long_rounded,
+                  title: 'Resumo das vendas',
+                  subtitle: 'Valores calculados automaticamente pelas vendas do dia.',
+                ),
+                const SizedBox(height: 10),
                 Wrap(
                   spacing: 14,
                   runSpacing: 14,
@@ -130,77 +151,115 @@ class _CashClosureDialogState extends State<CashClosureDialog> {
                       title: 'Fiado',
                       value: _formatMoney(summary.fiadoSales),
                     ),
-                  ],
-                ),
-                const SizedBox(height: 18),
-                Row(
-                  children: [
-                    Expanded(
-                      child: TextField(
-                        controller: openingController,
-                        onChanged: (_) => setState(() {}),
-                        keyboardType: TextInputType.number,
-                        decoration: const InputDecoration(
-                          labelText: 'Valor inicial no caixa',
-                          prefixText: 'R\$ ',
-                          hintText: '0,00',
-                        ),
-                      ),
-                    ),
-                    const SizedBox(width: 14),
-                    Expanded(
-                      child: TextField(
-                        controller: countedController,
-                        onChanged: (_) => setState(() {}),
-                        keyboardType: TextInputType.number,
-                        decoration: const InputDecoration(
-                          labelText: 'Dinheiro contado no caixa',
-                          prefixText: 'R\$ ',
-                          hintText: 'Ex: 350,00',
-                        ),
-                      ),
+                    _MetricBox(
+                      icon: Icons.cancel_rounded,
+                      title: 'Canceladas',
+                      value: _formatMoney(summary.canceledSales),
                     ),
                   ],
                 ),
-                const SizedBox(height: 18),
-                Row(
+                const SizedBox(height: 20),
+                _SectionTitle(
+                  icon: Icons.account_balance_wallet_rounded,
+                  title: 'Dinheiro físico do caixa',
+                  subtitle:
+                      'Informe abertura, reforços, sangrias e o valor contado no fim do dia.',
+                ),
+                const SizedBox(height: 10),
+                Wrap(
+                  spacing: 14,
+                  runSpacing: 14,
                   children: [
-                    Expanded(
-                      child: _ResultCard(
+                    _MoneyField(
+                      width: 220,
+                      controller: openingController,
+                      label: 'Valor inicial',
+                      hint: '0,00',
+                      onChanged: () => setState(() {}),
+                    ),
+                    _MoneyField(
+                      width: 220,
+                      controller: cashInController,
+                      label: 'Reforço / entrada',
+                      hint: '0,00',
+                      onChanged: () => setState(() {}),
+                    ),
+                    _MoneyField(
+                      width: 220,
+                      controller: cashOutController,
+                      label: 'Sangria / retirada',
+                      hint: '0,00',
+                      onChanged: () => setState(() {}),
+                    ),
+                    _MoneyField(
+                      width: 220,
+                      controller: countedController,
+                      label: 'Dinheiro contado',
+                      hint: 'Ex: 350,00',
+                      onChanged: () => setState(() {}),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 18),
+                LayoutBuilder(
+                  builder: (context, constraints) {
+                    final compact = constraints.maxWidth < 760;
+
+                    final cards = [
+                      _ResultCard(
                         title: 'Dinheiro esperado',
                         value: _formatMoney(expectedCash),
+                        description:
+                            'Inicial + dinheiro vendido + reforços - sangrias',
                         color: AppColors.wine900,
                       ),
-                    ),
-                    const SizedBox(width: 14),
-                    Expanded(
-                      child: _ResultCard(
-                        title: difference == 0
-                            ? 'Caixa batendo'
-                            : difference > 0
-                                ? 'Sobra no caixa'
-                                : 'Falta no caixa',
+                      _ResultCard(
+                        title: _differenceTitle(difference),
                         value: _formatMoney(difference),
-                        color: difference == 0
-                            ? AppColors.success
-                            : difference > 0
-                                ? AppColors.warning
-                                : AppColors.danger,
+                        description: 'Contado - esperado',
+                        color: _differenceColor(difference),
                       ),
-                    ),
-                  ],
+                    ];
+
+                    if (compact) {
+                      return Column(
+                        children: [
+                          cards[0],
+                          const SizedBox(height: 12),
+                          cards[1],
+                        ],
+                      );
+                    }
+
+                    return Row(
+                      children: [
+                        Expanded(child: cards[0]),
+                        const SizedBox(width: 14),
+                        Expanded(child: cards[1]),
+                      ],
+                    );
+                  },
                 ),
                 const SizedBox(height: 18),
                 TextField(
                   controller: notesController,
                   maxLines: 4,
                   decoration: const InputDecoration(
-                    labelText: 'Observações',
-                    hintText: 'Ex: Caixa conferido no fim do expediente.',
+                    labelText: 'Observações do fechamento',
+                    hintText:
+                        'Ex: Foi feita sangria para pagamento de fornecedor.',
                   ),
                 ),
                 const SizedBox(height: 18),
-                _TotalSummary(summary: summary),
+                _TotalSummary(
+                  summary: summary,
+                  openingAmount: openingAmount,
+                  cashInAmount: cashInAmount,
+                  cashOutAmount: cashOutAmount,
+                  expectedCash: expectedCash,
+                  countedAmount: countedAmount,
+                  difference: difference,
+                ),
               ],
             ),
           ),
@@ -211,8 +270,6 @@ class _CashClosureDialogState extends State<CashClosureDialog> {
             ),
             FilledButton.icon(
               onPressed: () {
-                final now = DateTime.now();
-
                 final closure = CashClosure(
                   id: existingClosure?.id ?? now.microsecondsSinceEpoch.toString(),
                   dayKey: cashClosureDayKey(now),
@@ -227,6 +284,8 @@ class _CashClosureDialogState extends State<CashClosureDialog> {
                   salesCount: summary.salesCount,
                   notes: notesController.text.trim(),
                   createdAt: now,
+                  cashInAmount: cashInAmount,
+                  cashOutAmount: cashOutAmount,
                 );
 
                 closureProvider.saveClosure(closure);
@@ -237,7 +296,7 @@ class _CashClosureDialogState extends State<CashClosureDialog> {
                   ..clearSnackBars()
                   ..showSnackBar(
                     const SnackBar(
-                      content: Text('Fechamento do caixa salvo.'),
+                      content: Text('Fechamento completo do caixa salvo.'),
                     ),
                   );
               },
@@ -263,8 +322,8 @@ class CashClosuresHistoryDialog extends StatelessWidget {
         return AlertDialog(
           title: const Text('Histórico de fechamentos'),
           content: SizedBox(
-            width: 900,
-            height: 580,
+            width: 940,
+            height: 620,
             child: closures.isEmpty
                 ? const Center(
                     child: Text('Nenhum fechamento registrado ainda.'),
@@ -332,14 +391,81 @@ class _ClosureHeader extends StatelessWidget {
                   const SizedBox(height: 4),
                   Text(
                     existingClosure == null
-                        ? 'Ainda não existe fechamento salvo para hoje.'
-                        : 'Já existe fechamento salvo. Ao salvar, ele será atualizado.',
+                        ? 'Nenhum fechamento salvo para hoje.'
+                        : 'Já existe fechamento salvo. Você está editando.',
                     style: const TextStyle(fontWeight: FontWeight.w700),
                   ),
                 ],
               ),
             ),
           ],
+        ),
+      ),
+    );
+  }
+}
+
+class _SectionTitle extends StatelessWidget {
+  const _SectionTitle({
+    required this.icon,
+    required this.title,
+    required this.subtitle,
+  });
+
+  final IconData icon;
+  final String title;
+  final String subtitle;
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      children: [
+        Icon(icon, color: AppColors.wine700),
+        const SizedBox(width: 8),
+        Expanded(
+          child: Text(
+            title,
+            style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                  fontWeight: FontWeight.w900,
+                ),
+          ),
+        ),
+        Text(
+          subtitle,
+          style: const TextStyle(fontWeight: FontWeight.w700),
+        ),
+      ],
+    );
+  }
+}
+
+class _MoneyField extends StatelessWidget {
+  const _MoneyField({
+    required this.width,
+    required this.controller,
+    required this.label,
+    required this.hint,
+    required this.onChanged,
+  });
+
+  final double width;
+  final TextEditingController controller;
+  final String label;
+  final String hint;
+  final VoidCallback onChanged;
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      width: width,
+      child: TextField(
+        controller: controller,
+        onChanged: (_) => onChanged(),
+        keyboardType: TextInputType.number,
+        decoration: InputDecoration(
+          labelText: label,
+          prefixText: 'R\$ ',
+          hintText: hint,
         ),
       ),
     );
@@ -359,38 +485,40 @@ class _MetricBox extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
     return SizedBox(
-      width: 290,
-      child: Card(
-        child: Padding(
-          padding: const EdgeInsets.all(16),
-          child: Row(
-            children: [
-              Container(
-                width: 48,
-                height: 48,
-                decoration: BoxDecoration(
-                  color: AppColors.wine900,
-                  borderRadius: BorderRadius.circular(16),
-                ),
-                child: Icon(icon, color: AppColors.beige100),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(title),
-                    const SizedBox(height: 4),
-                    Text(
-                      value,
-                      style: const TextStyle(fontWeight: FontWeight.w900),
-                    ),
-                  ],
-                ),
-              ),
-            ],
+      width: 205,
+      height: 120,
+      child: Container(
+        padding: const EdgeInsets.all(14),
+        decoration: BoxDecoration(
+          color: isDark ? AppColors.darkSurfaceAlt : AppColors.white,
+          borderRadius: BorderRadius.circular(22),
+          border: Border.all(
+            color: AppColors.wine700.withOpacity(isDark ? 0.28 : 0.12),
           ),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Icon(icon, color: AppColors.wine700),
+            const Spacer(),
+            Text(
+              value,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                    fontWeight: FontWeight.w900,
+                  ),
+            ),
+            Text(
+              title,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: const TextStyle(fontWeight: FontWeight.w700),
+            ),
+          ],
         ),
       ),
     );
@@ -401,40 +529,127 @@ class _ResultCard extends StatelessWidget {
   const _ResultCard({
     required this.title,
     required this.value,
+    required this.description,
     required this.color,
   });
 
   final String title;
   final String value;
+  final String description;
   final Color color;
 
   @override
   Widget build(BuildContext context) {
+    return Container(
+      constraints: const BoxConstraints(minHeight: 126),
+      padding: const EdgeInsets.all(18),
+      decoration: BoxDecoration(
+        color: color,
+        borderRadius: BorderRadius.circular(24),
+      ),
+      child: Row(
+        children: [
+          Container(
+            width: 48,
+            height: 48,
+            decoration: BoxDecoration(
+              color: AppColors.beige100,
+              borderRadius: BorderRadius.circular(16),
+            ),
+            child: Icon(
+              Icons.calculate_rounded,
+              color: color,
+            ),
+          ),
+          const SizedBox(width: 14),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  title,
+                  style: const TextStyle(
+                    color: AppColors.beige100,
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
+                const SizedBox(height: 5),
+                Text(
+                  value,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(
+                    color: AppColors.beige100,
+                    fontSize: 30,
+                    fontWeight: FontWeight.w900,
+                  ),
+                ),
+                const SizedBox(height: 3),
+                Text(
+                  description,
+                  style: const TextStyle(
+                    color: AppColors.beige100,
+                    fontWeight: FontWeight.w600,
+                    fontSize: 12,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _TotalSummary extends StatelessWidget {
+  const _TotalSummary({
+    required this.summary,
+    required this.openingAmount,
+    required this.cashInAmount,
+    required this.cashOutAmount,
+    required this.expectedCash,
+    required this.countedAmount,
+    required this.difference,
+  });
+
+  final _DailyCashSummary summary;
+  final double openingAmount;
+  final double cashInAmount;
+  final double cashOutAmount;
+  final double expectedCash;
+  final double countedAmount;
+  final double difference;
+
+  @override
+  Widget build(BuildContext context) {
     return Card(
-      child: Container(
+      child: Padding(
         padding: const EdgeInsets.all(18),
-        decoration: BoxDecoration(
-          color: color,
-          borderRadius: BorderRadius.circular(24),
-        ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(
-              title,
-              style: const TextStyle(
-                color: AppColors.beige100,
-                fontWeight: FontWeight.w700,
-              ),
-            ),
-            const SizedBox(height: 8),
-            Text(
-              value,
-              style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                    color: AppColors.beige100,
+              'Conferência final',
+              style: Theme.of(context).textTheme.titleMedium?.copyWith(
                     fontWeight: FontWeight.w900,
                   ),
             ),
+            const SizedBox(height: 12),
+            _SummaryLine('Valor inicial', openingAmount),
+            _SummaryLine('Vendas em dinheiro', summary.moneySales),
+            _SummaryLine('Reforços / entradas', cashInAmount),
+            _SummaryLine('Sangrias / retiradas', -cashOutAmount),
+            const Divider(),
+            _SummaryLine('Dinheiro esperado', expectedCash, strong: true),
+            _SummaryLine('Dinheiro contado', countedAmount, strong: true),
+            _SummaryLine('Diferença', difference, strong: true),
+            const Divider(),
+            _SummaryLine('Pix', summary.pixSales),
+            _SummaryLine('Débito', summary.debitSales),
+            _SummaryLine('Crédito', summary.creditSales),
+            _SummaryLine('Fiado', summary.fiadoSales),
+            _SummaryLine('Canceladas', summary.canceledSales),
           ],
         ),
       ),
@@ -442,39 +657,38 @@ class _ResultCard extends StatelessWidget {
   }
 }
 
-class _TotalSummary extends StatelessWidget {
-  const _TotalSummary({required this.summary});
+class _SummaryLine extends StatelessWidget {
+  const _SummaryLine(
+    this.label,
+    this.value, {
+    this.strong = false,
+  });
 
-  final _DailyCashSummary summary;
+  final String label;
+  final double value;
+  final bool strong;
 
   @override
   Widget build(BuildContext context) {
-    return Card(
-      child: Container(
-        width: double.infinity,
-        padding: const EdgeInsets.all(18),
-        child: Row(
-          children: [
-            Expanded(
-              child: _InfoLine(
-                label: 'Total vendido',
-                value: _formatMoney(summary.totalSold),
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 4),
+      child: Row(
+        children: [
+          Expanded(
+            child: Text(
+              label,
+              style: TextStyle(
+                fontWeight: strong ? FontWeight.w900 : FontWeight.w700,
               ),
             ),
-            Expanded(
-              child: _InfoLine(
-                label: 'Canceladas',
-                value: _formatMoney(summary.canceledSales),
-              ),
+          ),
+          Text(
+            _formatMoney(value),
+            style: TextStyle(
+              fontWeight: strong ? FontWeight.w900 : FontWeight.w700,
             ),
-            Expanded(
-              child: _InfoLine(
-                label: 'Data',
-                value: _formatDate(DateTime.now()),
-              ),
-            ),
-          ],
-        ),
+          ),
+        ],
       ),
     );
   }
@@ -487,69 +701,158 @@ class _ClosureHistoryTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final color = closure.difference == 0
-        ? AppColors.success
-        : closure.difference > 0
-            ? AppColors.warning
-            : AppColors.danger;
+    final color = _differenceColor(closure.difference);
 
     return Card(
-      child: ExpansionTile(
-        leading: Container(
-          width: 48,
-          height: 48,
-          decoration: BoxDecoration(
-            color: color,
-            borderRadius: BorderRadius.circular(16),
-          ),
-          child: const Icon(
-            Icons.lock_clock_rounded,
-            color: AppColors.beige100,
-          ),
-        ),
-        title: Text(
-          'Fechamento ${_formatDayKey(closure.dayKey)}',
-          style: const TextStyle(fontWeight: FontWeight.w900),
-        ),
-        subtitle: Text(
-          '${closure.salesCount} venda(s) • Diferença ${_formatMoney(closure.difference)}',
-        ),
-        trailing: Text(
-          _formatMoney(closure.totalSold),
-          style: const TextStyle(fontWeight: FontWeight.w900),
-        ),
-        childrenPadding: const EdgeInsets.fromLTRB(18, 0, 18, 18),
-        children: [
-          _InfoLine(label: 'Valor inicial', value: _formatMoney(closure.openingAmount)),
-          _InfoLine(label: 'Dinheiro vendido', value: _formatMoney(closure.moneySales)),
-          _InfoLine(label: 'Dinheiro esperado', value: _formatMoney(closure.expectedCash)),
-          _InfoLine(label: 'Dinheiro contado', value: _formatMoney(closure.countedAmount)),
-          _InfoLine(label: 'Diferença', value: _formatMoney(closure.difference)),
-          _InfoLine(label: 'Pix', value: _formatMoney(closure.pixSales)),
-          _InfoLine(label: 'Débito', value: _formatMoney(closure.debitSales)),
-          _InfoLine(label: 'Crédito', value: _formatMoney(closure.creditSales)),
-          _InfoLine(label: 'Fiado', value: _formatMoney(closure.fiadoSales)),
-          if (closure.notes.isNotEmpty)
-            _InfoLine(label: 'Observações', value: closure.notes),
-          const SizedBox(height: 8),
-          Align(
-            alignment: Alignment.centerRight,
-            child: TextButton.icon(
-              onPressed: () {
-                context.read<CashClosureProvider>().deleteClosure(closure.id);
-              },
-              icon: const Icon(Icons.delete_outline_rounded),
-              label: const Text('Excluir'),
+      child: Padding(
+        padding: const EdgeInsets.all(18),
+        child: Column(
+          children: [
+            Row(
+              children: [
+                Container(
+                  width: 54,
+                  height: 54,
+                  decoration: BoxDecoration(
+                    color: color,
+                    borderRadius: BorderRadius.circular(18),
+                  ),
+                  child: const Icon(
+                    Icons.point_of_sale_rounded,
+                    color: AppColors.beige100,
+                  ),
+                ),
+                const SizedBox(width: 14),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Fechamento ${closure.dayKey}',
+                        style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                              fontWeight: FontWeight.w900,
+                            ),
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        '${closure.salesCount} venda(s) • ${closure.statusLabel}',
+                        style: const TextStyle(fontWeight: FontWeight.w700),
+                      ),
+                    ],
+                  ),
+                ),
+                Text(
+                  _formatMoney(closure.difference),
+                  style: TextStyle(
+                    color: color,
+                    fontWeight: FontWeight.w900,
+                    fontSize: 18,
+                  ),
+                ),
+                const SizedBox(width: 8),
+                IconButton(
+                  tooltip: 'Excluir fechamento',
+                  onPressed: () async {
+                    final confirmed = await showDialog<bool>(
+                      context: context,
+                      builder: (dialogContext) {
+                        return AlertDialog(
+                          title: const Text('Excluir fechamento?'),
+                          content: const Text(
+                            'Essa ação remove apenas o fechamento salvo. As vendas não serão apagadas.',
+                          ),
+                          actions: [
+                            TextButton(
+                              onPressed: () =>
+                                  Navigator.of(dialogContext).pop(false),
+                              child: const Text('Cancelar'),
+                            ),
+                            FilledButton(
+                              onPressed: () =>
+                                  Navigator.of(dialogContext).pop(true),
+                              child: const Text('Excluir'),
+                            ),
+                          ],
+                        );
+                      },
+                    );
+
+                    if (confirmed != true || !context.mounted) return;
+
+                    context
+                        .read<CashClosureProvider>()
+                        .deleteClosure(closure.id);
+                  },
+                  icon: const Icon(Icons.delete_outline_rounded),
+                ),
+              ],
             ),
-          ),
-        ],
+            const SizedBox(height: 14),
+            Wrap(
+              spacing: 10,
+              runSpacing: 10,
+              children: [
+                _HistoryChip(
+                  label: 'Inicial',
+                  value: _formatMoney(closure.openingAmount),
+                ),
+                _HistoryChip(
+                  label: 'Dinheiro',
+                  value: _formatMoney(closure.moneySales),
+                ),
+                _HistoryChip(
+                  label: 'Reforço',
+                  value: _formatMoney(closure.cashInAmount),
+                ),
+                _HistoryChip(
+                  label: 'Sangria',
+                  value: _formatMoney(closure.cashOutAmount),
+                ),
+                _HistoryChip(
+                  label: 'Esperado',
+                  value: _formatMoney(closure.expectedCash),
+                ),
+                _HistoryChip(
+                  label: 'Contado',
+                  value: _formatMoney(closure.countedAmount),
+                ),
+                _HistoryChip(
+                  label: 'Pix',
+                  value: _formatMoney(closure.pixSales),
+                ),
+                _HistoryChip(
+                  label: 'Débito',
+                  value: _formatMoney(closure.debitSales),
+                ),
+                _HistoryChip(
+                  label: 'Crédito',
+                  value: _formatMoney(closure.creditSales),
+                ),
+                _HistoryChip(
+                  label: 'Fiado',
+                  value: _formatMoney(closure.fiadoSales),
+                ),
+              ],
+            ),
+            if (closure.notes.trim().isNotEmpty) ...[
+              const SizedBox(height: 12),
+              Align(
+                alignment: Alignment.centerLeft,
+                child: Text(
+                  'Obs.: ${closure.notes}',
+                  style: const TextStyle(fontWeight: FontWeight.w700),
+                ),
+              ),
+            ],
+          ],
+        ),
       ),
     );
   }
 }
 
-class _InfoLine extends StatelessWidget {
-  const _InfoLine({
+class _HistoryChip extends StatelessWidget {
+  const _HistoryChip({
     required this.label,
     required this.value,
   });
@@ -559,24 +862,17 @@ class _InfoLine extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 7),
-      child: Row(
-        children: [
-          SizedBox(
-            width: 135,
-            child: Text(
-              label,
-              style: const TextStyle(fontWeight: FontWeight.w700),
-            ),
-          ),
-          Expanded(
-            child: Text(
-              value,
-              style: const TextStyle(fontWeight: FontWeight.w900),
-            ),
-          ),
-        ],
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 9),
+      decoration: BoxDecoration(
+        color: isDark ? AppColors.darkSurfaceAlt : AppColors.beige100,
+        borderRadius: BorderRadius.circular(999),
+      ),
+      child: Text(
+        '$label: $value',
+        style: const TextStyle(fontWeight: FontWeight.w800),
       ),
     );
   }
@@ -584,73 +880,45 @@ class _InfoLine extends StatelessWidget {
 
 class _DailyCashSummary {
   const _DailyCashSummary({
+    required this.salesCount,
     required this.moneySales,
     required this.pixSales,
     required this.debitSales,
     required this.creditSales,
     required this.fiadoSales,
     required this.canceledSales,
-    required this.salesCount,
   });
 
+  final int salesCount;
   final double moneySales;
   final double pixSales;
   final double debitSales;
   final double creditSales;
   final double fiadoSales;
   final double canceledSales;
-  final int salesCount;
 
-  double get totalSold {
-    return moneySales + pixSales + debitSales + creditSales + fiadoSales;
-  }
+  factory _DailyCashSummary.fromSales(
+    List<SaleRecord> sales,
+    DateTime day,
+  ) {
+    final daySales = sales.where((sale) {
+      return _sameDay(sale.createdAt, day);
+    }).toList();
 
-  factory _DailyCashSummary.fromSales(List<SaleRecord> sales, DateTime day) {
-    var moneySales = 0.0;
-    var pixSales = 0.0;
-    var debitSales = 0.0;
-    var creditSales = 0.0;
-    var fiadoSales = 0.0;
-    var canceledSales = 0.0;
-    var salesCount = 0;
-
-    for (final sale in sales) {
-      if (!_sameDay(sale.createdAt, day)) continue;
-
-      if (sale.isCanceled) {
-        canceledSales += sale.total;
-        continue;
-      }
-
-      salesCount++;
-
-      switch (sale.paymentMethod) {
-        case PaymentMethod.dinheiro:
-          moneySales += sale.total;
-          break;
-        case PaymentMethod.pix:
-          pixSales += sale.total;
-          break;
-        case PaymentMethod.debito:
-          debitSales += sale.total;
-          break;
-        case PaymentMethod.credito:
-          creditSales += sale.total;
-          break;
-        case PaymentMethod.fiado:
-          fiadoSales += sale.total;
-          break;
-      }
-    }
+    final validSales = daySales.where((sale) => !sale.isCanceled).toList();
+    final canceledSales = daySales.where((sale) => sale.isCanceled).toList();
 
     return _DailyCashSummary(
-      moneySales: moneySales,
-      pixSales: pixSales,
-      debitSales: debitSales,
-      creditSales: creditSales,
-      fiadoSales: fiadoSales,
-      canceledSales: canceledSales,
-      salesCount: salesCount,
+      salesCount: validSales.length,
+      moneySales: _sumByMethod(validSales, PaymentMethod.dinheiro),
+      pixSales: _sumByMethod(validSales, PaymentMethod.pix),
+      debitSales: _sumByMethod(validSales, PaymentMethod.debito),
+      creditSales: _sumByMethod(validSales, PaymentMethod.credito),
+      fiadoSales: _sumByMethod(validSales, PaymentMethod.fiado),
+      canceledSales: canceledSales.fold<double>(
+        0,
+        (total, sale) => total + sale.total,
+      ),
     );
   }
 }
@@ -659,43 +927,51 @@ bool _sameDay(DateTime a, DateTime b) {
   return a.year == b.year && a.month == b.month && a.day == b.day;
 }
 
+double _sumByMethod(List<SaleRecord> sales, PaymentMethod method) {
+  return sales
+      .where((sale) => sale.paymentMethod == method)
+      .fold<double>(0, (total, sale) => total + sale.total);
+}
+
 double _parseMoney(String value) {
-  final normalized = value
+  final text = value
       .trim()
       .replaceAll('R\$', '')
       .replaceAll('.', '')
       .replaceAll(',', '.');
 
-  return double.tryParse(normalized) ?? 0;
+  return double.tryParse(text) ?? 0;
+}
+
+String _formatMoney(double value) {
+  final fixed = value.abs().toStringAsFixed(2).replaceAll('.', ',');
+  final signal = value < 0 ? '-' : '';
+
+  return '${signal}R\$ $fixed';
 }
 
 String _moneyInput(double value) {
   return value.toStringAsFixed(2).replaceAll('.', ',');
 }
 
-String _formatMoney(double value) {
-  final fixed = value.abs().toStringAsFixed(2).replaceAll('.', ',');
-  final prefix = value < 0 ? '-R\$ ' : 'R\$ ';
-
-  return '$prefix$fixed';
-}
-
 String _formatDate(DateTime value) {
-  final day = _two(value.day);
-  final month = _two(value.month);
-  final year = value.year;
+  final day = value.day.toString().padLeft(2, '0');
+  final month = value.month.toString().padLeft(2, '0');
+  final year = value.year.toString();
 
   return '$day/$month/$year';
 }
 
-String _formatDayKey(String value) {
-  final parts = value.split('-');
+String _differenceTitle(double difference) {
+  if (difference.abs() < 0.01) return 'Caixa batendo';
+  if (difference > 0) return 'Sobra no caixa';
 
-  if (parts.length != 3) return value;
-
-  return '${parts[2]}/${parts[1]}/${parts[0]}';
+  return 'Falta no caixa';
 }
 
-String _two(int value) {
-  return value.toString().padLeft(2, '0');
+Color _differenceColor(double difference) {
+  if (difference.abs() < 0.01) return AppColors.success;
+  if (difference > 0) return AppColors.warning;
+
+  return AppColors.danger;
 }

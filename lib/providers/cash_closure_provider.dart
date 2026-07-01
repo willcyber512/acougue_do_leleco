@@ -10,7 +10,7 @@ class CashClosureProvider extends ChangeNotifier {
     _loadData();
   }
 
-  static const String storageKey = 'leleco_cash_closures_v1';
+  static const String _storageKey = 'leleco_cash_closures_v1';
 
   final List<CashClosure> _closures = [];
 
@@ -21,15 +21,13 @@ class CashClosureProvider extends ChangeNotifier {
   List<CashClosure> get closures {
     final result = [..._closures];
 
-    result.sort((a, b) {
-      return b.dayKey.compareTo(a.dayKey);
-    });
+    result.sort((a, b) => b.dayKey.compareTo(a.dayKey));
 
     return List.unmodifiable(result);
   }
 
-  CashClosure? closureForDay(DateTime day) {
-    final key = cashClosureDayKey(day);
+  CashClosure? closureForDay(DateTime date) {
+    final key = cashClosureDayKey(date);
 
     try {
       return _closures.firstWhere((closure) => closure.dayKey == key);
@@ -39,20 +37,29 @@ class CashClosureProvider extends ChangeNotifier {
   }
 
   void saveClosure(CashClosure closure) {
-    final index = _closures.indexWhere((item) => item.dayKey == closure.dayKey);
+    final index = _closures.indexWhere((item) => item.id == closure.id);
 
     if (index == -1) {
-      _closures.add(closure);
+      final sameDayIndex = _closures.indexWhere(
+        (item) => item.dayKey == closure.dayKey,
+      );
+
+      if (sameDayIndex == -1) {
+        _closures.insert(0, closure);
+      } else {
+        _closures[sameDayIndex] = closure;
+      }
     } else {
       _closures[index] = closure;
     }
 
-    _saveAndNotify();
+    _saveAllAndNotify();
   }
 
-  void deleteClosure(String id) {
-    _closures.removeWhere((closure) => closure.id == id);
-    _saveAndNotify();
+  void deleteClosure(String closureId) {
+    _closures.removeWhere((closure) => closure.id == closureId);
+
+    _saveAllAndNotify();
   }
 
   Future<void> reloadFromStorage() async {
@@ -65,43 +72,40 @@ class CashClosureProvider extends ChangeNotifier {
   }
 
   Future<void> _loadData() async {
-    try {
-      final prefs = await SharedPreferences.getInstance();
-      final saved = prefs.getString(storageKey);
+    final prefs = await SharedPreferences.getInstance();
+    final raw = prefs.getString(_storageKey);
 
-      if (saved != null && saved.trim().isNotEmpty) {
-        final decoded = jsonDecode(saved);
+    if (raw != null && raw.isNotEmpty) {
+      final decoded = jsonDecode(raw);
 
-        if (decoded is List) {
-          _closures
-            ..clear()
-            ..addAll(
-              decoded.whereType<Map>().map(
-                    (item) => CashClosure.fromMap(
-                      Map<String, dynamic>.from(item),
-                    ),
-                  ),
-            );
-        }
+      if (decoded is List) {
+        _closures
+          ..clear()
+          ..addAll(
+            decoded
+                .whereType<Map>()
+                .map((item) => CashClosure.fromMap(
+                      item.map(
+                        (key, value) => MapEntry(key.toString(), value),
+                      ),
+                    )),
+          );
       }
-    } finally {
-      _isLoading = false;
-      notifyListeners();
     }
+
+    _isLoading = false;
+    notifyListeners();
   }
 
-  Future<void> _saveData() async {
+  Future<void> _saveAllAndNotify() async {
     final prefs = await SharedPreferences.getInstance();
 
     final encoded = jsonEncode(
       _closures.map((closure) => closure.toMap()).toList(),
     );
 
-    await prefs.setString(storageKey, encoded);
-  }
+    await prefs.setString(_storageKey, encoded);
 
-  void _saveAndNotify() {
     notifyListeners();
-    _saveData();
   }
 }

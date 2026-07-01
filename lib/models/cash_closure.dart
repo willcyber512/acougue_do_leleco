@@ -13,6 +13,8 @@ class CashClosure {
     required this.salesCount,
     required this.notes,
     required this.createdAt,
+    this.cashInAmount = 0,
+    this.cashOutAmount = 0,
   });
 
   final String id;
@@ -29,44 +31,32 @@ class CashClosure {
   final String notes;
   final DateTime createdAt;
 
-  double get expectedCash => openingAmount + moneySales;
+  /// Reforço/entrada manual de dinheiro no caixa.
+  final double cashInAmount;
 
-  double get difference => countedAmount - expectedCash;
+  /// Sangria/retirada manual de dinheiro do caixa.
+  final double cashOutAmount;
 
-  double get totalSold {
+  double get totalSales {
     return moneySales + pixSales + debitSales + creditSales + fiadoSales;
   }
 
-  CashClosure copyWith({
-    String? id,
-    String? dayKey,
-    double? openingAmount,
-    double? countedAmount,
-    double? moneySales,
-    double? pixSales,
-    double? debitSales,
-    double? creditSales,
-    double? fiadoSales,
-    double? canceledSales,
-    int? salesCount,
-    String? notes,
-    DateTime? createdAt,
-  }) {
-    return CashClosure(
-      id: id ?? this.id,
-      dayKey: dayKey ?? this.dayKey,
-      openingAmount: openingAmount ?? this.openingAmount,
-      countedAmount: countedAmount ?? this.countedAmount,
-      moneySales: moneySales ?? this.moneySales,
-      pixSales: pixSales ?? this.pixSales,
-      debitSales: debitSales ?? this.debitSales,
-      creditSales: creditSales ?? this.creditSales,
-      fiadoSales: fiadoSales ?? this.fiadoSales,
-      canceledSales: canceledSales ?? this.canceledSales,
-      salesCount: salesCount ?? this.salesCount,
-      notes: notes ?? this.notes,
-      createdAt: createdAt ?? this.createdAt,
-    );
+  double get expectedCash {
+    return openingAmount + moneySales + cashInAmount - cashOutAmount;
+  }
+
+  double get difference {
+    return countedAmount - expectedCash;
+  }
+
+  bool get isBalanced {
+    return difference.abs() < 0.01;
+  }
+
+  String get statusLabel {
+    if (isBalanced) return 'Caixa batendo';
+    if (difference > 0) return 'Sobra no caixa';
+    return 'Falta no caixa';
   }
 
   Map<String, dynamic> toMap() {
@@ -84,6 +74,8 @@ class CashClosure {
       'salesCount': salesCount,
       'notes': notes,
       'createdAt': createdAt.toIso8601String(),
+      'cashInAmount': cashInAmount,
+      'cashOutAmount': cashOutAmount,
     };
   }
 
@@ -102,6 +94,8 @@ class CashClosure {
       salesCount: _toInt(map['salesCount']),
       notes: map['notes']?.toString() ?? '',
       createdAt: _toDate(map['createdAt']),
+      cashInAmount: _toDouble(map['cashInAmount']),
+      cashOutAmount: _toDouble(map['cashOutAmount']),
     );
   }
 
@@ -124,9 +118,10 @@ class CashClosure {
   }
 }
 
-String cashClosureDayKey(DateTime value) {
-  final day = value.day.toString().padLeft(2, '0');
-  final month = value.month.toString().padLeft(2, '0');
+String cashClosureDayKey(DateTime date) {
+  final year = date.year.toString().padLeft(4, '0');
+  final month = date.month.toString().padLeft(2, '0');
+  final day = date.day.toString().padLeft(2, '0');
 
-  return '${value.year}-$month-$day';
+  return '$year-$month-$day';
 }
