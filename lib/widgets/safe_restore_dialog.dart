@@ -769,6 +769,10 @@ const List<_BackupKey> _backupKeys = [
     label: 'Compras de fornecedores',
   ),
   _BackupKey(
+    key: 'leleco_suppliers_v1',
+    label: 'Cadastro de fornecedores',
+  ),
+  _BackupKey(
     key: 'leleco_cash_closures_v1',
     label: 'Fechamentos de caixa',
   ),

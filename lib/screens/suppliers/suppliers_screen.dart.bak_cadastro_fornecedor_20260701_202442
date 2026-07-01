@@ -6,7 +6,6 @@ import '../../core/constants/app_colors.dart';
 import '../../models/product_category.dart';
 import '../../models/product_unit.dart';
 import '../../models/supplier_purchase.dart';
-import '../../models/supplier_profile.dart';
 import '../../providers/suppliers_provider.dart';
 
 enum _SupplierPeriod {
@@ -97,7 +96,6 @@ class _SuppliersScreenState extends State<SuppliersScreen> {
                 suppliersCount: suppliersCount,
                 purchasesCount: periodPurchases.length,
                 onAdd: () => _openPurchaseDialog(context),
-                onAddSupplier: () => _openSupplierDialog(context),
                 onPeriodChanged: (period) {
                   setState(() => selectedPeriod = period);
                 },
@@ -250,7 +248,6 @@ class _SupplierHeader extends StatelessWidget {
     required this.suppliersCount,
     required this.purchasesCount,
     required this.onAdd,
-    required this.onAddSupplier,
     required this.onPeriodChanged,
   });
 
@@ -262,7 +259,6 @@ class _SupplierHeader extends StatelessWidget {
   final int suppliersCount;
   final int purchasesCount;
   final VoidCallback onAdd;
-  final VoidCallback onAddSupplier;
   final ValueChanged<_SupplierPeriod> onPeriodChanged;
 
   @override
@@ -313,17 +309,6 @@ class _SupplierHeader extends StatelessWidget {
                   _PeriodPills(
                     selected: selectedPeriod,
                     onChanged: onPeriodChanged,
-                  ),
-                  OutlinedButton.icon(
-                    onPressed: onAddSupplier,
-                    style: OutlinedButton.styleFrom(
-                      foregroundColor: AppColors.beige100,
-                      side: BorderSide(
-                        color: AppColors.beige100.withOpacity(0.55),
-                      ),
-                    ),
-                    icon: const Icon(Icons.store_rounded),
-                    label: const Text('Fornecedor'),
                   ),
                   FilledButton.icon(
                     onPressed: onAdd,
@@ -908,9 +893,6 @@ class _SideDashboard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final provider = context.watch<SuppliersProvider>();
-    final supplierProfiles = provider.suppliers;
-
     return Column(
       children: [
         _DarkMiniPanel(
@@ -928,19 +910,6 @@ class _SideDashboard extends StatelessWidget {
               value: _formatMoney(openAmount),
             ),
           ],
-        ),
-        const SizedBox(height: 14),
-        _SupplierDirectoryPanel(
-          suppliers: supplierProfiles,
-          purchases: provider.purchases,
-          onAdd: () => _openSupplierDialog(context),
-          onEdit: (supplier) => _openSupplierDialog(
-            context,
-            supplier: supplier,
-          ),
-          onToggleActive: (supplier) {
-            context.read<SuppliersProvider>().toggleSupplierActive(supplier.id);
-          },
         ),
         const SizedBox(height: 14),
         _RankingPanel(
@@ -983,437 +952,6 @@ class _SideDashboard extends StatelessWidget {
         ),
       ],
     );
-  }
-}
-
-
-class _SupplierDirectoryPanel extends StatelessWidget {
-  const _SupplierDirectoryPanel({
-    required this.suppliers,
-    required this.purchases,
-    required this.onAdd,
-    required this.onEdit,
-    required this.onToggleActive,
-  });
-
-  final List<SupplierProfile> suppliers;
-  final List<SupplierPurchase> purchases;
-  final VoidCallback onAdd;
-  final ValueChanged<SupplierProfile> onEdit;
-  final ValueChanged<SupplierProfile> onToggleActive;
-
-  @override
-  Widget build(BuildContext context) {
-    return _LightPanel(
-      padding: const EdgeInsets.all(16),
-      child: Column(
-        children: [
-          Row(
-            children: [
-              const _SmallIcon(icon: Icons.store_mall_directory_rounded),
-              const SizedBox(width: 10),
-              Expanded(
-                child: Text(
-                  'Fornecedores cadastrados',
-                  style: TextStyle(
-                    color: _titleColor(context),
-                    fontWeight: FontWeight.w900,
-                  ),
-                ),
-              ),
-              IconButton(
-                tooltip: 'Novo fornecedor',
-                onPressed: onAdd,
-                icon: const Icon(Icons.add_business_rounded),
-              ),
-            ],
-          ),
-          const SizedBox(height: 12),
-          if (suppliers.isEmpty)
-            Align(
-              alignment: Alignment.centerLeft,
-              child: Text(
-                'Nenhum fornecedor cadastrado ainda.',
-                style: TextStyle(
-                  color: _mutedColor(context),
-                  fontWeight: FontWeight.w700,
-                ),
-              ),
-            )
-          else
-            ...suppliers.take(8).map((supplier) {
-              final stats = _supplierStats(supplier.name, purchases);
-
-              return _SupplierProfileRow(
-                supplier: supplier,
-                total: stats.total,
-                open: stats.open,
-                lastPurchase: stats.lastPurchase,
-                onEdit: () => onEdit(supplier),
-                onToggleActive: () => onToggleActive(supplier),
-              );
-            }),
-        ],
-      ),
-    );
-  }
-}
-
-class _SupplierProfileRow extends StatelessWidget {
-  const _SupplierProfileRow({
-    required this.supplier,
-    required this.total,
-    required this.open,
-    required this.lastPurchase,
-    required this.onEdit,
-    required this.onToggleActive,
-  });
-
-  final SupplierProfile supplier;
-  final double total;
-  final double open;
-  final DateTime? lastPurchase;
-  final VoidCallback onEdit;
-  final VoidCallback onToggleActive;
-
-  @override
-  Widget build(BuildContext context) {
-    final subtitleParts = <String>[];
-
-    if (supplier.phone.trim().isNotEmpty) {
-      subtitleParts.add(supplier.phone.trim());
-    }
-
-    if (supplier.city.trim().isNotEmpty) {
-      subtitleParts.add(supplier.city.trim());
-    }
-
-    if (lastPurchase != null) {
-      subtitleParts.add('Última: ${_formatDate(lastPurchase!)}');
-    }
-
-    final subtitle = subtitleParts.isEmpty
-        ? 'Sem contato cadastrado'
-        : subtitleParts.join(' • ');
-
-    return Container(
-      margin: const EdgeInsets.only(bottom: 12),
-      padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        color: _cardBackground(context),
-        borderRadius: BorderRadius.circular(18),
-        border: Border.all(color: _borderColor(context)),
-      ),
-      child: Row(
-        children: [
-          _SmallIcon(
-            icon: supplier.active
-                ? Icons.store_rounded
-                : Icons.storefront_outlined,
-          ),
-          const SizedBox(width: 10),
-          Expanded(
-            child: InkWell(
-              onTap: onEdit,
-              borderRadius: BorderRadius.circular(12),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    supplier.name,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: TextStyle(
-                      color: _bodyColor(context),
-                      fontWeight: FontWeight.w900,
-                    ),
-                  ),
-                  const SizedBox(height: 2),
-                  Text(
-                    subtitle,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: TextStyle(
-                      color: _mutedColor(context),
-                      fontWeight: FontWeight.w700,
-                      fontSize: 12,
-                    ),
-                  ),
-                  const SizedBox(height: 4),
-                  Text(
-                    'Total: ${_formatMoney(total)} • Aberto: ${_formatMoney(open)}',
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: TextStyle(
-                      color: AppColors.wine700,
-                      fontWeight: FontWeight.w900,
-                      fontSize: 12,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ),
-          IconButton(
-            tooltip: supplier.active ? 'Inativar' : 'Ativar',
-            onPressed: onToggleActive,
-            icon: Icon(
-              supplier.active
-                  ? Icons.visibility_rounded
-                  : Icons.visibility_off_rounded,
-            ),
-          ),
-          IconButton(
-            tooltip: 'Editar fornecedor',
-            onPressed: onEdit,
-            icon: const Icon(Icons.edit_rounded),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _SupplierStats {
-  const _SupplierStats({
-    required this.total,
-    required this.open,
-    required this.lastPurchase,
-  });
-
-  final double total;
-  final double open;
-  final DateTime? lastPurchase;
-}
-
-_SupplierStats _supplierStats(
-  String supplierName,
-  List<SupplierPurchase> purchases,
-) {
-  final normalized = supplierName.trim().toLowerCase();
-
-  final supplierPurchases = purchases.where((purchase) {
-    return purchase.supplierName.trim().toLowerCase() == normalized;
-  }).toList();
-
-  supplierPurchases.sort((a, b) => b.purchaseDate.compareTo(a.purchaseDate));
-
-  final total = supplierPurchases.fold<double>(
-    0,
-    (sum, purchase) => sum + purchase.totalCost,
-  );
-
-  final open = supplierPurchases.where((purchase) => !purchase.paid).fold<double>(
-        0,
-        (sum, purchase) => sum + purchase.totalCost,
-      );
-
-  return _SupplierStats(
-    total: total,
-    open: open,
-    lastPurchase:
-        supplierPurchases.isEmpty ? null : supplierPurchases.first.purchaseDate,
-  );
-}
-
-Future<void> _openSupplierDialog(
-  BuildContext context, {
-  SupplierProfile? supplier,
-}) async {
-  await showDialog<void>(
-    context: context,
-    builder: (_) => _SupplierDialog(supplier: supplier),
-  );
-}
-
-class _SupplierDialog extends StatefulWidget {
-  const _SupplierDialog({this.supplier});
-
-  final SupplierProfile? supplier;
-
-  @override
-  State<_SupplierDialog> createState() => _SupplierDialogState();
-}
-
-class _SupplierDialogState extends State<_SupplierDialog> {
-  late final TextEditingController nameController;
-  late final TextEditingController phoneController;
-  late final TextEditingController responsibleController;
-  late final TextEditingController cityController;
-  late final TextEditingController addressController;
-  late final TextEditingController notesController;
-
-  late bool active;
-
-  @override
-  void initState() {
-    super.initState();
-
-    final supplier = widget.supplier;
-
-    nameController = TextEditingController(text: supplier?.name ?? '');
-    phoneController = TextEditingController(text: supplier?.phone ?? '');
-    responsibleController =
-        TextEditingController(text: supplier?.responsible ?? '');
-    cityController = TextEditingController(text: supplier?.city ?? '');
-    addressController = TextEditingController(text: supplier?.address ?? '');
-    notesController = TextEditingController(text: supplier?.notes ?? '');
-
-    active = supplier?.active ?? true;
-  }
-
-  @override
-  void dispose() {
-    nameController.dispose();
-    phoneController.dispose();
-    responsibleController.dispose();
-    cityController.dispose();
-    addressController.dispose();
-    notesController.dispose();
-
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return AlertDialog(
-      title: Text(
-        widget.supplier == null ? 'Novo fornecedor' : 'Editar fornecedor',
-      ),
-      content: SizedBox(
-        width: 720,
-        height: 560,
-        child: ListView(
-          children: [
-            TextField(
-              controller: nameController,
-              decoration: const InputDecoration(
-                labelText: 'Nome do fornecedor',
-                hintText: 'Ex: Frigorífico São Luís',
-              ),
-            ),
-            const SizedBox(height: 12),
-            Row(
-              children: [
-                Expanded(
-                  child: TextField(
-                    controller: phoneController,
-                    decoration: const InputDecoration(
-                      labelText: 'Telefone / WhatsApp',
-                      hintText: 'Ex: (98) 99999-9999',
-                    ),
-                  ),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: TextField(
-                    controller: responsibleController,
-                    decoration: const InputDecoration(
-                      labelText: 'Responsável',
-                      hintText: 'Ex: Seu João',
-                    ),
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 12),
-            TextField(
-              controller: cityController,
-              decoration: const InputDecoration(
-                labelText: 'Cidade / região',
-                hintText: 'Ex: São Luís',
-              ),
-            ),
-            const SizedBox(height: 12),
-            TextField(
-              controller: addressController,
-              decoration: const InputDecoration(
-                labelText: 'Endereço',
-                hintText: 'Opcional',
-              ),
-            ),
-            const SizedBox(height: 12),
-            SwitchListTile(
-              value: active,
-              onChanged: (value) {
-                setState(() => active = value);
-              },
-              title: const Text(
-                'Fornecedor ativo',
-                style: TextStyle(fontWeight: FontWeight.w900),
-              ),
-              subtitle: const Text(
-                'Fornecedores inativos continuam no histórico.',
-              ),
-            ),
-            const SizedBox(height: 12),
-            TextField(
-              controller: notesController,
-              maxLines: 4,
-              decoration: const InputDecoration(
-                labelText: 'Observações',
-                hintText: 'Ex: entrega às sextas, preço melhor no atacado...',
-              ),
-            ),
-          ],
-        ),
-      ),
-      actions: [
-        TextButton(
-          onPressed: () => Navigator.of(context).pop(),
-          child: const Text('Cancelar'),
-        ),
-        FilledButton.icon(
-          onPressed: _save,
-          icon: const Icon(Icons.save_rounded),
-          label: const Text('Salvar fornecedor'),
-        ),
-      ],
-    );
-  }
-
-  void _save() {
-    final name = nameController.text.trim();
-
-    if (name.isEmpty) {
-      ScaffoldMessenger.of(context)
-        ..clearSnackBars()
-        ..showSnackBar(
-          const SnackBar(content: Text('Informe o nome do fornecedor.')),
-        );
-      return;
-    }
-
-    final provider = context.read<SuppliersProvider>();
-    final now = DateTime.now();
-    final old = widget.supplier;
-
-    final supplier = SupplierProfile(
-      id: old?.id ?? const Uuid().v4(),
-      name: name,
-      phone: phoneController.text.trim(),
-      responsible: responsibleController.text.trim(),
-      city: cityController.text.trim(),
-      address: addressController.text.trim(),
-      notes: notesController.text.trim(),
-      active: active,
-      createdAt: old?.createdAt ?? now,
-      updatedAt: now,
-    );
-
-    if (old == null) {
-      provider.addSupplier(supplier);
-    } else {
-      provider.updateSupplier(supplier);
-    }
-
-    Navigator.of(context).pop();
-
-    ScaffoldMessenger.of(context)
-      ..clearSnackBars()
-      ..showSnackBar(
-        const SnackBar(content: Text('Fornecedor salvo.')),
-      );
   }
 }
 
