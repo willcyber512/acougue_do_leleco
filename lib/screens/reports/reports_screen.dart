@@ -6,15 +6,18 @@ import '../../models/payment_method.dart';
 import '../../models/product.dart';
 import '../../models/product_category.dart';
 import '../../models/product_unit.dart';
-import '../../models/sale.dart';
 import '../../providers/customers_provider.dart';
 import '../../providers/inventory_provider.dart';
 import '../../providers/sales_provider.dart';
-import '../../widgets/leleco_metric_card.dart';
 
-enum _ReportPeriod {
-  today,
-  all,
+enum _ReportSection {
+  overview,
+  productSales,
+  categorySales,
+  payments,
+  lowStock,
+  credit,
+  detailedSales,
 }
 
 class ReportsScreen extends StatefulWidget {
@@ -25,267 +28,668 @@ class ReportsScreen extends StatefulWidget {
 }
 
 class _ReportsScreenState extends State<ReportsScreen> {
-  _ReportPeriod period = _ReportPeriod.today;
+  _ReportSection selected = _ReportSection.overview;
 
   @override
   Widget build(BuildContext context) {
-    return Consumer3<InventoryProvider, SalesProvider, CustomersProvider>(
-      builder: (context, inventory, sales, customers, _) {
-        final visibleSales =
-            period == _ReportPeriod.today ? sales.todaySales : sales.sales;
+    return Consumer3<SalesProvider, InventoryProvider, CustomersProvider>(
+      builder: (context, sales, inventory, customers, _) {
+        final todaySales = sales.todaySales;
+        final revenue = sales.todayRevenue;
+        final averageTicket =
+            todaySales.isEmpty ? 0.0 : revenue / todaySales.length;
 
-        final validSales =
-            visibleSales.where((sale) => !sale.isCanceled).toList();
-        final canceledCount =
-            visibleSales.where((sale) => sale.isCanceled).length;
-
-        final revenue = validSales.fold(
-          0.0,
-          (total, sale) => total + sale.total,
+        final paymentTotals = _paymentTotals(todaySales);
+        final productTotals = _productTotals(todaySales);
+        final categoryTotals = _categoryTotals(
+          todaySales,
+          inventory.products,
         );
 
-        final averageTicket =
-            validSales.isEmpty ? 0.0 : revenue / validSales.length;
+        final lowStock = inventory.products.where((product) {
+          return !product.isDeleted && product.isLowStock;
+        }).toList();
 
-        final topProducts = _topProducts(validSales);
-        final lowStockProducts =
-            inventory.products.where((product) => product.isLowStock).toList()
-              ..sort((a, b) => a.stockQuantity.compareTo(b.stockQuantity));
-
-        return ListView(
-          children: [
-            _ReportsToolbar(
-              period: period,
-              onChanged: (value) => setState(() => period = value),
-            ),
-            const SizedBox(height: 18),
-            Wrap(
-              spacing: 16,
-              runSpacing: 16,
-              children: [
-                SizedBox(
-                  width: 220,
-                  child: LelecoMetricCard(
-                    icon: Icons.payments_rounded,
-                    title: period == _ReportPeriod.today
-                        ? 'Faturamento hoje'
-                        : 'Faturamento total',
-                    value: _formatMoney(revenue),
-                  ),
-                ),
-                SizedBox(
-                  width: 220,
-                  child: LelecoMetricCard(
-                    icon: Icons.receipt_long_rounded,
-                    title: 'Vendas válidas',
-                    value: validSales.length.toString(),
-                  ),
-                ),
-                SizedBox(
-                  width: 220,
-                  child: LelecoMetricCard(
-                    icon: Icons.trending_up_rounded,
-                    title: 'Ticket médio',
-                    value: _formatMoney(averageTicket),
-                  ),
-                ),
-                SizedBox(
-                  width: 220,
-                  child: LelecoMetricCard(
-                    icon: Icons.cancel_rounded,
-                    title: 'Canceladas',
-                    value: canceledCount.toString(),
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 18),
-            SizedBox(
-              height: 255,
-              child: Row(
-                children: [
-                  Expanded(
-                    child: _ReportPanel(
-                      title: 'Formas de pagamento',
-                      icon: Icons.credit_card_rounded,
-                      child: Column(
-                        children: [
-                          _InfoLine(
-                            label: 'Dinheiro',
-                            value: _formatMoney(
-                              _sumByMethod(
-                                validSales,
-                                PaymentMethod.dinheiro,
-                              ),
-                            ),
-                          ),
-                          _InfoLine(
-                            label: 'Pix',
-                            value: _formatMoney(
-                              _sumByMethod(validSales, PaymentMethod.pix),
-                            ),
-                          ),
-                          _InfoLine(
-                            label: 'Débito',
-                            value: _formatMoney(
-                              _sumByMethod(validSales, PaymentMethod.debito),
-                            ),
-                          ),
-                          _InfoLine(
-                            label: 'Crédito',
-                            value: _formatMoney(
-                              _sumByMethod(validSales, PaymentMethod.credito),
-                            ),
-                          ),
-                          _InfoLine(
-                            label: 'Fiado',
-                            value: _formatMoney(
-                              _sumByMethod(validSales, PaymentMethod.fiado),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
-                  const SizedBox(width: 16),
-                  Expanded(
-                    child: _ReportPanel(
-                      title: 'Resumo geral',
-                      icon: Icons.dashboard_customize_rounded,
-                      child: Column(
-                        children: [
-                          _InfoLine(
-                            label: 'Fiado aberto',
-                            value: _formatMoney(customers.totalOpenCredit),
-                          ),
-                          _InfoLine(
-                            label: 'Clientes devendo',
-                            value: customers.customersWithDebt.toString(),
-                          ),
-                          _InfoLine(
-                            label: 'Produtos no estoque',
-                            value: inventory.totalProducts.toString(),
-                          ),
-                          _InfoLine(
-                            label: 'Valor em estoque',
-                            value: _formatMoney(inventory.stockValue),
-                          ),
-                          _InfoLine(
-                            label: 'Perdas registradas',
-                            value: _formatMoney(inventory.lossesEstimatedValue),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
-                ],
+        return SingleChildScrollView(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              _ReportsHero(
+                salesCount: todaySales.length,
+                revenue: revenue,
+                averageTicket: averageTicket,
+                openCredit: customers.totalOpenCredit,
               ),
-            ),
-            const SizedBox(height: 18),
-            SizedBox(
-              height: 430,
-              child: Row(
-                children: [
-                  Expanded(
-                    child: _TopProductsPanel(products: topProducts),
-                  ),
-                  const SizedBox(width: 16),
-                  Expanded(
-                    child: _LowStockPanel(products: lowStockProducts),
-                  ),
-                  const SizedBox(width: 16),
-                  Expanded(
-                    child: _RecentSalesPanel(sales: validSales),
-                  ),
-                ],
+              const SizedBox(height: 14),
+              _ReportMenu(
+                selected: selected,
+                onSelected: (value) {
+                  setState(() => selected = value);
+                },
               ),
-            ),
-          ],
+              const SizedBox(height: 14),
+              _SelectedReportContent(
+                selected: selected,
+                todaySales: todaySales,
+                revenue: revenue,
+                averageTicket: averageTicket,
+                paymentTotals: paymentTotals,
+                productTotals: productTotals,
+                categoryTotals: categoryTotals,
+                lowStock: lowStock,
+                openCredit: customers.totalOpenCredit,
+              ),
+            ],
+          ),
         );
       },
     );
   }
 }
 
-class _ReportsToolbar extends StatelessWidget {
-  const _ReportsToolbar({
-    required this.period,
-    required this.onChanged,
+class _ReportsHero extends StatelessWidget {
+  const _ReportsHero({
+    required this.salesCount,
+    required this.revenue,
+    required this.averageTicket,
+    required this.openCredit,
   });
 
-  final _ReportPeriod period;
-  final ValueChanged<_ReportPeriod> onChanged;
-
-  @override
-  Widget build(BuildContext context) {
-    return Row(
-      children: [
-        SegmentedButton<_ReportPeriod>(
-          segments: const [
-            ButtonSegment(
-              value: _ReportPeriod.today,
-              icon: Icon(Icons.today_rounded),
-              label: Text('Hoje'),
-            ),
-            ButtonSegment(
-              value: _ReportPeriod.all,
-              icon: Icon(Icons.list_alt_rounded),
-              label: Text('Tudo'),
-            ),
-          ],
-          selected: {period},
-          onSelectionChanged: (values) => onChanged(values.first),
-        ),
-        const Spacer(),
-        Container(
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-          decoration: BoxDecoration(
-            color: AppColors.wine900.withOpacity(0.12),
-            borderRadius: BorderRadius.circular(999),
-          ),
-          child: const Text(
-            'Relatórios rápidos para acompanhar o açougue',
-            style: TextStyle(fontWeight: FontWeight.w800),
-          ),
-        ),
-      ],
-    );
-  }
-}
-
-class _ReportPanel extends StatelessWidget {
-  const _ReportPanel({
-    required this.title,
-    required this.icon,
-    required this.child,
-  });
-
-  final String title;
-  final IconData icon;
-  final Widget child;
+  final int salesCount;
+  final double revenue;
+  final double averageTicket;
+  final double openCredit;
 
   @override
   Widget build(BuildContext context) {
     return Card(
       child: Container(
         width: double.infinity,
-        padding: const EdgeInsets.all(18),
-        child: Column(
-          children: [
-            Row(
+        padding: const EdgeInsets.all(22),
+        child: LayoutBuilder(
+          builder: (context, constraints) {
+            final compact = constraints.maxWidth < 760;
+
+            return Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Icon(icon, color: AppColors.wine700),
-                const SizedBox(width: 10),
-                Text(
-                  title,
-                  style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                        fontWeight: FontWeight.w900,
+                Row(
+                  children: [
+                    Container(
+                      width: 58,
+                      height: 58,
+                      decoration: BoxDecoration(
+                        color: AppColors.wine900,
+                        borderRadius: BorderRadius.circular(20),
                       ),
+                      child: const Icon(
+                        Icons.bar_chart_rounded,
+                        color: AppColors.beige100,
+                      ),
+                    ),
+                    const SizedBox(width: 14),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'Central de relatórios',
+                            style: Theme.of(context)
+                                .textTheme
+                                .headlineSmall
+                                ?.copyWith(fontWeight: FontWeight.w900),
+                          ),
+                          const SizedBox(height: 3),
+                          const Text(
+                            'Escolha abaixo o tipo de relatório que deseja visualizar.',
+                            style: TextStyle(fontWeight: FontWeight.w700),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 18),
+                Wrap(
+                  spacing: 12,
+                  runSpacing: 12,
+                  children: [
+                    _SmallMetric(
+                      width: compact ? 160 : 190,
+                      icon: Icons.point_of_sale_rounded,
+                      label: 'Vendas hoje',
+                      value: salesCount.toString(),
+                    ),
+                    _SmallMetric(
+                      width: compact ? 160 : 190,
+                      icon: Icons.payments_rounded,
+                      label: 'Faturamento',
+                      value: _formatMoney(revenue),
+                    ),
+                    _SmallMetric(
+                      width: compact ? 160 : 190,
+                      icon: Icons.receipt_long_rounded,
+                      label: 'Ticket médio',
+                      value: _formatMoney(averageTicket),
+                    ),
+                    _SmallMetric(
+                      width: compact ? 160 : 190,
+                      icon: Icons.person_rounded,
+                      label: 'Fiado aberto',
+                      value: _formatMoney(openCredit),
+                    ),
+                  ],
+                ),
+              ],
+            );
+          },
+        ),
+      ),
+    );
+  }
+}
+
+class _ReportMenu extends StatelessWidget {
+  const _ReportMenu({
+    required this.selected,
+    required this.onSelected,
+  });
+
+  final _ReportSection selected;
+  final ValueChanged<_ReportSection> onSelected;
+
+  @override
+  Widget build(BuildContext context) {
+    final items = [
+      _ReportMenuItem(
+        section: _ReportSection.overview,
+        icon: Icons.dashboard_rounded,
+        title: 'Visão geral',
+        subtitle: 'Resumo do dia',
+      ),
+      _ReportMenuItem(
+        section: _ReportSection.productSales,
+        icon: Icons.shopping_basket_rounded,
+        title: 'Produtos',
+        subtitle: 'Vendas por produto',
+      ),
+      _ReportMenuItem(
+        section: _ReportSection.categorySales,
+        icon: Icons.category_rounded,
+        title: 'Categorias',
+        subtitle: 'Bovina, frango...',
+      ),
+      _ReportMenuItem(
+        section: _ReportSection.payments,
+        icon: Icons.credit_card_rounded,
+        title: 'Pagamentos',
+        subtitle: 'Dinheiro, Pix...',
+      ),
+      _ReportMenuItem(
+        section: _ReportSection.lowStock,
+        icon: Icons.warning_rounded,
+        title: 'Estoque baixo',
+        subtitle: 'Reposição',
+      ),
+      _ReportMenuItem(
+        section: _ReportSection.credit,
+        icon: Icons.person_rounded,
+        title: 'Fiado',
+        subtitle: 'Saldo aberto',
+      ),
+      _ReportMenuItem(
+        section: _ReportSection.detailedSales,
+        icon: Icons.receipt_long_rounded,
+        title: 'Detalhadas',
+        subtitle: 'Venda por venda',
+      ),
+    ];
+
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Wrap(
+          spacing: 12,
+          runSpacing: 12,
+          children: items.map((item) {
+            return _ReportMenuCard(
+              item: item,
+              selected: selected == item.section,
+              onTap: () => onSelected(item.section),
+            );
+          }).toList(),
+        ),
+      ),
+    );
+  }
+}
+
+class _ReportMenuCard extends StatelessWidget {
+  const _ReportMenuCard({
+    required this.item,
+    required this.selected,
+    required this.onTap,
+  });
+
+  final _ReportMenuItem item;
+  final bool selected;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final background = selected ? AppColors.wine900 : null;
+    final foreground = selected ? AppColors.beige100 : AppColors.wine700;
+
+    return SizedBox(
+      width: 180,
+      height: 104,
+      child: Material(
+        color: background,
+        borderRadius: BorderRadius.circular(22),
+        child: InkWell(
+          onTap: onTap,
+          borderRadius: BorderRadius.circular(22),
+          child: Container(
+            padding: const EdgeInsets.all(14),
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(22),
+              border: Border.all(
+                color: selected ? AppColors.wine900 : AppColors.beige300,
+              ),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Icon(item.icon, color: foreground),
+                const Spacer(),
+                Text(
+                  item.title,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    color: foreground,
+                    fontWeight: FontWeight.w900,
+                  ),
+                ),
+                Text(
+                  item.subtitle,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    color: selected ? AppColors.beige100 : null,
+                    fontWeight: FontWeight.w700,
+                    fontSize: 12,
+                  ),
                 ),
               ],
             ),
-            const SizedBox(height: 14),
-            Expanded(child: child),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _SelectedReportContent extends StatelessWidget {
+  const _SelectedReportContent({
+    required this.selected,
+    required this.todaySales,
+    required this.revenue,
+    required this.averageTicket,
+    required this.paymentTotals,
+    required this.productTotals,
+    required this.categoryTotals,
+    required this.lowStock,
+    required this.openCredit,
+  });
+
+  final _ReportSection selected;
+  final List<dynamic> todaySales;
+  final double revenue;
+  final double averageTicket;
+  final Map<PaymentMethod, double> paymentTotals;
+  final List<_ProductTotal> productTotals;
+  final List<_CategoryTotal> categoryTotals;
+  final List<Product> lowStock;
+  final double openCredit;
+
+  @override
+  Widget build(BuildContext context) {
+    switch (selected) {
+      case _ReportSection.overview:
+        return _OverviewReport(
+          salesCount: todaySales.length,
+          revenue: revenue,
+          averageTicket: averageTicket,
+          openCredit: openCredit,
+          productTotals: productTotals,
+          categoryTotals: categoryTotals,
+          paymentTotals: paymentTotals,
+          lowStock: lowStock,
+        );
+      case _ReportSection.productSales:
+        return _ProductSalesReport(productTotals: productTotals);
+      case _ReportSection.categorySales:
+        return _CategorySalesReport(categoryTotals: categoryTotals);
+      case _ReportSection.payments:
+        return _PaymentReport(paymentTotals: paymentTotals);
+      case _ReportSection.lowStock:
+        return _LowStockReport(products: lowStock);
+      case _ReportSection.credit:
+        return _CreditReport(openCredit: openCredit);
+      case _ReportSection.detailedSales:
+        return _DetailedSalesReport(sales: todaySales);
+    }
+  }
+}
+
+class _OverviewReport extends StatelessWidget {
+  const _OverviewReport({
+    required this.salesCount,
+    required this.revenue,
+    required this.averageTicket,
+    required this.openCredit,
+    required this.productTotals,
+    required this.categoryTotals,
+    required this.paymentTotals,
+    required this.lowStock,
+  });
+
+  final int salesCount;
+  final double revenue;
+  final double averageTicket;
+  final double openCredit;
+  final List<_ProductTotal> productTotals;
+  final List<_CategoryTotal> categoryTotals;
+  final Map<PaymentMethod, double> paymentTotals;
+  final List<Product> lowStock;
+
+  @override
+  Widget build(BuildContext context) {
+    return _SectionCard(
+      title: 'Visão geral do dia',
+      subtitle: 'Resumo rápido para conferência',
+      child: Column(
+        children: [
+          Wrap(
+            spacing: 12,
+            runSpacing: 12,
+            children: [
+              _SmallMetric(
+                icon: Icons.point_of_sale_rounded,
+                label: 'Quantidade de vendas',
+                value: salesCount.toString(),
+              ),
+              _SmallMetric(
+                icon: Icons.payments_rounded,
+                label: 'Total vendido',
+                value: _formatMoney(revenue),
+              ),
+              _SmallMetric(
+                icon: Icons.receipt_long_rounded,
+                label: 'Ticket médio',
+                value: _formatMoney(averageTicket),
+              ),
+              _SmallMetric(
+                icon: Icons.person_rounded,
+                label: 'Fiado aberto',
+                value: _formatMoney(openCredit),
+              ),
+              _SmallMetric(
+                icon: Icons.warning_rounded,
+                label: 'Estoque baixo',
+                value: lowStock.length.toString(),
+              ),
+            ],
+          ),
+          const SizedBox(height: 18),
+          _MiniTablesGrid(
+            children: [
+              _MiniTableCard(
+                title: 'Top produtos',
+                emptyText: 'Nenhum produto vendido hoje.',
+                headers: const ['Produto', 'Total'],
+                rows: productTotals.take(5).map((item) {
+                  return [item.name, _formatMoney(item.total)];
+                }).toList(),
+              ),
+              _MiniTableCard(
+                title: 'Categorias',
+                emptyText: 'Nenhuma categoria vendida hoje.',
+                headers: const ['Categoria', 'Total'],
+                rows: categoryTotals.take(5).map((item) {
+                  return [item.category, _formatMoney(item.total)];
+                }).toList(),
+              ),
+              _MiniTableCard(
+                title: 'Pagamentos',
+                emptyText: 'Sem pagamentos hoje.',
+                headers: const ['Forma', 'Total'],
+                rows: PaymentMethod.values.map((method) {
+                  return [
+                    method.label,
+                    _formatMoney(paymentTotals[method] ?? 0.0),
+                  ];
+                }).toList(),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _ProductSalesReport extends StatelessWidget {
+  const _ProductSalesReport({required this.productTotals});
+
+  final List<_ProductTotal> productTotals;
+
+  @override
+  Widget build(BuildContext context) {
+    return _SectionCard(
+      title: 'Vendas por produto',
+      subtitle: 'Mostra quais produtos venderam mais no dia',
+      child: productTotals.isEmpty
+          ? const _EmptyReportText('Nenhum produto vendido hoje.')
+          : _ReportTable(
+              headers: const ['Produto', 'Qtd vendida', 'Total vendido'],
+              rows: productTotals.map((item) {
+                return [
+                  item.name,
+                  _formatNumber(item.quantity),
+                  _formatMoney(item.total),
+                ];
+              }).toList(),
+            ),
+    );
+  }
+}
+
+class _CategorySalesReport extends StatelessWidget {
+  const _CategorySalesReport({required this.categoryTotals});
+
+  final List<_CategoryTotal> categoryTotals;
+
+  @override
+  Widget build(BuildContext context) {
+    return _SectionCard(
+      title: 'Vendas por categoria',
+      subtitle: 'Resumo separado por tipo de produto',
+      child: categoryTotals.isEmpty
+          ? const _EmptyReportText('Nenhuma categoria vendida hoje.')
+          : _ReportTable(
+              headers: const ['Categoria', 'Qtd vendida', 'Total vendido'],
+              rows: categoryTotals.map((item) {
+                return [
+                  item.category,
+                  _formatNumber(item.quantity),
+                  _formatMoney(item.total),
+                ];
+              }).toList(),
+            ),
+    );
+  }
+}
+
+class _PaymentReport extends StatelessWidget {
+  const _PaymentReport({required this.paymentTotals});
+
+  final Map<PaymentMethod, double> paymentTotals;
+
+  @override
+  Widget build(BuildContext context) {
+    final total = paymentTotals.values.fold<double>(
+      0,
+      (sum, value) => sum + value,
+    );
+
+    return _SectionCard(
+      title: 'Totais por forma de pagamento',
+      subtitle: 'Ajuda na conferência do caixa',
+      child: Column(
+        children: [
+          _BigTotalCard(
+            label: 'Total recebido no dia',
+            value: _formatMoney(total),
+          ),
+          const SizedBox(height: 14),
+          _ReportTable(
+            headers: const ['Forma', 'Total'],
+            rows: PaymentMethod.values.map((method) {
+              return [
+                method.label,
+                _formatMoney(paymentTotals[method] ?? 0.0),
+              ];
+            }).toList(),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _LowStockReport extends StatelessWidget {
+  const _LowStockReport({required this.products});
+
+  final List<Product> products;
+
+  @override
+  Widget build(BuildContext context) {
+    return _SectionCard(
+      title: 'Estoque baixo',
+      subtitle: 'Produtos que precisam de atenção',
+      child: products.isEmpty
+          ? const _EmptyReportText('Nenhum produto em estoque baixo.')
+          : _ReportTable(
+              headers: const ['Código', 'Produto', 'Estoque', 'Mínimo'],
+              rows: products.map((product) {
+                return [
+                  product.code,
+                  product.name,
+                  '${_formatNumber(product.stockQuantity)} ${product.unit.label}',
+                  '${_formatNumber(product.minStock)} ${product.unit.label}',
+                ];
+              }).toList(),
+            ),
+    );
+  }
+}
+
+class _CreditReport extends StatelessWidget {
+  const _CreditReport({required this.openCredit});
+
+  final double openCredit;
+
+  @override
+  Widget build(BuildContext context) {
+    return _SectionCard(
+      title: 'Relatório de fiado',
+      subtitle: 'Resumo do valor em aberto',
+      child: Column(
+        children: [
+          _BigTotalCard(
+            label: 'Total em aberto no fiado',
+            value: _formatMoney(openCredit),
+          ),
+          const SizedBox(height: 12),
+          const _EmptyReportText(
+            'Para ver cliente por cliente, abra a aba Fiado. Aqui fica o resumo para conferência rápida.',
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _DetailedSalesReport extends StatelessWidget {
+  const _DetailedSalesReport({required this.sales});
+
+  final List<dynamic> sales;
+
+  @override
+  Widget build(BuildContext context) {
+    return _SectionCard(
+      title: 'Vendas detalhadas',
+      subtitle: 'Lista venda por venda do dia',
+      child: sales.isEmpty
+          ? const _EmptyReportText('Nenhuma venda hoje.')
+          : _ReportTable(
+              headers: const ['Venda', 'Hora', 'Pagamento', 'Itens', 'Total'],
+              rows: sales.map((sale) {
+                return [
+                  '#${sale.shortId}',
+                  _formatTime(sale.createdAt as DateTime),
+                  (sale.paymentMethod as PaymentMethod).label,
+                  sale.totalItems.toString(),
+                  _formatMoney(sale.total as double),
+                ];
+              }).toList(),
+            ),
+    );
+  }
+}
+
+class _SectionCard extends StatelessWidget {
+  const _SectionCard({
+    required this.title,
+    required this.subtitle,
+    required this.child,
+  });
+
+  final String title;
+  final String subtitle;
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) {
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(18),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                const Icon(Icons.analytics_rounded, color: AppColors.wine700),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Text(
+                    title,
+                    style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                          fontWeight: FontWeight.w900,
+                        ),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 4),
+            Text(
+              subtitle,
+              style: const TextStyle(fontWeight: FontWeight.w700),
+            ),
+            const SizedBox(height: 16),
+            child,
           ],
         ),
       ),
@@ -293,8 +697,56 @@ class _ReportPanel extends StatelessWidget {
   }
 }
 
-class _InfoLine extends StatelessWidget {
-  const _InfoLine({
+class _SmallMetric extends StatelessWidget {
+  const _SmallMetric({
+    required this.icon,
+    required this.label,
+    required this.value,
+    this.width = 190,
+  });
+
+  final IconData icon;
+  final String label;
+  final String value;
+  final double width;
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      width: width,
+      height: 112,
+      child: Card(
+        child: Padding(
+          padding: const EdgeInsets.all(14),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Icon(icon, color: AppColors.wine700),
+              const Spacer(),
+              Text(
+                value,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                      fontWeight: FontWeight.w900,
+                    ),
+              ),
+              Text(
+                label,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: const TextStyle(fontWeight: FontWeight.w700),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _BigTotalCard extends StatelessWidget {
+  const _BigTotalCard({
     required this.label,
     required this.value,
   });
@@ -304,14 +756,31 @@ class _InfoLine extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 9),
-      child: Row(
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(18),
+      decoration: BoxDecoration(
+        color: AppColors.wine900,
+        borderRadius: BorderRadius.circular(22),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Expanded(child: Text(label)),
+          Text(
+            label,
+            style: const TextStyle(
+              color: AppColors.beige100,
+              fontWeight: FontWeight.w800,
+            ),
+          ),
+          const SizedBox(height: 5),
           Text(
             value,
-            style: const TextStyle(fontWeight: FontWeight.w900),
+            style: const TextStyle(
+              color: AppColors.beige100,
+              fontSize: 28,
+              fontWeight: FontWeight.w900,
+            ),
           ),
         ],
       ),
@@ -319,133 +788,78 @@ class _InfoLine extends StatelessWidget {
   }
 }
 
-class _TopProductsPanel extends StatelessWidget {
-  const _TopProductsPanel({required this.products});
+class _MiniTablesGrid extends StatelessWidget {
+  const _MiniTablesGrid({required this.children});
 
-  final List<_ProductSalesSummary> products;
+  final List<Widget> children;
 
   @override
   Widget build(BuildContext context) {
-    return _ListPanel(
-      title: 'Mais vendidos',
-      icon: Icons.local_fire_department_rounded,
-      emptyText: 'Nenhuma venda no período.',
-      itemCount: products.length,
-      itemBuilder: (context, index) {
-        final product = products[index];
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final compact = constraints.maxWidth < 950;
 
-        return _SmallListItem(
-          icon: Icons.shopping_basket_rounded,
-          title: product.name,
-          subtitle:
-              'Código ${product.code} • ${_formatNumber(product.quantity)} vendido(s)',
-          trailing: _formatMoney(product.total),
+        if (compact) {
+          return Column(
+            children: children
+                .map(
+                  (child) => Padding(
+                    padding: const EdgeInsets.only(bottom: 12),
+                    child: child,
+                  ),
+                )
+                .toList(),
+          );
+        }
+
+        return Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: children
+              .map(
+                (child) => Expanded(
+                  child: Padding(
+                    padding: const EdgeInsets.only(right: 12),
+                    child: child,
+                  ),
+                ),
+              )
+              .toList(),
         );
       },
     );
   }
 }
 
-class _LowStockPanel extends StatelessWidget {
-  const _LowStockPanel({required this.products});
-
-  final List<Product> products;
-
-  @override
-  Widget build(BuildContext context) {
-    return _ListPanel(
-      title: 'Estoque baixo',
-      icon: Icons.warning_rounded,
-      emptyText: 'Nenhum produto com estoque baixo.',
-      itemCount: products.length,
-      itemBuilder: (context, index) {
-        final product = products[index];
-
-        return _SmallListItem(
-          icon: Icons.inventory_2_rounded,
-          title: product.name,
-          subtitle:
-              '${product.category.label} • mínimo ${_formatQuantity(product.minStock, product.unit)}',
-          trailing: _formatQuantity(product.stockQuantity, product.unit),
-        );
-      },
-    );
-  }
-}
-
-class _RecentSalesPanel extends StatelessWidget {
-  const _RecentSalesPanel({required this.sales});
-
-  final List<SaleRecord> sales;
-
-  @override
-  Widget build(BuildContext context) {
-    final recent = sales.take(10).toList();
-
-    return _ListPanel(
-      title: 'Últimas vendas',
-      icon: Icons.receipt_long_rounded,
-      emptyText: 'Nenhuma venda no período.',
-      itemCount: recent.length,
-      itemBuilder: (context, index) {
-        final sale = recent[index];
-
-        return _SmallListItem(
-          icon: Icons.point_of_sale_rounded,
-          title: 'Venda #${sale.shortId}',
-          subtitle:
-              '${_formatDateTime(sale.createdAt)} • ${sale.paymentMethod.label}',
-          trailing: _formatMoney(sale.total),
-        );
-      },
-    );
-  }
-}
-
-class _ListPanel extends StatelessWidget {
-  const _ListPanel({
+class _MiniTableCard extends StatelessWidget {
+  const _MiniTableCard({
     required this.title,
-    required this.icon,
     required this.emptyText,
-    required this.itemCount,
-    required this.itemBuilder,
+    required this.headers,
+    required this.rows,
   });
 
   final String title;
-  final IconData icon;
   final String emptyText;
-  final int itemCount;
-  final IndexedWidgetBuilder itemBuilder;
+  final List<String> headers;
+  final List<List<String>> rows;
 
   @override
   Widget build(BuildContext context) {
     return Card(
       child: Padding(
-        padding: const EdgeInsets.all(18),
+        padding: const EdgeInsets.all(14),
         child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Row(
-              children: [
-                Icon(icon, color: AppColors.wine700),
-                const SizedBox(width: 10),
-                Text(
-                  title,
-                  style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                        fontWeight: FontWeight.w900,
-                      ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 14),
-            Expanded(
-              child: itemCount == 0
-                  ? Center(child: Text(emptyText))
-                  : ListView.separated(
-                      itemCount: itemCount,
-                      separatorBuilder: (_, __) => const SizedBox(height: 10),
-                      itemBuilder: itemBuilder,
-                    ),
-            ),
+            Text(title, style: const TextStyle(fontWeight: FontWeight.w900)),
+            const SizedBox(height: 10),
+            rows.isEmpty
+                ? Text(emptyText)
+                : _ReportTable(
+                    headers: headers,
+                    rows: rows,
+                    compact: true,
+                  ),
           ],
         ),
       ),
@@ -453,104 +867,118 @@ class _ListPanel extends StatelessWidget {
   }
 }
 
-class _SmallListItem extends StatelessWidget {
-  const _SmallListItem({
-    required this.icon,
-    required this.title,
-    required this.subtitle,
-    required this.trailing,
+class _ReportTable extends StatelessWidget {
+  const _ReportTable({
+    required this.headers,
+    required this.rows,
+    this.compact = false,
   });
 
-  final IconData icon;
-  final String title;
-  final String subtitle;
-  final String trailing;
+  final List<String> headers;
+  final List<List<String>> rows;
+  final bool compact;
 
   @override
   Widget build(BuildContext context) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-
-    return Container(
-      padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        color: isDark ? AppColors.darkSurfaceAlt : AppColors.white,
-        borderRadius: BorderRadius.circular(18),
-      ),
-      child: Row(
-        children: [
-          Container(
-            width: 42,
-            height: 42,
-            decoration: BoxDecoration(
-              color: AppColors.wine900,
-              borderRadius: BorderRadius.circular(14),
-            ),
-            child: Icon(icon, color: AppColors.beige100, size: 21),
-          ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  title,
-                  overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(fontWeight: FontWeight.w900),
+    return SingleChildScrollView(
+      scrollDirection: Axis.horizontal,
+      child: DataTable(
+        dataRowMinHeight: compact ? 38 : 46,
+        dataRowMaxHeight: compact ? 46 : 56,
+        headingTextStyle: const TextStyle(fontWeight: FontWeight.w900),
+        columns: headers.map((header) {
+          return DataColumn(label: Text(header));
+        }).toList(),
+        rows: rows.map((row) {
+          return DataRow(
+            cells: row.map((cell) {
+              return DataCell(
+                ConstrainedBox(
+                  constraints: BoxConstraints(
+                    maxWidth: compact ? 130 : 260,
+                  ),
+                  child: Text(
+                    cell,
+                    maxLines: compact ? 1 : 2,
+                    overflow: TextOverflow.ellipsis,
+                  ),
                 ),
-                const SizedBox(height: 3),
-                Text(
-                  subtitle,
-                  overflow: TextOverflow.ellipsis,
-                  style: Theme.of(context).textTheme.bodySmall,
-                ),
-              ],
-            ),
-          ),
-          const SizedBox(width: 10),
-          Text(
-            trailing,
-            style: const TextStyle(fontWeight: FontWeight.w900),
-          ),
-        ],
+              );
+            }).toList(),
+          );
+        }).toList(),
       ),
     );
   }
 }
 
-class _ProductSalesSummary {
-  const _ProductSalesSummary({
-    required this.code,
-    required this.name,
-    required this.quantity,
-    required this.total,
-  });
+class _EmptyReportText extends StatelessWidget {
+  const _EmptyReportText(this.text);
 
-  final String code;
-  final String name;
-  final double quantity;
-  final double total;
+  final String text;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(18),
+      decoration: BoxDecoration(
+        color: Theme.of(context).brightness == Brightness.dark
+            ? AppColors.darkSurfaceAlt
+            : AppColors.beige100,
+        borderRadius: BorderRadius.circular(18),
+      ),
+      child: Text(
+        text,
+        style: const TextStyle(fontWeight: FontWeight.w800),
+      ),
+    );
+  }
 }
 
-List<_ProductSalesSummary> _topProducts(List<SaleRecord> sales) {
-  final Map<String, _ProductSalesSummary> map = {};
+class _ReportMenuItem {
+  const _ReportMenuItem({
+    required this.section,
+    required this.icon,
+    required this.title,
+    required this.subtitle,
+  });
+
+  final _ReportSection section;
+  final IconData icon;
+  final String title;
+  final String subtitle;
+}
+
+Map<PaymentMethod, double> _paymentTotals(List<dynamic> sales) {
+  final totals = <PaymentMethod, double>{};
+
+  for (final sale in sales) {
+    final method = sale.paymentMethod as PaymentMethod;
+    totals[method] = (totals[method] ?? 0.0) + (sale.total as double);
+  }
+
+  return totals;
+}
+
+List<_ProductTotal> _productTotals(List<dynamic> sales) {
+  final map = <String, _ProductTotal>{};
 
   for (final sale in sales) {
     for (final item in sale.items) {
-      final current = map[item.productId];
+      final productId = item.productId as String;
+      final existing = map[productId];
 
-      if (current == null) {
-        map[item.productId] = _ProductSalesSummary(
-          code: item.productCode,
-          name: item.productName,
-          quantity: item.quantity,
-          total: item.subtotal,
+      if (existing == null) {
+        map[productId] = _ProductTotal(
+          name: item.productName as String,
+          quantity: item.quantity as double,
+          total: item.subtotal as double,
         );
       } else {
-        map[item.productId] = _ProductSalesSummary(
-          code: current.code,
-          name: current.name,
-          quantity: current.quantity + item.quantity,
-          total: current.total + item.subtotal,
+        map[productId] = existing.copyWith(
+          quantity: existing.quantity + (item.quantity as double),
+          total: existing.total + (item.subtotal as double),
         );
       }
     }
@@ -558,14 +986,45 @@ List<_ProductSalesSummary> _topProducts(List<SaleRecord> sales) {
 
   final result = map.values.toList();
   result.sort((a, b) => b.total.compareTo(a.total));
-
-  return result.take(10).toList();
+  return result;
 }
 
-double _sumByMethod(List<SaleRecord> sales, PaymentMethod method) {
-  return sales
-      .where((sale) => sale.paymentMethod == method)
-      .fold(0.0, (total, sale) => total + sale.total);
+List<_CategoryTotal> _categoryTotals(
+  List<dynamic> sales,
+  List<Product> products,
+) {
+  final categories = <String, String>{};
+
+  for (final product in products) {
+    categories[product.id] = product.category.label;
+  }
+
+  final map = <String, _CategoryTotal>{};
+
+  for (final sale in sales) {
+    for (final item in sale.items) {
+      final productId = item.productId as String;
+      final category = categories[productId] ?? 'Sem categoria';
+      final existing = map[category];
+
+      if (existing == null) {
+        map[category] = _CategoryTotal(
+          category: category,
+          quantity: item.quantity as double,
+          total: item.subtotal as double,
+        );
+      } else {
+        map[category] = existing.copyWith(
+          quantity: existing.quantity + (item.quantity as double),
+          total: existing.total + (item.subtotal as double),
+        );
+      }
+    }
+  }
+
+  final result = map.values.toList();
+  result.sort((a, b) => b.total.compareTo(a.total));
+  return result;
 }
 
 String _formatMoney(double value) {
@@ -573,31 +1032,60 @@ String _formatMoney(double value) {
   return 'R\$ $fixed';
 }
 
-String _formatQuantity(double value, ProductUnit unit) {
-  if (unit == ProductUnit.kg) {
-    return '${value.toStringAsFixed(3).replaceAll('.', ',')} ${unit.label}';
-  }
-
-  return '${value.toStringAsFixed(0)} ${unit.label}';
-}
-
 String _formatNumber(double value) {
-  if (value % 1 == 0) {
-    return value.toStringAsFixed(0);
-  }
-
+  if (value % 1 == 0) return value.toStringAsFixed(0);
   return value.toStringAsFixed(3).replaceAll('.', ',');
 }
 
-String _formatDateTime(DateTime value) {
-  final day = _two(value.day);
-  final month = _two(value.month);
-  final hour = _two(value.hour);
-  final minute = _two(value.minute);
+String _formatTime(DateTime value) {
+  final hour = value.hour.toString().padLeft(2, '0');
+  final minute = value.minute.toString().padLeft(2, '0');
 
-  return '$day/$month $hour:$minute';
+  return '$hour:$minute';
 }
 
-String _two(int value) {
-  return value.toString().padLeft(2, '0');
+class _ProductTotal {
+  const _ProductTotal({
+    required this.name,
+    required this.quantity,
+    required this.total,
+  });
+
+  final String name;
+  final double quantity;
+  final double total;
+
+  _ProductTotal copyWith({
+    double? quantity,
+    double? total,
+  }) {
+    return _ProductTotal(
+      name: name,
+      quantity: quantity ?? this.quantity,
+      total: total ?? this.total,
+    );
+  }
+}
+
+class _CategoryTotal {
+  const _CategoryTotal({
+    required this.category,
+    required this.quantity,
+    required this.total,
+  });
+
+  final String category;
+  final double quantity;
+  final double total;
+
+  _CategoryTotal copyWith({
+    double? quantity,
+    double? total,
+  }) {
+    return _CategoryTotal(
+      category: category,
+      quantity: quantity ?? this.quantity,
+      total: total ?? this.total,
+    );
+  }
 }
