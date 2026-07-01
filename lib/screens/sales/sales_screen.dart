@@ -326,15 +326,21 @@ class _CartPanel extends StatelessWidget {
                   children: [
                     const Icon(Icons.shopping_cart_rounded),
                     const SizedBox(width: 10),
-                    Text(
-                      'Carrinho',
-                      style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                            fontWeight: FontWeight.w900,
-                          ),
+                    Expanded(
+                      child: Text(
+                        'Carrinho',
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                              fontWeight: FontWeight.w900,
+                            ),
+                      ),
                     ),
-                    const Spacer(),
+                    const SizedBox(width: 8),
                     Text(
                       '${sales.items.length} item(ns)',
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
                       style: const TextStyle(fontWeight: FontWeight.w700),
                     ),
                   ],

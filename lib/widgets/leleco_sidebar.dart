@@ -6,110 +6,169 @@ import 'leleco_logo.dart';
 class LelecoSidebar extends StatelessWidget {
   const LelecoSidebar({
     super.key,
-    required this.labels,
-    required this.icons,
     required this.selectedIndex,
-    required this.onSelect,
+    this.onItemSelected,
+    this.onSelect,
+    this.labels,
+    this.icons,
   });
 
-  final List<String> labels;
-  final List<IconData> icons;
   final int selectedIndex;
-  final ValueChanged<int> onSelect;
+  final ValueChanged<int>? onItemSelected;
+  final ValueChanged<int>? onSelect;
+  final List<String>? labels;
+  final List<IconData>? icons;
 
   @override
   Widget build(BuildContext context) {
+    final screenWidth = MediaQuery.sizeOf(context).width;
+    final compact = screenWidth < 850;
     final isDark = Theme.of(context).brightness == Brightness.dark;
 
-    return Container(
-      width: 245,
-      color: isDark ? AppColors.darkSidebar : AppColors.lightSidebar,
-      padding: const EdgeInsets.fromLTRB(20, 22, 20, 18),
-      child: Column(
-        children: [
-          const LelecoLogo(),
-          const SizedBox(height: 14),
-          Text(
-            'Açougue do\nLeleco',
-            textAlign: TextAlign.center,
-            style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                  fontWeight: FontWeight.w900,
-                  height: 1.05,
+    final itemLabels = labels ?? _defaultLabels;
+    final itemIcons = icons ?? _defaultIcons;
+    final selectHandler = onItemSelected ?? onSelect;
+
+    return AnimatedContainer(
+      duration: const Duration(milliseconds: 220),
+      width: compact ? 78 : 245,
+      height: double.infinity,
+      color: isDark ? AppColors.darkSurface : AppColors.white,
+      child: SafeArea(
+        child: Column(
+          children: [
+            const SizedBox(height: 18),
+            LelecoLogo(size: compact ? 54 : 92),
+            if (!compact) ...[
+              const SizedBox(height: 12),
+              Text(
+                'Açougue do\nLeleco',
+                textAlign: TextAlign.center,
+                style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                      fontWeight: FontWeight.w900,
+                      height: 0.95,
+                    ),
+              ),
+            ],
+            const SizedBox(height: 22),
+            Expanded(
+              child: ListView.separated(
+                padding: EdgeInsets.symmetric(
+                  horizontal: compact ? 10 : 20,
+                  vertical: 8,
                 ),
-          ),
-          const SizedBox(height: 30),
-          Expanded(
-            child: ListView.builder(
-              itemCount: labels.length,
-              itemBuilder: (context, index) {
-                return _SidebarItem(
-                  label: labels[index],
-                  icon: icons[index],
-                  selected: selectedIndex == index,
-                  onTap: () => onSelect(index),
-                );
-              },
+                itemCount: itemLabels.length,
+                separatorBuilder: (_, __) => const SizedBox(height: 6),
+                itemBuilder: (context, index) {
+                  final label = itemLabels[index];
+                  final icon = index < itemIcons.length
+                      ? itemIcons[index]
+                      : Icons.circle_rounded;
+
+                  return _SidebarItemTile(
+                    compact: compact,
+                    selected: selectedIndex == index,
+                    icon: icon,
+                    label: label,
+                    onTap: () => selectHandler?.call(index),
+                  );
+                },
+              ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }
 }
 
-class _SidebarItem extends StatelessWidget {
-  const _SidebarItem({
-    required this.label,
-    required this.icon,
+class _SidebarItemTile extends StatelessWidget {
+  const _SidebarItemTile({
+    required this.compact,
     required this.selected,
+    required this.icon,
+    required this.label,
     required this.onTap,
   });
 
-  final String label;
-  final IconData icon;
+  final bool compact;
   final bool selected;
+  final IconData icon;
+  final String label;
   final VoidCallback onTap;
 
   @override
   Widget build(BuildContext context) {
-    final defaultColor = Theme.of(context).brightness == Brightness.dark
-        ? AppColors.beige100
-        : AppColors.brown900;
+    final foreground = selected ? AppColors.beige100 : AppColors.wine700;
+    final background = selected ? AppColors.wine900 : Colors.transparent;
 
-    return AnimatedContainer(
-      duration: const Duration(milliseconds: 160),
-      curve: Curves.easeOut,
-      margin: const EdgeInsets.only(bottom: 9),
-      decoration: BoxDecoration(
-        color: selected ? AppColors.wine900 : Colors.transparent,
-        borderRadius: BorderRadius.circular(20),
-      ),
-      child: InkWell(
-        onTap: onTap,
-        borderRadius: BorderRadius.circular(20),
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 13),
-          child: Row(
-            children: [
-              Icon(
-                icon,
-                color: selected ? AppColors.beige100 : AppColors.wine700,
-                size: selected ? 25 : 23,
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Text(
-                  label,
-                  style: TextStyle(
-                    fontWeight: selected ? FontWeight.w900 : FontWeight.w600,
-                    color: selected ? AppColors.beige100 : defaultColor,
-                  ),
+    return Tooltip(
+      message: label,
+      waitDuration: const Duration(milliseconds: 500),
+      child: Material(
+        color: background,
+        borderRadius: BorderRadius.circular(18),
+        child: InkWell(
+          onTap: onTap,
+          borderRadius: BorderRadius.circular(18),
+          child: Container(
+            height: 52,
+            padding: EdgeInsets.symmetric(
+              horizontal: compact ? 0 : 16,
+            ),
+            child: Row(
+              mainAxisAlignment:
+                  compact ? MainAxisAlignment.center : MainAxisAlignment.start,
+              children: [
+                Icon(
+                  icon,
+                  color: foreground,
+                  size: 23,
                 ),
-              ),
-            ],
+                if (!compact) ...[
+                  const SizedBox(width: 14),
+                  Expanded(
+                    child: Text(
+                      label,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                        color: foreground,
+                        fontWeight:
+                            selected ? FontWeight.w900 : FontWeight.w700,
+                      ),
+                    ),
+                  ),
+                ],
+              ],
+            ),
           ),
         ),
       ),
     );
   }
 }
+
+const List<String> _defaultLabels = [
+  'Hoje',
+  'Venda',
+  'Estoque',
+  'Fiado',
+  'Caixa',
+  'Relatórios',
+  'Anotações',
+  'Alertas',
+  'Ajustes',
+];
+
+const List<IconData> _defaultIcons = [
+  Icons.dashboard_rounded,
+  Icons.point_of_sale_rounded,
+  Icons.inventory_2_rounded,
+  Icons.group_rounded,
+  Icons.payments_rounded,
+  Icons.bar_chart_rounded,
+  Icons.edit_note_rounded,
+  Icons.notifications_rounded,
+  Icons.settings_rounded,
+];
