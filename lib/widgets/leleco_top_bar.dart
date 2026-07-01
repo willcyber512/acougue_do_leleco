@@ -16,6 +16,7 @@ import 'shortcuts_config_dialog.dart';
 import 'system_diagnostics_dialog.dart';
 import 'universal_search_dialog.dart';
 import 'daily_report_pdf_dialog.dart';
+import 'import_products_csv_dialog.dart';
 
 class LelecoTopBar extends StatelessWidget {
   const LelecoTopBar({
@@ -182,6 +183,22 @@ class LelecoTopBar extends StatelessWidget {
     }
 
     if (title == 'Estoque') {
+      gap(10);
+
+      actions.add(
+        compact
+            ? IconButton.filledTonal(
+                onPressed: () => showImportProductsCsvDialog(context),
+                tooltip: 'Importar CSV',
+                icon: const Icon(Icons.upload_file_rounded),
+              )
+            : FilledButton.icon(
+                onPressed: () => showImportProductsCsvDialog(context),
+                icon: const Icon(Icons.upload_file_rounded),
+                label: const Text('Importar CSV'),
+              ),
+      );
+
       gap(10);
       actions.add(
         compact
