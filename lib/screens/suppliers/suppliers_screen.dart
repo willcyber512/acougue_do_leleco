@@ -43,6 +43,7 @@ class _SuppliersScreenState extends State<SuppliersScreen> {
               purchase.supplierName.toLowerCase().contains(term) ||
               purchase.itemName.toLowerCase().contains(term) ||
               purchase.category.label.toLowerCase().contains(term) ||
+              purchase.unit.label.toLowerCase().contains(term) ||
               (purchase.documentNumber ?? '').toLowerCase().contains(term);
 
           final matchesOpen = !showOnlyOpen || !purchase.paid;
@@ -62,6 +63,13 @@ class _SuppliersScreenState extends State<SuppliersScreen> {
               (total, purchase) => total + purchase.totalCost,
             );
 
+        final paidAmount = periodPurchases
+            .where((purchase) => purchase.paid)
+            .fold<double>(
+              0,
+              (total, purchase) => total + purchase.totalCost,
+            );
+
         final suppliersCount = periodPurchases
             .map((purchase) => purchase.supplierName.trim().toLowerCase())
             .where((name) => name.isNotEmpty)
@@ -70,97 +78,101 @@ class _SuppliersScreenState extends State<SuppliersScreen> {
 
         final supplierTotals = _supplierTotals(periodPurchases);
         final categoryTotals = _categoryTotals(periodPurchases);
+        final itemTotals = _itemTotals(periodPurchases);
 
-        return Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            _SupplierHeader(
-              periodLabel: _periodLabel(selectedPeriod),
-              totalPurchased: totalPurchased,
-              openAmount: openAmount,
-              suppliersCount: suppliersCount,
-              purchasesCount: periodPurchases.length,
-              onAdd: () => _openPurchaseDialog(context),
-            ),
-            const SizedBox(height: 14),
-            _PeriodSelector(
-              selected: selectedPeriod,
-              onChanged: (period) {
-                setState(() => selectedPeriod = period);
-              },
-            ),
-            const SizedBox(height: 14),
-            _SupplierToolbar(
-              searchTerm: searchTerm,
-              showOnlyOpen: showOnlyOpen,
-              onSearchChanged: (value) {
-                setState(() => searchTerm = value);
-              },
-              onOpenChanged: (value) {
-                setState(() => showOnlyOpen = value);
-              },
-            ),
-            const SizedBox(height: 14),
-            Expanded(
-              child: LayoutBuilder(
-                builder: (context, constraints) {
-                  final compact = constraints.maxWidth < 980;
+        return Container(
+          color: _pageBackground(context),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              _SupplierHero(
+                periodLabel: _periodLabel(selectedPeriod),
+                totalPurchased: totalPurchased,
+                openAmount: openAmount,
+                paidAmount: paidAmount,
+                suppliersCount: suppliersCount,
+                purchasesCount: periodPurchases.length,
+                onAdd: () => _openPurchaseDialog(context),
+              ),
+              const SizedBox(height: 14),
+              _SupplierFilters(
+                selectedPeriod: selectedPeriod,
+                searchTerm: searchTerm,
+                showOnlyOpen: showOnlyOpen,
+                onPeriodChanged: (period) {
+                  setState(() => selectedPeriod = period);
+                },
+                onSearchChanged: (value) {
+                  setState(() => searchTerm = value);
+                },
+                onOpenChanged: (value) {
+                  setState(() => showOnlyOpen = value);
+                },
+              ),
+              const SizedBox(height: 14),
+              Expanded(
+                child: LayoutBuilder(
+                  builder: (context, constraints) {
+                    final compact = constraints.maxWidth < 1030;
 
-                  if (compact) {
-                    return ListView(
+                    if (compact) {
+                      return ListView(
+                        children: [
+                          _SummaryStack(
+                            supplierTotals: supplierTotals,
+                            categoryTotals: categoryTotals,
+                            itemTotals: itemTotals,
+                          ),
+                          const SizedBox(height: 14),
+                          _PurchasesPanel(
+                            purchases: filteredPurchases,
+                            onEdit: (purchase) {
+                              _openPurchaseDialog(context, purchase: purchase);
+                            },
+                            onDelete: (purchase) {
+                              _deletePurchase(context, purchase);
+                            },
+                            onTogglePaid: (purchase) {
+                              _togglePaid(context, purchase);
+                            },
+                          ),
+                        ],
+                      );
+                    }
+
+                    return Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        _SummaryPanel(
-                          supplierTotals: supplierTotals,
-                          categoryTotals: categoryTotals,
+                        SizedBox(
+                          width: 390,
+                          child: _SummaryStack(
+                            supplierTotals: supplierTotals,
+                            categoryTotals: categoryTotals,
+                            itemTotals: itemTotals,
+                          ),
                         ),
-                        const SizedBox(height: 14),
-                        _PurchasesList(
-                          purchases: filteredPurchases,
-                          onEdit: (purchase) {
-                            _openPurchaseDialog(context, purchase: purchase);
-                          },
-                          onDelete: (purchase) {
-                            _deletePurchase(context, purchase);
-                          },
-                          onTogglePaid: (purchase) {
-                            _togglePaid(context, purchase);
-                          },
+                        const SizedBox(width: 14),
+                        Expanded(
+                          child: _PurchasesPanel(
+                            purchases: filteredPurchases,
+                            onEdit: (purchase) {
+                              _openPurchaseDialog(context, purchase: purchase);
+                            },
+                            onDelete: (purchase) {
+                              _deletePurchase(context, purchase);
+                            },
+                            onTogglePaid: (purchase) {
+                              _togglePaid(context, purchase);
+                            },
+                          ),
                         ),
                       ],
                     );
-                  }
-
-                  return Row(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      SizedBox(
-                        width: 360,
-                        child: _SummaryPanel(
-                          supplierTotals: supplierTotals,
-                          categoryTotals: categoryTotals,
-                        ),
-                      ),
-                      const SizedBox(width: 14),
-                      Expanded(
-                        child: _PurchasesList(
-                          purchases: filteredPurchases,
-                          onEdit: (purchase) {
-                            _openPurchaseDialog(context, purchase: purchase);
-                          },
-                          onDelete: (purchase) {
-                            _deletePurchase(context, purchase);
-                          },
-                          onTogglePaid: (purchase) {
-                            _togglePaid(context, purchase);
-                          },
-                        ),
-                      ),
-                    ],
-                  );
-                },
+                  },
+                ),
               ),
-            ),
-          ],
+            ],
+          ),
         );
       },
     );
@@ -227,11 +239,12 @@ class _SuppliersScreenState extends State<SuppliersScreen> {
   }
 }
 
-class _SupplierHeader extends StatelessWidget {
-  const _SupplierHeader({
+class _SupplierHero extends StatelessWidget {
+  const _SupplierHero({
     required this.periodLabel,
     required this.totalPurchased,
     required this.openAmount,
+    required this.paidAmount,
     required this.suppliersCount,
     required this.purchasesCount,
     required this.onAdd,
@@ -240,152 +253,100 @@ class _SupplierHeader extends StatelessWidget {
   final String periodLabel;
   final double totalPurchased;
   final double openAmount;
+  final double paidAmount;
   final int suppliersCount;
   final int purchasesCount;
   final VoidCallback onAdd;
 
   @override
   Widget build(BuildContext context) {
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(18),
-        child: Column(
-          children: [
-            Row(
-              children: [
-                Container(
-                  width: 58,
-                  height: 58,
-                  decoration: BoxDecoration(
-                    color: AppColors.wine900,
-                    borderRadius: BorderRadius.circular(20),
-                  ),
-                  child: const Icon(
-                    Icons.local_shipping_rounded,
-                    color: AppColors.beige100,
-                  ),
-                ),
-                const SizedBox(width: 14),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        'Fornecedores e compras',
-                        style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                              fontWeight: FontWeight.w900,
-                            ),
+    return _LelecoPanel(
+      padding: const EdgeInsets.all(20),
+      child: Column(
+        children: [
+          Row(
+            children: [
+              const _IconBadge(icon: Icons.local_shipping_rounded),
+              const SizedBox(width: 14),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Fornecedores e compras',
+                      style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+                            fontWeight: FontWeight.w900,
+                            color: _titleColor(context),
+                          ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      'Controle do que foi comprado • $periodLabel',
+                      style: TextStyle(
+                        fontWeight: FontWeight.w700,
+                        color: _mutedColor(context),
                       ),
-                      const SizedBox(height: 4),
-                      Text(
-                        'Período: $periodLabel',
-                        style: const TextStyle(fontWeight: FontWeight.w700),
-                      ),
-                    ],
-                  ),
+                    ),
+                  ],
                 ),
-                FilledButton.icon(
-                  onPressed: onAdd,
-                  icon: const Icon(Icons.add_rounded),
-                  label: const Text('Nova compra'),
-                ),
-              ],
-            ),
-            const SizedBox(height: 16),
-            Wrap(
-              spacing: 12,
-              runSpacing: 12,
-              children: [
+              ),
+              FilledButton.icon(
+                onPressed: onAdd,
+                icon: const Icon(Icons.add_rounded),
+                label: const Text('Nova compra'),
+              ),
+            ],
+          ),
+          const SizedBox(height: 18),
+          LayoutBuilder(
+            builder: (context, constraints) {
+              final columns = constraints.maxWidth >= 980
+                  ? 4
+                  : constraints.maxWidth >= 650
+                      ? 2
+                      : 1;
+
+              const gap = 12.0;
+              final width =
+                  (constraints.maxWidth - gap * (columns - 1)) / columns;
+
+              final cards = [
                 _SupplierMetric(
                   icon: Icons.payments_rounded,
                   label: 'Comprado no período',
                   value: _formatMoney(totalPurchased),
+                  subtitle: 'Total das compras',
                 ),
                 _SupplierMetric(
                   icon: Icons.pending_actions_rounded,
                   label: 'Em aberto',
                   value: _formatMoney(openAmount),
+                  subtitle: 'Ainda não pago',
+                ),
+                _SupplierMetric(
+                  icon: Icons.verified_rounded,
+                  label: 'Pago',
+                  value: _formatMoney(paidAmount),
+                  subtitle: 'Já quitado',
                 ),
                 _SupplierMetric(
                   icon: Icons.store_rounded,
                   label: 'Fornecedores',
                   value: suppliersCount.toString(),
+                  subtitle: '$purchasesCount compra(s)',
                 ),
-                _SupplierMetric(
-                  icon: Icons.receipt_long_rounded,
-                  label: 'Compras',
-                  value: purchasesCount.toString(),
-                ),
-              ],
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
+              ];
 
-class _PeriodSelector extends StatelessWidget {
-  const _PeriodSelector({
-    required this.selected,
-    required this.onChanged,
-  });
-
-  final _SupplierPeriod selected;
-  final ValueChanged<_SupplierPeriod> onChanged;
-
-  @override
-  Widget build(BuildContext context) {
-    final items = [
-      (_SupplierPeriod.today, 'Hoje', Icons.today_rounded),
-      (_SupplierPeriod.sevenDays, '7 dias', Icons.date_range_rounded),
-      (_SupplierPeriod.thirtyDays, '30 dias', Icons.calendar_month_rounded),
-      (_SupplierPeriod.all, 'Tudo', Icons.all_inclusive_rounded),
-    ];
-
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(14),
-        child: Row(
-          children: [
-            const Icon(Icons.filter_alt_rounded, color: AppColors.wine700),
-            const SizedBox(width: 10),
-            const Text(
-              'Período',
-              style: TextStyle(fontWeight: FontWeight.w900),
-            ),
-            const SizedBox(width: 14),
-            Expanded(
-              child: SingleChildScrollView(
-                scrollDirection: Axis.horizontal,
-                child: Row(
-                  children: items.map((item) {
-                    final active = selected == item.$1;
-
-                    return Padding(
-                      padding: const EdgeInsets.only(right: 8),
-                      child: ChoiceChip(
-                        selected: active,
-                        selectedColor: AppColors.wine900,
-                        avatar: Icon(
-                          item.$3,
-                          size: 18,
-                          color: active ? AppColors.beige100 : AppColors.wine700,
-                        ),
-                        label: Text(item.$2),
-                        labelStyle: TextStyle(
-                          color: active ? AppColors.beige100 : null,
-                          fontWeight: FontWeight.w900,
-                        ),
-                        onSelected: (_) => onChanged(item.$1),
-                      ),
-                    );
-                  }).toList(),
-                ),
-              ),
-            ),
-          ],
-        ),
+              return Wrap(
+                spacing: gap,
+                runSpacing: gap,
+                children: cards.map((card) {
+                  return SizedBox(width: width, child: card);
+                }).toList(),
+              );
+            },
+          ),
+        ],
       ),
     );
   }
@@ -396,102 +357,204 @@ class _SupplierMetric extends StatelessWidget {
     required this.icon,
     required this.label,
     required this.value,
+    required this.subtitle,
   });
 
   final IconData icon;
   final String label;
   final String value;
+  final String subtitle;
 
   @override
   Widget build(BuildContext context) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-
-    return SizedBox(
-      width: 210,
-      height: 112,
-      child: Container(
-        padding: const EdgeInsets.all(14),
-        decoration: BoxDecoration(
-          color: isDark ? AppColors.darkSurfaceAlt : AppColors.beige100,
-          borderRadius: BorderRadius.circular(22),
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Icon(icon, color: AppColors.wine700),
-            const Spacer(),
-            Text(
-              value,
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                    fontWeight: FontWeight.w900,
-                  ),
+    return Container(
+      height: 126,
+      padding: const EdgeInsets.all(15),
+      decoration: BoxDecoration(
+        color: _cardBackground(context),
+        borderRadius: BorderRadius.circular(22),
+        border: Border.all(color: _borderColor(context)),
+        boxShadow: _softShadow(context),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Icon(icon, color: AppColors.wine700),
+          const Spacer(),
+          Text(
+            value,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                  fontWeight: FontWeight.w900,
+                  color: _titleColor(context),
+                ),
+          ),
+          const SizedBox(height: 2),
+          Text(
+            label,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: TextStyle(
+              fontWeight: FontWeight.w900,
+              color: _bodyColor(context),
             ),
-            Text(
-              label,
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              style: const TextStyle(fontWeight: FontWeight.w700),
+          ),
+          Text(
+            subtitle,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: TextStyle(
+              fontWeight: FontWeight.w700,
+              fontSize: 12,
+              color: _mutedColor(context),
             ),
-          ],
-        ),
+          ),
+        ],
       ),
     );
   }
 }
 
-class _SupplierToolbar extends StatelessWidget {
-  const _SupplierToolbar({
+class _SupplierFilters extends StatelessWidget {
+  const _SupplierFilters({
+    required this.selectedPeriod,
     required this.searchTerm,
     required this.showOnlyOpen,
+    required this.onPeriodChanged,
     required this.onSearchChanged,
     required this.onOpenChanged,
   });
 
+  final _SupplierPeriod selectedPeriod;
   final String searchTerm;
   final bool showOnlyOpen;
+  final ValueChanged<_SupplierPeriod> onPeriodChanged;
   final ValueChanged<String> onSearchChanged;
   final ValueChanged<bool> onOpenChanged;
 
   @override
   Widget build(BuildContext context) {
-    return Row(
-      children: [
-        Expanded(
-          child: TextField(
+    final items = [
+      (_SupplierPeriod.today, 'Hoje', Icons.today_rounded),
+      (_SupplierPeriod.sevenDays, '7 dias', Icons.date_range_rounded),
+      (_SupplierPeriod.thirtyDays, '30 dias', Icons.calendar_month_rounded),
+      (_SupplierPeriod.all, 'Tudo', Icons.all_inclusive_rounded),
+    ];
+
+    return _LelecoPanel(
+      padding: const EdgeInsets.all(14),
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          final compact = constraints.maxWidth < 840;
+
+          final periodChips = SingleChildScrollView(
+            scrollDirection: Axis.horizontal,
+            child: Row(
+              children: items.map((item) {
+                final active = selectedPeriod == item.$1;
+
+                return Padding(
+                  padding: const EdgeInsets.only(right: 8),
+                  child: ChoiceChip(
+                    selected: active,
+                    selectedColor: AppColors.wine900,
+                    backgroundColor: _chipBackground(context),
+                    side: BorderSide(
+                      color: active ? AppColors.wine900 : _borderColor(context),
+                    ),
+                    avatar: Icon(
+                      item.$3,
+                      size: 18,
+                      color:
+                          active ? AppColors.beige100 : AppColors.wine700,
+                    ),
+                    label: Text(item.$2),
+                    labelStyle: TextStyle(
+                      color:
+                          active ? AppColors.beige100 : _titleColor(context),
+                      fontWeight: FontWeight.w900,
+                    ),
+                    onSelected: (_) => onPeriodChanged(item.$1),
+                  ),
+                );
+              }).toList(),
+            ),
+          );
+
+          final search = TextField(
             onChanged: onSearchChanged,
             decoration: InputDecoration(
               prefixIcon: const Icon(Icons.search_rounded),
               hintText: 'Pesquisar fornecedor, carne, categoria ou documento...',
               filled: true,
+              fillColor: _cardBackground(context),
               border: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(22),
-                borderSide: BorderSide.none,
+                borderSide: BorderSide(color: _borderColor(context)),
+              ),
+              enabledBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(22),
+                borderSide: BorderSide(color: _borderColor(context)),
               ),
             ),
-          ),
-        ),
-        const SizedBox(width: 12),
-        FilterChip(
-          selected: showOnlyOpen,
-          label: const Text('Somente em aberto'),
-          avatar: const Icon(Icons.pending_actions_rounded),
-          onSelected: onOpenChanged,
-        ),
-      ],
+          );
+
+          final openChip = FilterChip(
+            selected: showOnlyOpen,
+            selectedColor: AppColors.wine900,
+            backgroundColor: _chipBackground(context),
+            side: BorderSide(color: _borderColor(context)),
+            avatar: Icon(
+              Icons.pending_actions_rounded,
+              color: showOnlyOpen ? AppColors.beige100 : AppColors.wine700,
+            ),
+            label: const Text('Somente em aberto'),
+            labelStyle: TextStyle(
+              color: showOnlyOpen ? AppColors.beige100 : _titleColor(context),
+              fontWeight: FontWeight.w900,
+            ),
+            onSelected: onOpenChanged,
+          );
+
+          if (compact) {
+            return Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                periodChips,
+                const SizedBox(height: 12),
+                search,
+                const SizedBox(height: 10),
+                openChip,
+              ],
+            );
+          }
+
+          return Row(
+            children: [
+              Expanded(flex: 4, child: periodChips),
+              const SizedBox(width: 12),
+              Expanded(flex: 5, child: search),
+              const SizedBox(width: 12),
+              openChip,
+            ],
+          );
+        },
+      ),
     );
   }
 }
 
-class _SummaryPanel extends StatelessWidget {
-  const _SummaryPanel({
+class _SummaryStack extends StatelessWidget {
+  const _SummaryStack({
     required this.supplierTotals,
     required this.categoryTotals,
+    required this.itemTotals,
   });
 
   final List<_SupplierTotal> supplierTotals;
   final List<_CategoryPurchaseTotal> categoryTotals;
+  final List<_ItemPurchaseTotal> itemTotals;
 
   @override
   Widget build(BuildContext context) {
@@ -499,9 +562,10 @@ class _SummaryPanel extends StatelessWidget {
       shrinkWrap: true,
       physics: const NeverScrollableScrollPhysics(),
       children: [
-        _MiniSummaryCard(
+        _SummaryCard(
           title: 'Resumo por fornecedor',
           emptyText: 'Nenhum fornecedor no período.',
+          icon: Icons.store_rounded,
           children: supplierTotals.take(8).map((item) {
             return _SummaryLine(
               title: item.supplierName,
@@ -511,12 +575,26 @@ class _SummaryPanel extends StatelessWidget {
           }).toList(),
         ),
         const SizedBox(height: 14),
-        _MiniSummaryCard(
+        _SummaryCard(
           title: 'Resumo por categoria',
           emptyText: 'Nenhuma categoria no período.',
+          icon: Icons.category_rounded,
           children: categoryTotals.take(8).map((item) {
             return _SummaryLine(
               title: item.category,
+              subtitle: '${_formatNumber(item.quantity)} comprado',
+              value: _formatMoney(item.total),
+            );
+          }).toList(),
+        ),
+        const SizedBox(height: 14),
+        _SummaryCard(
+          title: 'Itens mais comprados',
+          emptyText: 'Nenhum item comprado no período.',
+          icon: Icons.inventory_2_rounded,
+          children: itemTotals.take(8).map((item) {
+            return _SummaryLine(
+              title: item.itemName,
               subtitle: '${_formatNumber(item.quantity)} comprado',
               value: _formatMoney(item.total),
             );
@@ -527,36 +605,53 @@ class _SummaryPanel extends StatelessWidget {
   }
 }
 
-class _MiniSummaryCard extends StatelessWidget {
-  const _MiniSummaryCard({
+class _SummaryCard extends StatelessWidget {
+  const _SummaryCard({
     required this.title,
     required this.emptyText,
+    required this.icon,
     required this.children,
   });
 
   final String title;
   final String emptyText;
+  final IconData icon;
   final List<Widget> children;
 
   @override
   Widget build(BuildContext context) {
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(title, style: const TextStyle(fontWeight: FontWeight.w900)),
-            const SizedBox(height: 12),
-            if (children.isEmpty)
-              Text(
-                emptyText,
-                style: const TextStyle(fontWeight: FontWeight.w700),
-              )
-            else
-              ...children,
-          ],
-        ),
+    return _LelecoPanel(
+      padding: const EdgeInsets.all(16),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              _SmallIcon(icon: icon),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Text(
+                  title,
+                  style: TextStyle(
+                    fontWeight: FontWeight.w900,
+                    color: _titleColor(context),
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 14),
+          if (children.isEmpty)
+            Text(
+              emptyText,
+              style: TextStyle(
+                fontWeight: FontWeight.w700,
+                color: _mutedColor(context),
+              ),
+            )
+          else
+            ...children,
+        ],
       ),
     );
   }
@@ -587,13 +682,19 @@ class _SummaryLine extends StatelessWidget {
                   title,
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(fontWeight: FontWeight.w900),
+                  style: TextStyle(
+                    fontWeight: FontWeight.w900,
+                    color: _bodyColor(context),
+                  ),
                 ),
                 Text(
                   subtitle,
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(fontWeight: FontWeight.w700),
+                  style: TextStyle(
+                    fontWeight: FontWeight.w700,
+                    color: _mutedColor(context),
+                  ),
                 ),
               ],
             ),
@@ -601,7 +702,10 @@ class _SummaryLine extends StatelessWidget {
           const SizedBox(width: 10),
           Text(
             value,
-            style: const TextStyle(fontWeight: FontWeight.w900),
+            style: TextStyle(
+              fontWeight: FontWeight.w900,
+              color: AppColors.wine700,
+            ),
           ),
         ],
       ),
@@ -609,8 +713,8 @@ class _SummaryLine extends StatelessWidget {
   }
 }
 
-class _PurchasesList extends StatelessWidget {
-  const _PurchasesList({
+class _PurchasesPanel extends StatelessWidget {
+  const _PurchasesPanel({
     required this.purchases,
     required this.onEdit,
     required this.onDelete,
@@ -624,21 +728,72 @@ class _PurchasesList extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    if (purchases.isEmpty) {
-      return const _EmptySuppliers();
-    }
+    return _LelecoPanel(
+      padding: const EdgeInsets.all(16),
+      child: Column(
+        children: [
+          Row(
+            children: [
+              const _IconBadge(icon: Icons.receipt_long_rounded),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Text(
+                  'Compras registradas',
+                  style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                        fontWeight: FontWeight.w900,
+                        color: _titleColor(context),
+                      ),
+                ),
+              ),
+              _CountBadge(value: purchases.length.toString()),
+            ],
+          ),
+          const SizedBox(height: 14),
+          Expanded(
+            child: purchases.isEmpty
+                ? const _EmptySuppliers()
+                : ListView.separated(
+                    itemCount: purchases.length,
+                    separatorBuilder: (_, __) => const SizedBox(height: 12),
+                    itemBuilder: (context, index) {
+                      final purchase = purchases[index];
 
-    return ListView.separated(
-      itemCount: purchases.length,
-      separatorBuilder: (_, __) => const SizedBox(height: 12),
-      itemBuilder: (context, index) {
-        return _PurchaseCard(
-          purchase: purchases[index],
-          onEdit: () => onEdit(purchases[index]),
-          onDelete: () => onDelete(purchases[index]),
-          onTogglePaid: () => onTogglePaid(purchases[index]),
-        );
-      },
+                      return _PurchaseCard(
+                        purchase: purchase,
+                        onEdit: () => onEdit(purchase),
+                        onDelete: () => onDelete(purchase),
+                        onTogglePaid: () => onTogglePaid(purchase),
+                      );
+                    },
+                  ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _LelecoPanel extends StatelessWidget {
+  const _LelecoPanel({
+    required this.child,
+    this.padding = const EdgeInsets.all(16),
+  });
+
+  final Widget child;
+  final EdgeInsetsGeometry padding;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: double.infinity,
+      padding: padding,
+      decoration: BoxDecoration(
+        color: _sectionBackground(context),
+        borderRadius: BorderRadius.circular(26),
+        border: Border.all(color: _borderColor(context)),
+        boxShadow: _softShadow(context),
+      ),
+      child: child,
     );
   }
 }
@@ -661,112 +816,265 @@ class _PurchaseCard extends StatelessWidget {
     final statusColor = purchase.paid ? AppColors.success : AppColors.warning;
     final statusText = purchase.paid ? 'Pago' : 'Em aberto';
 
-    return Card(
+    return Container(
+      decoration: BoxDecoration(
+        color: _cardBackground(context),
+        borderRadius: BorderRadius.circular(22),
+        border: Border.all(color: _borderColor(context)),
+      ),
       child: InkWell(
         onTap: onEdit,
-        borderRadius: BorderRadius.circular(24),
+        borderRadius: BorderRadius.circular(22),
         child: Padding(
-          padding: const EdgeInsets.all(18),
-          child: Row(
-            children: [
-              Container(
-                width: 58,
-                height: 58,
-                decoration: BoxDecoration(
-                  color: AppColors.wine900,
-                  borderRadius: BorderRadius.circular(20),
-                ),
-                child: const Icon(
-                  Icons.inventory_2_rounded,
-                  color: AppColors.beige100,
-                ),
-              ),
-              const SizedBox(width: 14),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      purchase.itemName,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
+          padding: const EdgeInsets.all(16),
+          child: LayoutBuilder(
+            builder: (context, constraints) {
+              final compact = constraints.maxWidth < 740;
+
+              final mainInfo = Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const _IconBadge(icon: Icons.inventory_2_rounded),
+                  const SizedBox(width: 14),
+                  Expanded(
+                    child: _PurchaseMainInfo(purchase: purchase),
+                  ),
+                ],
+              );
+
+              final rightInfo = Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  _StatusBadge(
+                    label: statusText,
+                    color: statusColor,
+                  ),
+                  const SizedBox(width: 10),
+                  SizedBox(
+                    width: 125,
+                    child: Text(
+                      _formatMoney(purchase.totalCost),
+                      textAlign: TextAlign.end,
                       style: Theme.of(context).textTheme.titleMedium?.copyWith(
                             fontWeight: FontWeight.w900,
+                            color: AppColors.wine700,
                           ),
                     ),
-                    const SizedBox(height: 4),
-                    Text(
-                      '${purchase.supplierName} • ${purchase.category.label} • ${_formatDate(purchase.purchaseDate)}',
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(fontWeight: FontWeight.w700),
-                    ),
-                    const SizedBox(height: 4),
-                    Text(
-                      '${_formatNumber(purchase.quantity)} ${purchase.unit.label} x ${_formatMoney(purchase.unitCost)}',
-                    ),
-                    if ((purchase.documentNumber ?? '').trim().isNotEmpty) ...[
-                      const SizedBox(height: 4),
-                      Text(
-                        'Doc.: ${purchase.documentNumber}',
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                    ],
-                  ],
-                ),
-              ),
-              const SizedBox(width: 12),
-              Container(
-                width: 110,
-                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
-                decoration: BoxDecoration(
-                  color: statusColor.withOpacity(0.14),
-                  borderRadius: BorderRadius.circular(999),
-                ),
-                child: Text(
-                  statusText,
-                  textAlign: TextAlign.center,
-                  style: TextStyle(
-                    color: statusColor,
-                    fontWeight: FontWeight.w900,
                   ),
-                ),
-              ),
-              const SizedBox(width: 12),
-              SizedBox(
-                width: 130,
-                child: Text(
-                  _formatMoney(purchase.totalCost),
-                  textAlign: TextAlign.end,
-                  style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                        fontWeight: FontWeight.w900,
-                        color: AppColors.wine700,
-                      ),
-                ),
-              ),
-              IconButton(
-                tooltip: purchase.paid ? 'Marcar em aberto' : 'Marcar pago',
-                onPressed: onTogglePaid,
-                icon: Icon(
-                  purchase.paid
-                      ? Icons.undo_rounded
-                      : Icons.check_circle_outline_rounded,
-                ),
-              ),
-              IconButton(
-                tooltip: 'Editar',
-                onPressed: onEdit,
-                icon: const Icon(Icons.edit_rounded),
-              ),
-              IconButton(
-                tooltip: 'Excluir',
-                onPressed: onDelete,
-                icon: const Icon(Icons.delete_outline_rounded),
-              ),
-            ],
+                  IconButton(
+                    tooltip:
+                        purchase.paid ? 'Marcar em aberto' : 'Marcar pago',
+                    onPressed: onTogglePaid,
+                    icon: Icon(
+                      purchase.paid
+                          ? Icons.undo_rounded
+                          : Icons.check_circle_outline_rounded,
+                    ),
+                  ),
+                  IconButton(
+                    tooltip: 'Editar',
+                    onPressed: onEdit,
+                    icon: const Icon(Icons.edit_rounded),
+                  ),
+                  IconButton(
+                    tooltip: 'Excluir',
+                    onPressed: onDelete,
+                    icon: const Icon(Icons.delete_outline_rounded),
+                  ),
+                ],
+              );
+
+              if (compact) {
+                return Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    mainInfo,
+                    const SizedBox(height: 12),
+                    SingleChildScrollView(
+                      scrollDirection: Axis.horizontal,
+                      child: rightInfo,
+                    ),
+                  ],
+                );
+              }
+
+              return Row(
+                children: [
+                  Expanded(child: mainInfo),
+                  const SizedBox(width: 12),
+                  rightInfo,
+                ],
+              );
+            },
           ),
         ),
+      ),
+    );
+  }
+}
+
+class _PurchaseMainInfo extends StatelessWidget {
+  const _PurchaseMainInfo({required this.purchase});
+
+  final SupplierPurchase purchase;
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          purchase.itemName,
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+          style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                fontWeight: FontWeight.w900,
+                color: _titleColor(context),
+              ),
+        ),
+        const SizedBox(height: 4),
+        Text(
+          '${purchase.supplierName} • ${purchase.category.label} • ${_formatDate(purchase.purchaseDate)}',
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+          style: TextStyle(
+            fontWeight: FontWeight.w800,
+            color: _bodyColor(context),
+          ),
+        ),
+        const SizedBox(height: 4),
+        Text(
+          '${_formatNumber(purchase.quantity)} ${purchase.unit.label} x ${_formatMoney(purchase.unitCost)}',
+          style: TextStyle(
+            fontWeight: FontWeight.w700,
+            color: _mutedColor(context),
+          ),
+        ),
+        if ((purchase.documentNumber ?? '').trim().isNotEmpty) ...[
+          const SizedBox(height: 4),
+          Text(
+            'Doc.: ${purchase.documentNumber}',
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: TextStyle(
+              fontWeight: FontWeight.w700,
+              color: _mutedColor(context),
+            ),
+          ),
+        ],
+        if (purchase.notes.trim().isNotEmpty) ...[
+          const SizedBox(height: 4),
+          Text(
+            purchase.notes,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: TextStyle(
+              fontWeight: FontWeight.w600,
+              color: _mutedColor(context),
+            ),
+          ),
+        ],
+      ],
+    );
+  }
+}
+
+class _StatusBadge extends StatelessWidget {
+  const _StatusBadge({
+    required this.label,
+    required this.color,
+  });
+
+  final String label;
+  final Color color;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: 106,
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+      decoration: BoxDecoration(
+        color: color.withOpacity(0.14),
+        borderRadius: BorderRadius.circular(999),
+      ),
+      child: Text(
+        label,
+        textAlign: TextAlign.center,
+        style: TextStyle(
+          color: color,
+          fontWeight: FontWeight.w900,
+        ),
+      ),
+    );
+  }
+}
+
+class _CountBadge extends StatelessWidget {
+  const _CountBadge({required this.value});
+
+  final String value;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: 44,
+      height: 36,
+      alignment: Alignment.center,
+      decoration: BoxDecoration(
+        color: _tagBackground(context),
+        borderRadius: BorderRadius.circular(999),
+      ),
+      child: Text(
+        value,
+        style: TextStyle(
+          color: AppColors.wine700,
+          fontWeight: FontWeight.w900,
+        ),
+      ),
+    );
+  }
+}
+
+class _SmallIcon extends StatelessWidget {
+  const _SmallIcon({required this.icon});
+
+  final IconData icon;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: 34,
+      height: 34,
+      decoration: BoxDecoration(
+        color: AppColors.wine900,
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Icon(
+        icon,
+        color: AppColors.beige100,
+        size: 18,
+      ),
+    );
+  }
+}
+
+class _IconBadge extends StatelessWidget {
+  const _IconBadge({required this.icon});
+
+  final IconData icon;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: 46,
+      height: 46,
+      decoration: BoxDecoration(
+        color: AppColors.wine900,
+        borderRadius: BorderRadius.circular(16),
+      ),
+      child: Icon(
+        icon,
+        color: AppColors.beige100,
       ),
     );
   }
@@ -777,10 +1085,13 @@ class _EmptySuppliers extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return const Center(
+    return Center(
       child: Text(
         'Nenhuma compra de fornecedor encontrada.',
-        style: TextStyle(fontWeight: FontWeight.w800),
+        style: TextStyle(
+          fontWeight: FontWeight.w800,
+          color: _mutedColor(context),
+        ),
       ),
     );
   }
@@ -1184,6 +1495,36 @@ List<_CategoryPurchaseTotal> _categoryTotals(
   return result;
 }
 
+List<_ItemPurchaseTotal> _itemTotals(List<SupplierPurchase> purchases) {
+  final map = <String, _ItemPurchaseTotal>{};
+
+  for (final purchase in purchases) {
+    final key = purchase.itemName.trim().isEmpty
+        ? 'Sem item'
+        : purchase.itemName.trim();
+
+    final existing = map[key];
+
+    if (existing == null) {
+      map[key] = _ItemPurchaseTotal(
+        itemName: key,
+        quantity: purchase.quantity,
+        total: purchase.totalCost,
+      );
+    } else {
+      map[key] = existing.copyWith(
+        quantity: existing.quantity + purchase.quantity,
+        total: existing.total + purchase.totalCost,
+      );
+    }
+  }
+
+  final result = map.values.toList();
+  result.sort((a, b) => b.total.compareTo(a.total));
+
+  return result;
+}
+
 bool _sameDay(DateTime a, DateTime b) {
   return a.year == b.year && a.month == b.month && a.day == b.day;
 }
@@ -1199,6 +1540,62 @@ String _periodLabel(_SupplierPeriod period) {
     case _SupplierPeriod.all:
       return 'Todo o histórico';
   }
+}
+
+bool _isDark(BuildContext context) {
+  return Theme.of(context).brightness == Brightness.dark;
+}
+
+Color _pageBackground(BuildContext context) {
+  return _isDark(context) ? AppColors.darkBackground : const Color(0xFFFBF6F0);
+}
+
+Color _sectionBackground(BuildContext context) {
+  return _isDark(context) ? AppColors.darkSurface : const Color(0xFFFBF6F0);
+}
+
+Color _cardBackground(BuildContext context) {
+  return _isDark(context) ? AppColors.darkSurfaceAlt : const Color(0xFFFBF6F0);
+}
+
+Color _chipBackground(BuildContext context) {
+  return _isDark(context)
+      ? Colors.white.withOpacity(0.05)
+      : const Color(0xFFFBF6F0);
+}
+
+Color _tagBackground(BuildContext context) {
+  return _isDark(context)
+      ? AppColors.wine700.withOpacity(0.18)
+      : const Color(0xFFEADCCD);
+}
+
+Color _titleColor(BuildContext context) {
+  return Theme.of(context).colorScheme.onSurface;
+}
+
+Color _bodyColor(BuildContext context) {
+  return Theme.of(context).colorScheme.onSurface.withOpacity(0.86);
+}
+
+Color _mutedColor(BuildContext context) {
+  return Theme.of(context).colorScheme.onSurface.withOpacity(0.58);
+}
+
+Color _borderColor(BuildContext context) {
+  return _isDark(context)
+      ? Colors.white.withOpacity(0.08)
+      : const Color(0xFFD8C7B3);
+}
+
+List<BoxShadow> _softShadow(BuildContext context) {
+  return [
+    BoxShadow(
+      color: Colors.black.withOpacity(_isDark(context) ? 0.18 : 0.035),
+      blurRadius: 14,
+      offset: const Offset(0, 6),
+    ),
+  ];
 }
 
 double _parseMoney(String value) {
@@ -1279,6 +1676,29 @@ class _CategoryPurchaseTotal {
   }) {
     return _CategoryPurchaseTotal(
       category: category,
+      quantity: quantity ?? this.quantity,
+      total: total ?? this.total,
+    );
+  }
+}
+
+class _ItemPurchaseTotal {
+  const _ItemPurchaseTotal({
+    required this.itemName,
+    required this.quantity,
+    required this.total,
+  });
+
+  final String itemName;
+  final double quantity;
+  final double total;
+
+  _ItemPurchaseTotal copyWith({
+    double? quantity,
+    double? total,
+  }) {
+    return _ItemPurchaseTotal(
+      itemName: itemName,
       quantity: quantity ?? this.quantity,
       total: total ?? this.total,
     );
