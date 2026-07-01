@@ -8,6 +8,13 @@ import '../../models/product_unit.dart';
 import '../../models/supplier_purchase.dart';
 import '../../providers/suppliers_provider.dart';
 
+enum _SupplierPeriod {
+  today,
+  sevenDays,
+  thirtyDays,
+  all,
+}
+
 class SuppliersScreen extends StatefulWidget {
   const SuppliersScreen({super.key});
 
@@ -18,33 +25,69 @@ class SuppliersScreen extends StatefulWidget {
 class _SuppliersScreenState extends State<SuppliersScreen> {
   String searchTerm = '';
   bool showOnlyOpen = false;
+  _SupplierPeriod selectedPeriod = _SupplierPeriod.thirtyDays;
 
   @override
   Widget build(BuildContext context) {
     return Consumer<SuppliersProvider>(
       builder: (context, provider, _) {
-        final purchases = provider.purchases.where((purchase) {
+        final periodPurchases = _filterByPeriod(
+          provider.purchases,
+          selectedPeriod,
+        );
+
+        final filteredPurchases = periodPurchases.where((purchase) {
           final term = searchTerm.trim().toLowerCase();
 
           final matchesSearch = term.isEmpty ||
               purchase.supplierName.toLowerCase().contains(term) ||
               purchase.itemName.toLowerCase().contains(term) ||
-              purchase.category.label.toLowerCase().contains(term);
+              purchase.category.label.toLowerCase().contains(term) ||
+              (purchase.documentNumber ?? '').toLowerCase().contains(term);
 
           final matchesOpen = !showOnlyOpen || !purchase.paid;
 
           return matchesSearch && matchesOpen;
         }).toList();
 
+        final totalPurchased = periodPurchases.fold<double>(
+          0,
+          (total, purchase) => total + purchase.totalCost,
+        );
+
+        final openAmount = periodPurchases
+            .where((purchase) => !purchase.paid)
+            .fold<double>(
+              0,
+              (total, purchase) => total + purchase.totalCost,
+            );
+
+        final suppliersCount = periodPurchases
+            .map((purchase) => purchase.supplierName.trim().toLowerCase())
+            .where((name) => name.isNotEmpty)
+            .toSet()
+            .length;
+
+        final supplierTotals = _supplierTotals(periodPurchases);
+        final categoryTotals = _categoryTotals(periodPurchases);
+
         return Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             _SupplierHeader(
-              totalPurchased: provider.totalPurchased,
-              openAmount: provider.openAmount,
-              suppliersCount: provider.suppliersCount,
-              purchasesCount: provider.purchases.length,
+              periodLabel: _periodLabel(selectedPeriod),
+              totalPurchased: totalPurchased,
+              openAmount: openAmount,
+              suppliersCount: suppliersCount,
+              purchasesCount: periodPurchases.length,
               onAdd: () => _openPurchaseDialog(context),
+            ),
+            const SizedBox(height: 14),
+            _PeriodSelector(
+              selected: selectedPeriod,
+              onChanged: (period) {
+                setState(() => selectedPeriod = period);
+              },
             ),
             const SizedBox(height: 14),
             _SupplierToolbar(
@@ -59,30 +102,91 @@ class _SuppliersScreenState extends State<SuppliersScreen> {
             ),
             const SizedBox(height: 14),
             Expanded(
-              child: purchases.isEmpty
-                  ? const _EmptySuppliers()
-                  : ListView.separated(
-                      itemCount: purchases.length,
-                      separatorBuilder: (_, __) => const SizedBox(height: 12),
-                      itemBuilder: (context, index) {
-                        return _PurchaseCard(
-                          purchase: purchases[index],
-                          onEdit: () => _openPurchaseDialog(
-                            context,
-                            purchase: purchases[index],
-                          ),
-                          onDelete: () => _deletePurchase(
-                            context,
-                            purchases[index],
-                          ),
-                        );
-                      },
-                    ),
+              child: LayoutBuilder(
+                builder: (context, constraints) {
+                  final compact = constraints.maxWidth < 980;
+
+                  if (compact) {
+                    return ListView(
+                      children: [
+                        _SummaryPanel(
+                          supplierTotals: supplierTotals,
+                          categoryTotals: categoryTotals,
+                        ),
+                        const SizedBox(height: 14),
+                        _PurchasesList(
+                          purchases: filteredPurchases,
+                          onEdit: (purchase) {
+                            _openPurchaseDialog(context, purchase: purchase);
+                          },
+                          onDelete: (purchase) {
+                            _deletePurchase(context, purchase);
+                          },
+                          onTogglePaid: (purchase) {
+                            _togglePaid(context, purchase);
+                          },
+                        ),
+                      ],
+                    );
+                  }
+
+                  return Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      SizedBox(
+                        width: 360,
+                        child: _SummaryPanel(
+                          supplierTotals: supplierTotals,
+                          categoryTotals: categoryTotals,
+                        ),
+                      ),
+                      const SizedBox(width: 14),
+                      Expanded(
+                        child: _PurchasesList(
+                          purchases: filteredPurchases,
+                          onEdit: (purchase) {
+                            _openPurchaseDialog(context, purchase: purchase);
+                          },
+                          onDelete: (purchase) {
+                            _deletePurchase(context, purchase);
+                          },
+                          onTogglePaid: (purchase) {
+                            _togglePaid(context, purchase);
+                          },
+                        ),
+                      ),
+                    ],
+                  );
+                },
+              ),
             ),
           ],
         );
       },
     );
+  }
+
+  void _togglePaid(BuildContext context, SupplierPurchase purchase) {
+    final provider = context.read<SuppliersProvider>();
+
+    provider.updatePurchase(
+      purchase.copyWith(
+        paid: !purchase.paid,
+        updatedAt: DateTime.now(),
+      ),
+    );
+
+    ScaffoldMessenger.of(context)
+      ..clearSnackBars()
+      ..showSnackBar(
+        SnackBar(
+          content: Text(
+            purchase.paid
+                ? 'Compra marcada como em aberto.'
+                : 'Compra marcada como paga.',
+          ),
+        ),
+      );
   }
 
   Future<void> _deletePurchase(
@@ -125,6 +229,7 @@ class _SuppliersScreenState extends State<SuppliersScreen> {
 
 class _SupplierHeader extends StatelessWidget {
   const _SupplierHeader({
+    required this.periodLabel,
     required this.totalPurchased,
     required this.openAmount,
     required this.suppliersCount,
@@ -132,6 +237,7 @@ class _SupplierHeader extends StatelessWidget {
     required this.onAdd,
   });
 
+  final String periodLabel;
   final double totalPurchased;
   final double openAmount;
   final int suppliersCount;
@@ -161,11 +267,21 @@ class _SupplierHeader extends StatelessWidget {
                 ),
                 const SizedBox(width: 14),
                 Expanded(
-                  child: Text(
-                    'Controle de fornecedores e compras',
-                    style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                          fontWeight: FontWeight.w900,
-                        ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Fornecedores e compras',
+                        style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                              fontWeight: FontWeight.w900,
+                            ),
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        'Período: $periodLabel',
+                        style: const TextStyle(fontWeight: FontWeight.w700),
+                      ),
+                    ],
                   ),
                 ),
                 FilledButton.icon(
@@ -182,7 +298,7 @@ class _SupplierHeader extends StatelessWidget {
               children: [
                 _SupplierMetric(
                   icon: Icons.payments_rounded,
-                  label: 'Comprado total',
+                  label: 'Comprado no período',
                   value: _formatMoney(totalPurchased),
                 ),
                 _SupplierMetric(
@@ -201,6 +317,72 @@ class _SupplierHeader extends StatelessWidget {
                   value: purchasesCount.toString(),
                 ),
               ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _PeriodSelector extends StatelessWidget {
+  const _PeriodSelector({
+    required this.selected,
+    required this.onChanged,
+  });
+
+  final _SupplierPeriod selected;
+  final ValueChanged<_SupplierPeriod> onChanged;
+
+  @override
+  Widget build(BuildContext context) {
+    final items = [
+      (_SupplierPeriod.today, 'Hoje', Icons.today_rounded),
+      (_SupplierPeriod.sevenDays, '7 dias', Icons.date_range_rounded),
+      (_SupplierPeriod.thirtyDays, '30 dias', Icons.calendar_month_rounded),
+      (_SupplierPeriod.all, 'Tudo', Icons.all_inclusive_rounded),
+    ];
+
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(14),
+        child: Row(
+          children: [
+            const Icon(Icons.filter_alt_rounded, color: AppColors.wine700),
+            const SizedBox(width: 10),
+            const Text(
+              'Período',
+              style: TextStyle(fontWeight: FontWeight.w900),
+            ),
+            const SizedBox(width: 14),
+            Expanded(
+              child: SingleChildScrollView(
+                scrollDirection: Axis.horizontal,
+                child: Row(
+                  children: items.map((item) {
+                    final active = selected == item.$1;
+
+                    return Padding(
+                      padding: const EdgeInsets.only(right: 8),
+                      child: ChoiceChip(
+                        selected: active,
+                        selectedColor: AppColors.wine900,
+                        avatar: Icon(
+                          item.$3,
+                          size: 18,
+                          color: active ? AppColors.beige100 : AppColors.wine700,
+                        ),
+                        label: Text(item.$2),
+                        labelStyle: TextStyle(
+                          color: active ? AppColors.beige100 : null,
+                          fontWeight: FontWeight.w900,
+                        ),
+                        onSelected: (_) => onChanged(item.$1),
+                      ),
+                    );
+                  }).toList(),
+                ),
+              ),
             ),
           ],
         ),
@@ -281,7 +463,7 @@ class _SupplierToolbar extends StatelessWidget {
             onChanged: onSearchChanged,
             decoration: InputDecoration(
               prefixIcon: const Icon(Icons.search_rounded),
-              hintText: 'Pesquisar fornecedor, carne ou categoria...',
+              hintText: 'Pesquisar fornecedor, carne, categoria ou documento...',
               filled: true,
               border: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(22),
@@ -302,16 +484,177 @@ class _SupplierToolbar extends StatelessWidget {
   }
 }
 
+class _SummaryPanel extends StatelessWidget {
+  const _SummaryPanel({
+    required this.supplierTotals,
+    required this.categoryTotals,
+  });
+
+  final List<_SupplierTotal> supplierTotals;
+  final List<_CategoryPurchaseTotal> categoryTotals;
+
+  @override
+  Widget build(BuildContext context) {
+    return ListView(
+      shrinkWrap: true,
+      physics: const NeverScrollableScrollPhysics(),
+      children: [
+        _MiniSummaryCard(
+          title: 'Resumo por fornecedor',
+          emptyText: 'Nenhum fornecedor no período.',
+          children: supplierTotals.take(8).map((item) {
+            return _SummaryLine(
+              title: item.supplierName,
+              subtitle: '${item.count} compra(s)',
+              value: _formatMoney(item.total),
+            );
+          }).toList(),
+        ),
+        const SizedBox(height: 14),
+        _MiniSummaryCard(
+          title: 'Resumo por categoria',
+          emptyText: 'Nenhuma categoria no período.',
+          children: categoryTotals.take(8).map((item) {
+            return _SummaryLine(
+              title: item.category,
+              subtitle: '${_formatNumber(item.quantity)} comprado',
+              value: _formatMoney(item.total),
+            );
+          }).toList(),
+        ),
+      ],
+    );
+  }
+}
+
+class _MiniSummaryCard extends StatelessWidget {
+  const _MiniSummaryCard({
+    required this.title,
+    required this.emptyText,
+    required this.children,
+  });
+
+  final String title;
+  final String emptyText;
+  final List<Widget> children;
+
+  @override
+  Widget build(BuildContext context) {
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(title, style: const TextStyle(fontWeight: FontWeight.w900)),
+            const SizedBox(height: 12),
+            if (children.isEmpty)
+              Text(
+                emptyText,
+                style: const TextStyle(fontWeight: FontWeight.w700),
+              )
+            else
+              ...children,
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _SummaryLine extends StatelessWidget {
+  const _SummaryLine({
+    required this.title,
+    required this.subtitle,
+    required this.value,
+  });
+
+  final String title;
+  final String subtitle;
+  final String value;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 12),
+      child: Row(
+        children: [
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  title,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(fontWeight: FontWeight.w900),
+                ),
+                Text(
+                  subtitle,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(fontWeight: FontWeight.w700),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(width: 10),
+          Text(
+            value,
+            style: const TextStyle(fontWeight: FontWeight.w900),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _PurchasesList extends StatelessWidget {
+  const _PurchasesList({
+    required this.purchases,
+    required this.onEdit,
+    required this.onDelete,
+    required this.onTogglePaid,
+  });
+
+  final List<SupplierPurchase> purchases;
+  final ValueChanged<SupplierPurchase> onEdit;
+  final ValueChanged<SupplierPurchase> onDelete;
+  final ValueChanged<SupplierPurchase> onTogglePaid;
+
+  @override
+  Widget build(BuildContext context) {
+    if (purchases.isEmpty) {
+      return const _EmptySuppliers();
+    }
+
+    return ListView.separated(
+      itemCount: purchases.length,
+      separatorBuilder: (_, __) => const SizedBox(height: 12),
+      itemBuilder: (context, index) {
+        return _PurchaseCard(
+          purchase: purchases[index],
+          onEdit: () => onEdit(purchases[index]),
+          onDelete: () => onDelete(purchases[index]),
+          onTogglePaid: () => onTogglePaid(purchases[index]),
+        );
+      },
+    );
+  }
+}
+
 class _PurchaseCard extends StatelessWidget {
   const _PurchaseCard({
     required this.purchase,
     required this.onEdit,
     required this.onDelete,
+    required this.onTogglePaid,
   });
 
   final SupplierPurchase purchase;
   final VoidCallback onEdit;
   final VoidCallback onDelete;
+  final VoidCallback onTogglePaid;
 
   @override
   Widget build(BuildContext context) {
@@ -362,6 +705,14 @@ class _PurchaseCard extends StatelessWidget {
                     Text(
                       '${_formatNumber(purchase.quantity)} ${purchase.unit.label} x ${_formatMoney(purchase.unitCost)}',
                     ),
+                    if ((purchase.documentNumber ?? '').trim().isNotEmpty) ...[
+                      const SizedBox(height: 4),
+                      Text(
+                        'Doc.: ${purchase.documentNumber}',
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ],
                   ],
                 ),
               ),
@@ -395,6 +746,15 @@ class _PurchaseCard extends StatelessWidget {
                 ),
               ),
               IconButton(
+                tooltip: purchase.paid ? 'Marcar em aberto' : 'Marcar pago',
+                onPressed: onTogglePaid,
+                icon: Icon(
+                  purchase.paid
+                      ? Icons.undo_rounded
+                      : Icons.check_circle_outline_rounded,
+                ),
+              ),
+              IconButton(
                 tooltip: 'Editar',
                 onPressed: onEdit,
                 icon: const Icon(Icons.edit_rounded),
@@ -419,7 +779,7 @@ class _EmptySuppliers extends StatelessWidget {
   Widget build(BuildContext context) {
     return const Center(
       child: Text(
-        'Nenhuma compra de fornecedor registrada ainda.',
+        'Nenhuma compra de fornecedor encontrada.',
         style: TextStyle(fontWeight: FontWeight.w800),
       ),
     );
@@ -735,6 +1095,112 @@ class _PurchaseDialogState extends State<_PurchaseDialog> {
   }
 }
 
+List<SupplierPurchase> _filterByPeriod(
+  List<SupplierPurchase> purchases,
+  _SupplierPeriod period,
+) {
+  final now = DateTime.now();
+  final todayStart = DateTime(now.year, now.month, now.day);
+
+  final filtered = purchases.where((purchase) {
+    final date = purchase.purchaseDate;
+
+    switch (period) {
+      case _SupplierPeriod.today:
+        return _sameDay(date, now);
+
+      case _SupplierPeriod.sevenDays:
+        return !date.isBefore(todayStart.subtract(const Duration(days: 6)));
+
+      case _SupplierPeriod.thirtyDays:
+        return !date.isBefore(todayStart.subtract(const Duration(days: 29)));
+
+      case _SupplierPeriod.all:
+        return true;
+    }
+  }).toList();
+
+  filtered.sort((a, b) => b.purchaseDate.compareTo(a.purchaseDate));
+
+  return filtered;
+}
+
+List<_SupplierTotal> _supplierTotals(List<SupplierPurchase> purchases) {
+  final map = <String, _SupplierTotal>{};
+
+  for (final purchase in purchases) {
+    final key = purchase.supplierName.trim().isEmpty
+        ? 'Sem fornecedor'
+        : purchase.supplierName.trim();
+
+    final existing = map[key];
+
+    if (existing == null) {
+      map[key] = _SupplierTotal(
+        supplierName: key,
+        count: 1,
+        total: purchase.totalCost,
+      );
+    } else {
+      map[key] = existing.copyWith(
+        count: existing.count + 1,
+        total: existing.total + purchase.totalCost,
+      );
+    }
+  }
+
+  final result = map.values.toList();
+  result.sort((a, b) => b.total.compareTo(a.total));
+
+  return result;
+}
+
+List<_CategoryPurchaseTotal> _categoryTotals(
+  List<SupplierPurchase> purchases,
+) {
+  final map = <String, _CategoryPurchaseTotal>{};
+
+  for (final purchase in purchases) {
+    final key = purchase.category.label;
+    final existing = map[key];
+
+    if (existing == null) {
+      map[key] = _CategoryPurchaseTotal(
+        category: key,
+        quantity: purchase.quantity,
+        total: purchase.totalCost,
+      );
+    } else {
+      map[key] = existing.copyWith(
+        quantity: existing.quantity + purchase.quantity,
+        total: existing.total + purchase.totalCost,
+      );
+    }
+  }
+
+  final result = map.values.toList();
+  result.sort((a, b) => b.total.compareTo(a.total));
+
+  return result;
+}
+
+bool _sameDay(DateTime a, DateTime b) {
+  return a.year == b.year && a.month == b.month && a.day == b.day;
+}
+
+String _periodLabel(_SupplierPeriod period) {
+  switch (period) {
+    case _SupplierPeriod.today:
+      return 'Hoje';
+    case _SupplierPeriod.sevenDays:
+      return 'Últimos 7 dias';
+    case _SupplierPeriod.thirtyDays:
+      return 'Últimos 30 dias';
+    case _SupplierPeriod.all:
+      return 'Todo o histórico';
+  }
+}
+
 double _parseMoney(String value) {
   return _parseNumber(value.replaceAll('R\$', '').trim());
 }
@@ -771,4 +1237,50 @@ String _formatDate(DateTime value) {
   final year = value.year.toString();
 
   return '$day/$month/$year';
+}
+
+class _SupplierTotal {
+  const _SupplierTotal({
+    required this.supplierName,
+    required this.count,
+    required this.total,
+  });
+
+  final String supplierName;
+  final int count;
+  final double total;
+
+  _SupplierTotal copyWith({
+    int? count,
+    double? total,
+  }) {
+    return _SupplierTotal(
+      supplierName: supplierName,
+      count: count ?? this.count,
+      total: total ?? this.total,
+    );
+  }
+}
+
+class _CategoryPurchaseTotal {
+  const _CategoryPurchaseTotal({
+    required this.category,
+    required this.quantity,
+    required this.total,
+  });
+
+  final String category;
+  final double quantity;
+  final double total;
+
+  _CategoryPurchaseTotal copyWith({
+    double? quantity,
+    double? total,
+  }) {
+    return _CategoryPurchaseTotal(
+      category: category,
+      quantity: quantity ?? this.quantity,
+      total: total ?? this.total,
+    );
+  }
 }
