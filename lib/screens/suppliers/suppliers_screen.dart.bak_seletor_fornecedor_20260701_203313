@@ -1937,92 +1937,12 @@ class _PurchaseDialogState extends State<_PurchaseDialog> {
         height: 620,
         child: ListView(
           children: [
-            Consumer<SuppliersProvider>(
-              builder: (context, provider, _) {
-                final activeSuppliers = provider.suppliers
-                    .where((supplier) => supplier.active)
-                    .toList();
-
-                return Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    TextField(
-                      controller: supplierController,
-                      decoration: InputDecoration(
-                        labelText: 'Fornecedor',
-                        hintText: 'Ex: Frigorífico São Luís',
-                        suffixIcon: supplierController.text.trim().isEmpty
-                            ? null
-                            : IconButton(
-                                tooltip: 'Limpar fornecedor',
-                                onPressed: () {
-                                  setState(() {
-                                    supplierController.clear();
-                                  });
-                                },
-                                icon: const Icon(Icons.clear_rounded),
-                              ),
-                      ),
-                      onChanged: (_) => setState(() {}),
-                    ),
-                    if (activeSuppliers.isNotEmpty) ...[
-                      const SizedBox(height: 10),
-                      Text(
-                        'Fornecedores cadastrados',
-                        style: TextStyle(
-                          fontWeight: FontWeight.w900,
-                          color: _mutedColor(context),
-                        ),
-                      ),
-                      const SizedBox(height: 8),
-                      SingleChildScrollView(
-                        scrollDirection: Axis.horizontal,
-                        child: Row(
-                          children: activeSuppliers.take(12).map((supplier) {
-                            final selected = supplierController.text
-                                    .trim()
-                                    .toLowerCase() ==
-                                supplier.name.trim().toLowerCase();
-
-                            return Padding(
-                              padding: const EdgeInsets.only(right: 8),
-                              child: ChoiceChip(
-                                selected: selected,
-                                selectedColor: AppColors.wine900,
-                                backgroundColor: _cardBackground(context),
-                                side: BorderSide(
-                                  color: selected
-                                      ? AppColors.wine900
-                                      : _borderColor(context),
-                                ),
-                                avatar: Icon(
-                                  Icons.store_rounded,
-                                  size: 18,
-                                  color: selected
-                                      ? AppColors.beige100
-                                      : AppColors.wine700,
-                                ),
-                                label: Text(supplier.name),
-                                labelStyle: TextStyle(
-                                  color: selected
-                                      ? AppColors.beige100
-                                      : _titleColor(context),
-                                  fontWeight: FontWeight.w900,
-                                ),
-                                onSelected: (_) {
-                                  setState(() {
-                                    supplierController.text = supplier.name;
-                                  });
-                                },
-                              ),
-                            );
-                          }).toList(),
-                        ),
-                      ),
-                    ],
-                  ],
-                );
-              },
+            TextField(
+              controller: supplierController,
+              decoration: const InputDecoration(
+                labelText: 'Fornecedor',
+                hintText: 'Ex: Frigorífico São Luís',
+              ),
             ),
             const SizedBox(height: 12),
             TextField(
