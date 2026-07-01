@@ -22,18 +22,42 @@ class SalesScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Row(
-      children: const [
-        Expanded(
-          flex: 7,
-          child: _ProductsPanel(),
-        ),
-        SizedBox(width: 18),
-        Expanded(
-          flex: 4,
-          child: _CartPanel(),
-        ),
-      ],
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final compact = constraints.maxWidth < 980;
+
+        if (compact) {
+          return SingleChildScrollView(
+            child: Column(
+              children: const [
+                SizedBox(
+                  height: 560,
+                  child: _ProductsPanel(),
+                ),
+                SizedBox(height: 14),
+                SizedBox(
+                  height: 520,
+                  child: _CartPanel(),
+                ),
+              ],
+            ),
+          );
+        }
+
+        return const Row(
+          children: [
+            Expanded(
+              flex: 7,
+              child: _ProductsPanel(),
+            ),
+            SizedBox(width: 18),
+            Expanded(
+              flex: 4,
+              child: _CartPanel(),
+            ),
+          ],
+        );
+      },
     );
   }
 }
@@ -79,7 +103,7 @@ class _ProductsPanel extends StatelessWidget {
                   : 'Etiqueta Ramuza detectada: PLU ${parsedBarcode.productCode}. Aperte Enter para adicionar.',
               style: const TextStyle(fontWeight: FontWeight.w700),
             ),
-            const SizedBox(height: 14),
+            const SizedBox(height: 10),
             Expanded(
               child: products.isEmpty
                   ? _EmptyProducts(
@@ -92,7 +116,7 @@ class _ProductsPanel extends StatelessWidget {
                       gridDelegate:
                           const SliverGridDelegateWithMaxCrossAxisExtent(
                         maxCrossAxisExtent: 270,
-                        mainAxisExtent: 250,
+                        mainAxisExtent: 230,
                         crossAxisSpacing: 14,
                         mainAxisSpacing: 14,
                       ),
@@ -156,129 +180,129 @@ class _ProductSaleCard extends StatelessWidget {
     final sales = context.read<SalesProvider>();
     final isLow = product.isLowStock;
 
+    void addOne() {
+      sales.addProduct(product);
+      _showMessage(
+        context,
+        '${product.name} adicionado com 1 ${product.unit.label}.',
+      );
+    }
+
     return Card(
       clipBehavior: Clip.antiAlias,
       child: InkWell(
-        onTap: () {
-          sales.addProduct(product);
-          _showMessage(
-            context,
-            '${product.name} adicionado com 1 ${product.unit.label}.',
-          );
-        },
-        child: Padding(
-          padding: const EdgeInsets.all(14),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
-                children: [
-                  Container(
-                    width: 42,
-                    height: 42,
-                    decoration: BoxDecoration(
-                      color: AppColors.wine900,
-                      borderRadius: BorderRadius.circular(15),
+        onTap: addOne,
+        child: SingleChildScrollView(
+          physics: const NeverScrollableScrollPhysics(),
+          child: Padding(
+            padding: const EdgeInsets.all(14),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Container(
+                      width: 42,
+                      height: 42,
+                      decoration: BoxDecoration(
+                        color: AppColors.wine900,
+                        borderRadius: BorderRadius.circular(15),
+                      ),
+                      child: Icon(
+                        product.favorite
+                            ? Icons.star_rounded
+                            : Icons.shopping_bag_rounded,
+                        color: AppColors.beige100,
+                        size: 22,
+                      ),
                     ),
-                    child: Icon(
-                      product.favorite
-                          ? Icons.star_rounded
-                          : Icons.shopping_bag_rounded,
-                      color: AppColors.beige100,
-                      size: 22,
+                    const Spacer(),
+                    Flexible(
+                      child: Text(
+                        product.code,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        textAlign: TextAlign.right,
+                        style: const TextStyle(
+                          fontWeight: FontWeight.w900,
+                          fontSize: 13,
+                        ),
+                      ),
                     ),
-                  ),
-                  const Spacer(),
-                  Flexible(
-                    child: Text(
-                      product.code,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      textAlign: TextAlign.right,
-                      style: const TextStyle(
+                  ],
+                ),
+                const SizedBox(height: 10),
+                Text(
+                  product.name,
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                  style: Theme.of(context).textTheme.titleSmall?.copyWith(
                         fontWeight: FontWeight.w900,
-                        fontSize: 13,
                       ),
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 10),
-              Text(
-                product.name,
-                maxLines: 2,
-                overflow: TextOverflow.ellipsis,
-                style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                      fontWeight: FontWeight.w900,
-                    ),
-              ),
-              const SizedBox(height: 5),
-              Text(
-                '${_formatQuantity(product.stockQuantity, product.unit)} em estoque',
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: TextStyle(
-                  color: isLow ? AppColors.warning : null,
-                  fontWeight: isLow ? FontWeight.w900 : FontWeight.w600,
-                  fontSize: 12,
                 ),
-              ),
-              const Spacer(),
-              Text(
-                _formatMoney(product.salePrice),
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: const TextStyle(
-                  fontWeight: FontWeight.w900,
-                  fontSize: 21,
-                  color: AppColors.wine700,
+                const SizedBox(height: 5),
+                Text(
+                  '${_formatQuantity(product.stockQuantity, product.unit)} em estoque',
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    color: isLow ? AppColors.warning : null,
+                    fontWeight: isLow ? FontWeight.w900 : FontWeight.w600,
+                    fontSize: 12,
+                  ),
                 ),
-              ),
-              const SizedBox(height: 8),
-              Row(
-                children: [
-                  Expanded(
-                    child: SizedBox(
-                      height: 32,
-                      child: OutlinedButton(
-                        onPressed: () => _openQuantityDialog(context, product),
-                        style: OutlinedButton.styleFrom(
-                          padding: EdgeInsets.zero,
-                        ),
-                        child: const Text(
-                          'Qtd',
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
+                const SizedBox(height: 10),
+                Text(
+                  _formatMoney(product.salePrice),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(
+                    fontWeight: FontWeight.w900,
+                    fontSize: 21,
+                    color: AppColors.wine700,
+                  ),
+                ),
+                const SizedBox(height: 8),
+                Row(
+                  children: [
+                    Expanded(
+                      child: SizedBox(
+                        height: 32,
+                        child: OutlinedButton(
+                          onPressed: () => _openQuantityDialog(context, product),
+                          style: OutlinedButton.styleFrom(
+                            padding: EdgeInsets.zero,
+                          ),
+                          child: const Text(
+                            'Qtd',
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
                         ),
                       ),
                     ),
-                  ),
-                  const SizedBox(width: 8),
-                  Expanded(
-                    child: SizedBox(
-                      height: 32,
-                      child: FilledButton(
-                        onPressed: () {
-                          sales.addProduct(product);
-                          _showMessage(
-                            context,
-                            '${product.name} adicionado com 1 ${product.unit.label}.',
-                          );
-                        },
-                        style: FilledButton.styleFrom(
-                          padding: EdgeInsets.zero,
-                        ),
-                        child: const Text(
-                          '+1',
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: SizedBox(
+                        height: 32,
+                        child: FilledButton(
+                          onPressed: addOne,
+                          style: FilledButton.styleFrom(
+                            padding: EdgeInsets.zero,
+                          ),
+                          child: const Text(
+                            '+1',
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
                         ),
                       ),
                     ),
-                  ),
-                ],
-              ),
-            ],
+                  ],
+                ),
+              ],
+            ),
           ),
         ),
       ),
@@ -315,7 +339,7 @@ class _CartPanel extends StatelessWidget {
                     ),
                   ],
                 ),
-                const SizedBox(height: 16),
+                const SizedBox(height: 12),
                 Expanded(
                   child: sales.items.isEmpty
                       ? const _EmptyCart()
@@ -328,14 +352,14 @@ class _CartPanel extends StatelessWidget {
                           },
                         ),
                 ),
-                const SizedBox(height: 16),
+                const SizedBox(height: 12),
                 _PaymentSelector(
                   selected: sales.paymentMethod,
                   onChanged: sales.setPaymentMethod,
                 ),
-                const SizedBox(height: 16),
+                const SizedBox(height: 12),
                 _TotalBox(total: sales.total),
-                const SizedBox(height: 14),
+                const SizedBox(height: 10),
                 Row(
                   children: [
                     Expanded(
@@ -867,7 +891,7 @@ Future<void> _openQuantityDialog(
                 'Estoque disponível: ${_formatQuantity(product.stockQuantity, product.unit)}',
                 style: const TextStyle(fontWeight: FontWeight.w900),
               ),
-              const SizedBox(height: 16),
+              const SizedBox(height: 12),
               TextField(
                 controller: quantityController,
                 autofocus: true,
@@ -972,7 +996,7 @@ Future<void> _openCartQuantityDialog(
               Text(
                 'Estoque disponível: ${_formatQuantity(product.stockQuantity, product.unit)}',
               ),
-              const SizedBox(height: 16),
+              const SizedBox(height: 12),
               TextField(
                 controller: quantityController,
                 autofocus: true,
