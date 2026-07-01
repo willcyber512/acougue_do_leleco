@@ -14,6 +14,7 @@ import 'ramuza_export_dialog.dart';
 import 'shortcuts_config_dialog.dart';
 import 'universal_search_dialog.dart';
 import 'end_day_backup_dialog.dart';
+import 'safe_restore_dialog.dart';
 
 class LelecoTopBar extends StatelessWidget {
   const LelecoTopBar({
@@ -89,6 +90,16 @@ class LelecoTopBar extends StatelessWidget {
               },
               icon: const Icon(Icons.health_and_safety_rounded),
               label: const Text('Diag.', maxLines: 1, overflow: TextOverflow.ellipsis),
+            ),
+          ],
+          if (title == 'Ajustes') ...[
+            const SizedBox(width: 8),
+            OutlinedButton.icon(
+              onPressed: () {
+                showSafeRestoreDialog(context);
+              },
+              icon: const Icon(Icons.restore_rounded),
+              label: const Text('Restaurar'),
             ),
           ],
           if (title == 'Venda') ...[
