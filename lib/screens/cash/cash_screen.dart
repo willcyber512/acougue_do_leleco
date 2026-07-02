@@ -24,78 +24,106 @@ class _CashScreenState extends State<CashScreen> {
     return Consumer<SalesProvider>(
       builder: (context, sales, _) {
         final visibleSales = showOnlyToday ? sales.todaySales : sales.sales;
-        final validSales = visibleSales.where((sale) => !sale.isCanceled).toList();
+        final validSales = visibleSales
+            .where((sale) => !sale.isCanceled)
+            .toList();
 
-        final totalVisible = validSales.fold(
-          0.0,
+        final totalVisible = validSales.fold<double>(
+          0,
           (total, sale) => total + sale.total,
         );
 
-        final canceledCount = visibleSales.where((sale) => sale.isCanceled).length;
+        final canceledCount = visibleSales
+            .where((sale) => sale.isCanceled)
+            .length;
 
-        return Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Wrap(
-              spacing: 16,
-              runSpacing: 16,
-              children: [
-                SizedBox(
-                  width: 220,
-                  child: LelecoMetricCard(
-                    icon: Icons.payments_rounded,
-                    title: showOnlyToday ? 'Faturamento hoje' : 'Faturamento total',
-                    value: _formatMoney(totalVisible),
+        return LayoutBuilder(
+          builder: (context, constraints) {
+            final width = constraints.maxWidth;
+            final columns = width >= 980
+                ? 4
+                : width >= 640
+                ? 2
+                : 1;
+
+            const gap = 16.0;
+            final metricWidth = (width - gap * (columns - 1)) / columns;
+
+            return SingleChildScrollView(
+              padding: const EdgeInsets.only(bottom: 24),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Wrap(
+                    spacing: gap,
+                    runSpacing: gap,
+                    children: [
+                      SizedBox(
+                        width: metricWidth,
+                        child: LelecoMetricCard(
+                          icon: Icons.payments_rounded,
+                          title: showOnlyToday
+                              ? 'Faturamento hoje'
+                              : 'Faturamento total',
+                          value: _formatMoney(totalVisible),
+                        ),
+                      ),
+                      SizedBox(
+                        width: metricWidth,
+                        child: LelecoMetricCard(
+                          icon: Icons.receipt_long_rounded,
+                          title: showOnlyToday
+                              ? 'Vendas válidas hoje'
+                              : 'Vendas válidas',
+                          value: validSales.length.toString(),
+                        ),
+                      ),
+                      SizedBox(
+                        width: metricWidth,
+                        child: LelecoMetricCard(
+                          icon: Icons.cancel_rounded,
+                          title: 'Canceladas',
+                          value: canceledCount.toString(),
+                        ),
+                      ),
+                      SizedBox(
+                        width: metricWidth,
+                        child: LelecoMetricCard(
+                          icon: Icons.pix_rounded,
+                          title: 'Pix',
+                          value: _formatMoney(
+                            _sumByMethod(validSales, PaymentMethod.pix),
+                          ),
+                        ),
+                      ),
+                    ],
                   ),
-                ),
-                SizedBox(
-                  width: 220,
-                  child: LelecoMetricCard(
-                    icon: Icons.receipt_long_rounded,
-                    title: showOnlyToday ? 'Vendas válidas hoje' : 'Vendas válidas',
-                    value: validSales.length.toString(),
+                  const SizedBox(height: 20),
+                  _CashToolbar(
+                    showOnlyToday: showOnlyToday,
+                    onChanged: (value) {
+                      setState(() => showOnlyToday = value);
+                    },
                   ),
-                ),
-                SizedBox(
-                  width: 220,
-                  child: LelecoMetricCard(
-                    icon: Icons.cancel_rounded,
-                    title: 'Canceladas',
-                    value: canceledCount.toString(),
-                  ),
-                ),
-                SizedBox(
-                  width: 220,
-                  child: LelecoMetricCard(
-                    icon: Icons.pix_rounded,
-                    title: 'Pix',
-                    value: _formatMoney(_sumByMethod(validSales, PaymentMethod.pix)),
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 20),
-            _CashToolbar(
-              showOnlyToday: showOnlyToday,
-              onChanged: (value) {
-                setState(() => showOnlyToday = value);
-              },
-            ),
-            const SizedBox(height: 16),
-            _PaymentSummary(sales: validSales),
-            const SizedBox(height: 16),
-            Expanded(
-              child: visibleSales.isEmpty
-                  ? const _EmptyCash()
-                  : ListView.separated(
+                  const SizedBox(height: 16),
+                  _PaymentSummary(sales: validSales),
+                  const SizedBox(height: 16),
+                  if (visibleSales.isEmpty)
+                    const SizedBox(height: 260, child: _EmptyCash())
+                  else
+                    ListView.separated(
+                      shrinkWrap: true,
+                      physics: const NeverScrollableScrollPhysics(),
                       itemCount: visibleSales.length,
                       separatorBuilder: (_, __) => const SizedBox(height: 12),
                       itemBuilder: (context, index) {
                         return _SaleCard(sale: visibleSales[index]);
                       },
                     ),
-            ),
-          ],
+                ],
+              ),
+            );
+          },
         );
       },
     );
@@ -103,17 +131,19 @@ class _CashScreenState extends State<CashScreen> {
 }
 
 class _CashToolbar extends StatelessWidget {
-  const _CashToolbar({
-    required this.showOnlyToday,
-    required this.onChanged,
-  });
+  const _CashToolbar({required this.showOnlyToday, required this.onChanged});
 
   final bool showOnlyToday;
   final ValueChanged<bool> onChanged;
 
   @override
   Widget build(BuildContext context) {
-    return Row(
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
+    return Wrap(
+      spacing: 12,
+      runSpacing: 12,
+      crossAxisAlignment: WrapCrossAlignment.center,
       children: [
         SegmentedButton<bool>(
           segments: const [
@@ -133,16 +163,41 @@ class _CashToolbar extends StatelessWidget {
             onChanged(values.first);
           },
         ),
-        const Spacer(),
         Container(
+          constraints: const BoxConstraints(maxWidth: 520),
           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
           decoration: BoxDecoration(
-            color: AppColors.wine900.withOpacity(0.12),
+            color: isDark
+                ? AppColors.beige100.withOpacity(0.08)
+                : AppColors.wine900.withOpacity(0.10),
             borderRadius: BorderRadius.circular(999),
+            border: Border.all(
+              color: isDark
+                  ? AppColors.beige100.withOpacity(0.10)
+                  : AppColors.wine900.withOpacity(0.08),
+            ),
           ),
-          child: const Text(
-            'Cancelamento devolve o estoque automaticamente',
-            style: TextStyle(fontWeight: FontWeight.w800),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(
+                Icons.inventory_2_rounded,
+                size: 18,
+                color: isDark ? AppColors.beige100 : AppColors.wine700,
+              ),
+              const SizedBox(width: 8),
+              Flexible(
+                child: Text(
+                  'Cancelamento devolve o estoque automaticamente',
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    fontWeight: FontWeight.w800,
+                    color: isDark ? AppColors.beige100 : AppColors.wine900,
+                  ),
+                ),
+              ),
+            ],
           ),
         ),
       ],
@@ -171,10 +226,7 @@ class _PaymentSummary extends StatelessWidget {
 }
 
 class _PaymentChip extends StatelessWidget {
-  const _PaymentChip({
-    required this.label,
-    required this.value,
-  });
+  const _PaymentChip({required this.label, required this.value});
 
   final String label;
   final String value;
@@ -206,6 +258,7 @@ class _SaleCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final statusColor = sale.isCanceled ? AppColors.danger : AppColors.success;
     final statusText = sale.isCanceled ? 'Cancelada' : 'Finalizada';
+    final isDark = Theme.of(context).brightness == Brightness.dark;
 
     return Card(
       child: InkWell(
@@ -213,9 +266,11 @@ class _SaleCard extends StatelessWidget {
         onTap: () => _openSaleDetails(context, sale),
         child: Padding(
           padding: const EdgeInsets.all(18),
-          child: Row(
-            children: [
-              Container(
+          child: LayoutBuilder(
+            builder: (context, constraints) {
+              final compact = constraints.maxWidth < 620;
+
+              final icon = Container(
                 width: 58,
                 height: 58,
                 decoration: BoxDecoration(
@@ -228,31 +283,38 @@ class _SaleCard extends StatelessWidget {
                       : Icons.receipt_long_rounded,
                   color: AppColors.beige100,
                 ),
-              ),
-              const SizedBox(width: 16),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'Venda #${sale.shortId}',
-                      style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                            fontWeight: FontWeight.w900,
-                          ),
+              );
+
+              final info = Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Venda #${sale.shortId}',
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                      fontWeight: FontWeight.w900,
                     ),
-                    const SizedBox(height: 4),
-                    Text(
-                      '${_formatDateTime(sale.createdAt)} • ${sale.paymentMethod.label}${sale.customerName == null ? '' : ' • ${sale.customerName}'}',
-                    ),
-                  ],
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    '${_formatDateTime(sale.createdAt)} • ${sale.paymentMethod.label}${sale.customerName == null ? '' : ' • ${sale.customerName}'}',
+                    maxLines: compact ? 2 : 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ],
+              );
+
+              final status = Container(
+                width: 108,
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 10,
+                  vertical: 8,
                 ),
-              ),
-              Container(
-                width: 105,
-                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
                 decoration: BoxDecoration(
                   color: statusColor.withOpacity(0.14),
                   borderRadius: BorderRadius.circular(999),
+                  border: Border.all(color: statusColor.withOpacity(0.18)),
                 ),
                 child: Text(
                   statusText,
@@ -262,29 +324,75 @@ class _SaleCard extends StatelessWidget {
                     fontWeight: FontWeight.w900,
                   ),
                 ),
-              ),
-              SizedBox(
-                width: 125,
-                child: Text(
-                  _formatMoney(sale.total),
-                  textAlign: TextAlign.end,
-                  style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                        fontWeight: FontWeight.w900,
-                        color: sale.isCanceled ? AppColors.danger : AppColors.wine700,
-                        decoration:
-                            sale.isCanceled ? TextDecoration.lineThrough : null,
-                      ),
+              );
+
+              final total = Text(
+                _formatMoney(sale.total),
+                textAlign: TextAlign.end,
+                style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                  fontWeight: FontWeight.w900,
+                  color: sale.isCanceled
+                      ? AppColors.danger
+                      : isDark
+                      ? AppColors.beige100
+                      : AppColors.wine700,
+                  decoration: sale.isCanceled
+                      ? TextDecoration.lineThrough
+                      : null,
                 ),
-              ),
-              const SizedBox(width: 8),
-              if (!sale.isCanceled)
-                IconButton(
-                  tooltip: 'Cancelar venda',
-                  onPressed: () => _cancelSaleFlow(context, sale),
-                  icon: const Icon(Icons.cancel_outlined),
-                ),
-              const Icon(Icons.chevron_right_rounded),
-            ],
+              );
+
+              final actions = Wrap(
+                spacing: 4,
+                runSpacing: 4,
+                crossAxisAlignment: WrapCrossAlignment.center,
+                children: [
+                  if (!sale.isCanceled)
+                    IconButton(
+                      tooltip: 'Cancelar venda',
+                      onPressed: () => _cancelSaleFlow(context, sale),
+                      icon: const Icon(Icons.cancel_outlined),
+                    ),
+                  const Icon(Icons.chevron_right_rounded),
+                ],
+              );
+
+              if (compact) {
+                return Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        icon,
+                        const SizedBox(width: 14),
+                        Expanded(child: info),
+                      ],
+                    ),
+                    const SizedBox(height: 14),
+                    Wrap(
+                      spacing: 12,
+                      runSpacing: 10,
+                      crossAxisAlignment: WrapCrossAlignment.center,
+                      children: [status, total, actions],
+                    ),
+                  ],
+                );
+              }
+
+              return Row(
+                children: [
+                  icon,
+                  const SizedBox(width: 16),
+                  Expanded(child: info),
+                  const SizedBox(width: 12),
+                  status,
+                  const SizedBox(width: 12),
+                  SizedBox(width: 125, child: total),
+                  const SizedBox(width: 8),
+                  actions,
+                ],
+              );
+            },
           ),
         ),
       ),
@@ -297,9 +405,7 @@ class _EmptyCash extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return const Center(
-      child: Text('Nenhuma venda encontrada.'),
-    );
+    return const Center(child: Text('Nenhuma venda encontrada.'));
   }
 }
 
@@ -326,10 +432,7 @@ Future<void> _openSaleDetails(BuildContext context, SaleRecord sale) async {
                     value: sale.paymentMethod.label,
                   ),
                   const SizedBox(width: 12),
-                  _DetailBox(
-                    title: 'Total',
-                    value: _formatMoney(sale.total),
-                  ),
+                  _DetailBox(title: 'Total', value: _formatMoney(sale.total)),
                 ],
               ),
               if (sale.isCanceled) ...[
@@ -432,10 +535,7 @@ Future<void> _openSaleDetails(BuildContext context, SaleRecord sale) async {
 }
 
 class _DetailBox extends StatelessWidget {
-  const _DetailBox({
-    required this.title,
-    required this.value,
-  });
+  const _DetailBox({required this.title, required this.value});
 
   final String title;
   final String value;
@@ -456,10 +556,7 @@ class _DetailBox extends StatelessWidget {
           children: [
             Text(title, style: Theme.of(context).textTheme.bodySmall),
             const SizedBox(height: 4),
-            Text(
-              value,
-              style: const TextStyle(fontWeight: FontWeight.w900),
-            ),
+            Text(value, style: const TextStyle(fontWeight: FontWeight.w900)),
           ],
         ),
       ),
@@ -501,7 +598,10 @@ Future<void> _cancelSaleFlow(BuildContext context, SaleRecord sale) async {
     return;
   }
 
-  _showMessage(context, 'Venda #${currentSale.shortId} cancelada e estoque devolvido.');
+  _showMessage(
+    context,
+    'Venda #${currentSale.shortId} cancelada e estoque devolvido.',
+  );
 }
 
 Future<String?> _askCancelReason(BuildContext context) async {
@@ -553,9 +653,7 @@ double _sumByMethod(List<SaleRecord> sales, PaymentMethod method) {
 void _showMessage(BuildContext context, String message) {
   ScaffoldMessenger.of(context)
     ..clearSnackBars()
-    ..showSnackBar(
-      SnackBar(content: Text(message)),
-    );
+    ..showSnackBar(SnackBar(content: Text(message)));
 }
 
 String _formatMoney(double value) {
