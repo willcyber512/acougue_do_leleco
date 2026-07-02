@@ -56,44 +56,44 @@ class LelecoTopBar extends StatelessWidget {
             children: [
               const LelecoLogo(size: 46),
               const SizedBox(width: 12),
-              Expanded(
+              ConstrainedBox(
+                constraints: BoxConstraints(maxWidth: compact ? 105 : 180),
                 child: Text(
                   title,
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
-                  style:
-                      (compact
-                              ? Theme.of(context).textTheme.titleLarge
-                              : Theme.of(context).textTheme.headlineSmall)
-                          ?.copyWith(fontWeight: FontWeight.w900),
+                  style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+                    fontWeight: FontWeight.w900,
+                  ),
                 ),
               ),
               const SizedBox(width: 12),
-              ConstrainedBox(
-                constraints: BoxConstraints(maxWidth: compact ? 190 : 560),
-                child: SingleChildScrollView(
-                  scrollDirection: Axis.horizontal,
-                  reverse: true,
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      _SearchAction(
-                        compact: compact,
-                        isDark: isDark,
-                        onNavigate: onNavigate,
-                      ),
-                      ..._pageActions(context, title, compact),
-                      const SizedBox(width: 10),
-                      IconButton.filledTonal(
-                        onPressed: themeProvider.toggleTheme,
-                        tooltip: 'Alternar tema',
-                        icon: Icon(
-                          isDark
-                              ? Icons.light_mode_rounded
-                              : Icons.dark_mode_rounded,
+              Expanded(
+                child: Align(
+                  alignment: Alignment.centerRight,
+                  child: SingleChildScrollView(
+                    scrollDirection: Axis.horizontal,
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        _SearchAction(
+                          compact: compact,
+                          isDark: isDark,
+                          onNavigate: onNavigate,
                         ),
-                      ),
-                    ],
+                        ..._pageActions(context, title, compact),
+                        const SizedBox(width: 10),
+                        IconButton.filledTonal(
+                          onPressed: themeProvider.toggleTheme,
+                          tooltip: 'Alternar tema',
+                          icon: Icon(
+                            isDark
+                                ? Icons.light_mode_rounded
+                                : Icons.dark_mode_rounded,
+                          ),
+                        ),
+                      ],
+                    ),
                   ),
                 ),
               ),

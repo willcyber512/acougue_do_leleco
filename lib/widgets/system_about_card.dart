@@ -25,8 +25,8 @@ class SystemAboutCard extends StatelessWidget {
                   Text(
                     AppConstants.appName,
                     style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                          fontWeight: FontWeight.w900,
-                        ),
+                      fontWeight: FontWeight.w900,
+                    ),
                   ),
                   const SizedBox(height: 6),
                   Text(
@@ -59,7 +59,7 @@ class SystemAboutCard extends StatelessWidget {
             FilledButton.icon(
               onPressed: () => _openAboutDialog(context),
               icon: const Icon(Icons.info_outline_rounded),
-              label: const Text('Sobre'),
+              label: const Text('Info'),
             ),
           ],
         ),
@@ -81,10 +81,7 @@ class _ModuleChip extends StatelessWidget {
         color: AppColors.wine900.withOpacity(0.12),
         borderRadius: BorderRadius.circular(999),
       ),
-      child: Text(
-        label,
-        style: const TextStyle(fontWeight: FontWeight.w900),
-      ),
+      child: Text(label, style: const TextStyle(fontWeight: FontWeight.w900)),
     );
   }
 }
@@ -94,7 +91,7 @@ Future<void> _openAboutDialog(BuildContext context) async {
     context: context,
     builder: (dialogContext) {
       return AlertDialog(
-        title: const Text('Sobre o sistema'),
+        title: const Text('Informações do aplicativo'),
         content: SizedBox(
           width: 560,
           child: Column(
@@ -105,9 +102,9 @@ Future<void> _openAboutDialog(BuildContext context) async {
               Text(
                 AppConstants.appName,
                 textAlign: TextAlign.center,
-                style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                      fontWeight: FontWeight.w900,
-                    ),
+                style: Theme.of(
+                  context,
+                ).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w900),
               ),
               const SizedBox(height: 6),
               Text(
@@ -123,21 +120,15 @@ Future<void> _openAboutDialog(BuildContext context) async {
                 textAlign: TextAlign.center,
               ),
               const SizedBox(height: 18),
-              const _InfoLine(
-                label: 'Uso',
-                value: 'Interno',
-              ),
-              const _InfoLine(
-                label: 'Dados',
-                value: 'Armazenamento local',
-              ),
+              const _InfoLine(label: 'Uso', value: 'Interno'),
+              const _InfoLine(label: 'Dados', value: 'Armazenamento local'),
               const _InfoLine(
                 label: 'Backup',
                 value: 'Exportação e restauração local',
               ),
               const _InfoLine(
-                label: 'Interface',
-                value: 'Desktop/Windows e web responsivo',
+                label: 'Plataforma',
+                value: 'Linux, Windows e Web',
               ),
             ],
           ),
@@ -154,10 +145,7 @@ Future<void> _openAboutDialog(BuildContext context) async {
 }
 
 class _InfoLine extends StatelessWidget {
-  const _InfoLine({
-    required this.label,
-    required this.value,
-  });
+  const _InfoLine({required this.label, required this.value});
 
   final String label;
   final String value;
