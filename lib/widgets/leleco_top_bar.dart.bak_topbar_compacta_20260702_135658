@@ -37,13 +37,9 @@ class LelecoTopBar extends StatelessWidget {
       builder: (context, constraints) {
         final compact = constraints.maxWidth < 1050;
 
-        final actionsMaxWidth = compact
-            ? (constraints.maxWidth * 0.62).clamp(260.0, 500.0).toDouble()
-            : 620.0;
-
         return Container(
           height: 84,
-          padding: EdgeInsets.symmetric(horizontal: compact ? 12 : 24),
+          padding: EdgeInsets.symmetric(horizontal: compact ? 14 : 24),
           decoration: BoxDecoration(
             color: isDark
                 ? AppColors.darkBackground.withOpacity(0.96)
@@ -72,34 +68,31 @@ class LelecoTopBar extends StatelessWidget {
                           ?.copyWith(fontWeight: FontWeight.w900),
                 ),
               ),
-              const SizedBox(width: 10),
+              const SizedBox(width: 12),
               ConstrainedBox(
-                constraints: BoxConstraints(maxWidth: actionsMaxWidth),
-                child: Align(
-                  alignment: Alignment.centerRight,
-                  child: SingleChildScrollView(
-                    scrollDirection: Axis.horizontal,
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        _SearchAction(
-                          compact: compact,
-                          isDark: isDark,
-                          onNavigate: onNavigate,
+                constraints: BoxConstraints(maxWidth: compact ? 190 : 560),
+                child: SingleChildScrollView(
+                  scrollDirection: Axis.horizontal,
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      _SearchAction(
+                        compact: compact,
+                        isDark: isDark,
+                        onNavigate: onNavigate,
+                      ),
+                      ..._pageActions(context, title, compact),
+                      const SizedBox(width: 10),
+                      IconButton.filledTonal(
+                        onPressed: themeProvider.toggleTheme,
+                        tooltip: 'Alternar tema',
+                        icon: Icon(
+                          isDark
+                              ? Icons.light_mode_rounded
+                              : Icons.dark_mode_rounded,
                         ),
-                        ..._pageActions(context, title, compact),
-                        SizedBox(width: compact ? 4 : 10),
-                        IconButton.filledTonal(
-                          onPressed: themeProvider.toggleTheme,
-                          tooltip: 'Alternar tema',
-                          icon: Icon(
-                            isDark
-                                ? Icons.light_mode_rounded
-                                : Icons.dark_mode_rounded,
-                          ),
-                        ),
-                      ],
-                    ),
+                      ),
+                    ],
                   ),
                 ),
               ),
@@ -195,33 +188,7 @@ class LelecoTopBar extends StatelessWidget {
 
       gap();
 
-      actions.add(
-        compact
-            ? IconButton.filledTonal(
-                onPressed: () {
-                  // Mantém o acesso ao modo de operação sem ocupar espaço.
-                  showDialog<void>(
-                    context: context,
-                    builder: (_) => AlertDialog(
-                      title: const Text('Modo de operação'),
-                      content: const SizedBox(
-                        width: 360,
-                        child: OperationModeButton(),
-                      ),
-                      actions: [
-                        FilledButton(
-                          onPressed: () => Navigator.of(context).pop(),
-                          child: const Text('Fechar'),
-                        ),
-                      ],
-                    ),
-                  );
-                },
-                tooltip: 'Modo de operação',
-                icon: const Icon(Icons.storefront_rounded),
-              )
-            : const OperationModeButton(),
-      );
+      actions.add(const OperationModeButton());
     }
 
     if (title == 'Estoque') {
