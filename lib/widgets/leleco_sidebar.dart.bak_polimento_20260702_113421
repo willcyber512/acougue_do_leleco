@@ -33,30 +33,12 @@ class LelecoSidebar extends StatelessWidget {
       duration: const Duration(milliseconds: 220),
       width: compact ? 78 : 245,
       height: double.infinity,
-      decoration: BoxDecoration(
-        color: isDark ? AppColors.darkSidebar : AppColors.lightSidebar,
-        border: Border(
-          right: BorderSide(
-            color: isDark
-                ? AppColors.beige100.withOpacity(0.08)
-                : AppColors.wine900.withOpacity(0.06),
-          ),
-        ),
-      ),
+      color: isDark ? AppColors.darkSidebar : AppColors.white,
       child: SafeArea(
         child: Column(
           children: [
             const SizedBox(height: 18),
-            Container(
-              padding: EdgeInsets.all(compact ? 4 : 8),
-              decoration: BoxDecoration(
-                color: isDark
-                    ? AppColors.beige100.withOpacity(0.04)
-                    : AppColors.wine900.withOpacity(0.03),
-                borderRadius: BorderRadius.circular(28),
-              ),
-              child: LelecoLogo(size: compact ? 54 : 92),
-            ),
+            LelecoLogo(size: compact ? 54 : 92),
             if (!compact) ...[
               const SizedBox(height: 12),
               Text(
@@ -65,7 +47,6 @@ class LelecoSidebar extends StatelessWidget {
                 style: Theme.of(context).textTheme.titleLarge?.copyWith(
                   fontWeight: FontWeight.w900,
                   height: 0.95,
-                  color: isDark ? AppColors.beige100 : null,
                 ),
               ),
             ],
@@ -129,7 +110,7 @@ class _SidebarItemTile extends StatelessWidget {
     final background = selected
         ? AppColors.wine700
         : isDark
-        ? AppColors.beige100.withOpacity(0.00)
+        ? Colors.transparent
         : Colors.transparent;
 
     return Tooltip(
@@ -141,16 +122,9 @@ class _SidebarItemTile extends StatelessWidget {
         child: InkWell(
           onTap: onTap,
           borderRadius: BorderRadius.circular(18),
-          child: AnimatedContainer(
-            duration: const Duration(milliseconds: 160),
+          child: Container(
             height: 52,
             padding: EdgeInsets.symmetric(horizontal: compact ? 0 : 16),
-            decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(18),
-              border: selected
-                  ? Border.all(color: AppColors.beige100.withOpacity(0.08))
-                  : null,
-            ),
             child: Row(
               mainAxisAlignment: compact
                   ? MainAxisAlignment.center
@@ -189,7 +163,7 @@ const List<String> _defaultLabels = [
   'Fiado',
   'Caixa',
   'Relatórios',
-  'Fornecedores',
+  'Anotações',
   'Alertas',
   'Ajustes',
 ];
@@ -201,7 +175,7 @@ const List<IconData> _defaultIcons = [
   Icons.group_rounded,
   Icons.payments_rounded,
   Icons.bar_chart_rounded,
-  Icons.local_shipping_rounded,
+  Icons.edit_note_rounded,
   Icons.notifications_rounded,
   Icons.settings_rounded,
 ];

@@ -40,31 +40,21 @@ class LelecoTopBar extends StatelessWidget {
         return Container(
           height: 84,
           padding: EdgeInsets.symmetric(horizontal: compact ? 14 : 24),
-          decoration: BoxDecoration(
-            color: isDark
-                ? AppColors.darkBackground.withOpacity(0.96)
-                : AppColors.lightBackground,
-            border: Border(
-              bottom: BorderSide(
-                color: isDark
-                    ? AppColors.beige100.withOpacity(0.07)
-                    : AppColors.wine900.withOpacity(0.05),
-              ),
-            ),
-          ),
           child: Row(
             children: [
               const LelecoLogo(size: 46),
               const SizedBox(width: 12),
               ConstrainedBox(
-                constraints: BoxConstraints(maxWidth: compact ? 105 : 180),
+                constraints: BoxConstraints(
+                  maxWidth: compact ? 105 : 180,
+                ),
                 child: Text(
                   title,
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                    fontWeight: FontWeight.w900,
-                  ),
+                        fontWeight: FontWeight.w900,
+                      ),
                 ),
               ),
               const SizedBox(width: 12),
@@ -86,11 +76,7 @@ class LelecoTopBar extends StatelessWidget {
                         IconButton.filledTonal(
                           onPressed: themeProvider.toggleTheme,
                           tooltip: 'Alternar tema',
-                          icon: Icon(
-                            isDark
-                                ? Icons.light_mode_rounded
-                                : Icons.dark_mode_rounded,
-                          ),
+                          icon: const Icon(Icons.dark_mode_rounded),
                         ),
                       ],
                     ),
@@ -104,7 +90,11 @@ class LelecoTopBar extends StatelessWidget {
     );
   }
 
-  List<Widget> _pageActions(BuildContext context, String title, bool compact) {
+  List<Widget> _pageActions(
+    BuildContext context,
+    String title,
+    bool compact,
+  ) {
     final actions = <Widget>[];
 
     void gap([double width = 8]) {
@@ -333,7 +323,10 @@ class _SearchAction extends StatelessWidget {
     if (compact) {
       return IconButton.filledTonal(
         onPressed: () {
-          showUniversalSearchDialog(context: context, onNavigate: onNavigate);
+          showUniversalSearchDialog(
+            context: context,
+            onNavigate: onNavigate,
+          );
         },
         tooltip: 'Pesquisa universal',
         icon: const Icon(Icons.search_rounded),
@@ -345,7 +338,10 @@ class _SearchAction extends StatelessWidget {
       child: TextField(
         readOnly: true,
         onTap: () {
-          showUniversalSearchDialog(context: context, onNavigate: onNavigate);
+          showUniversalSearchDialog(
+            context: context,
+            onNavigate: onNavigate,
+          );
         },
         decoration: InputDecoration(
           hintText: 'Pesquisar produto, cliente ou código...',

@@ -10,7 +10,7 @@ class AppColors {
   static const Color beige100 = Color(0xFFE8D8C4);
   static const Color white = Color(0xFFFFFDFB);
 
-  static const Color lightBackground = Color(0xFFFBF6F0);
+  static const Color lightBackground = Color(0xFFF7EFE5);
   static const Color lightSurface = Color(0xFFFFFBF7);
   static const Color lightSidebar = Color(0xFFFFFDFB);
 
