@@ -1707,21 +1707,6 @@ class _SupplierPurchasesHistory extends StatelessWidget {
                               fontSize: 12,
                             ),
                           ),
-                          const SizedBox(height: 2),
-                          Text(
-                            purchase.stockReplenished
-                                ? 'Entrou no estoque: ${purchase.stockProductName ?? purchase.itemName}'
-                                : 'Não entrou no estoque',
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                            style: TextStyle(
-                              color: purchase.stockReplenished
-                                  ? AppColors.success
-                                  : _mutedColor(context),
-                              fontWeight: FontWeight.w900,
-                              fontSize: 11,
-                            ),
-                          ),
                         ],
                       ),
                     ),
@@ -2961,11 +2946,6 @@ class _PurchaseDialogState extends State<_PurchaseDialog> {
       documentNumber: documentController.text.trim().isEmpty
           ? null
           : documentController.text.trim(),
-      stockReplenished: replenishStock && old == null && stockProduct != null,
-      stockProductId: replenishStock && old == null ? stockProductId : old?.stockProductId,
-      stockProductName: replenishStock && old == null
-          ? stockProduct?.name
-          : old?.stockProductName,
     );
 
     if (old == null) {

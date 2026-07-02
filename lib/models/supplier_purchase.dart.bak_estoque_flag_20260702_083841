@@ -16,9 +16,6 @@ class SupplierPurchase {
     required this.createdAt,
     required this.updatedAt,
     this.documentNumber,
-    this.stockReplenished = false,
-    this.stockProductId,
-    this.stockProductName,
   });
 
   final String id;
@@ -34,9 +31,6 @@ class SupplierPurchase {
   final DateTime createdAt;
   final DateTime updatedAt;
   final String? documentNumber;
-  final bool stockReplenished;
-  final String? stockProductId;
-  final String? stockProductName;
 
   double get totalCost => quantity * unitCost;
 
@@ -55,9 +49,6 @@ class SupplierPurchase {
       'createdAt': createdAt.toIso8601String(),
       'updatedAt': updatedAt.toIso8601String(),
       'documentNumber': documentNumber,
-      'stockReplenished': stockReplenished,
-      'stockProductId': stockProductId,
-      'stockProductName': stockProductName,
     };
   }
 
@@ -76,9 +67,6 @@ class SupplierPurchase {
       createdAt: _toDate(map['createdAt']),
       updatedAt: _toDate(map['updatedAt']),
       documentNumber: map['documentNumber']?.toString(),
-      stockReplenished: _toBool(map['stockReplenished']),
-      stockProductId: _nullableText(map['stockProductId']),
-      stockProductName: _nullableText(map['stockProductName']),
     );
   }
 
@@ -94,9 +82,6 @@ class SupplierPurchase {
     String? notes,
     DateTime? updatedAt,
     String? documentNumber,
-    bool? stockReplenished,
-    String? stockProductId,
-    String? stockProductName,
   }) {
     return SupplierPurchase(
       id: id,
@@ -112,9 +97,6 @@ class SupplierPurchase {
       createdAt: createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
       documentNumber: documentNumber ?? this.documentNumber,
-      stockReplenished: stockReplenished ?? this.stockReplenished,
-      stockProductId: stockProductId ?? this.stockProductId,
-      stockProductName: stockProductName ?? this.stockProductName,
     );
   }
 
@@ -129,16 +111,6 @@ class SupplierPurchase {
     if (value is bool) return value;
 
     return value?.toString().toLowerCase() == 'true';
-  }
-
-  static String? _nullableText(dynamic value) {
-    final text = value?.toString().trim();
-
-    if (text == null || text.isEmpty || text == 'null') {
-      return null;
-    }
-
-    return text;
   }
 
   static DateTime _toDate(dynamic value) {
