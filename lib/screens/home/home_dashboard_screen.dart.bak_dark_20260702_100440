@@ -1241,11 +1241,9 @@ Color _miniCardColor(BuildContext context) {
 }
 
 Color _borderColor(BuildContext context) {
-  final isDark = Theme.of(context).brightness == Brightness.dark;
-
-  return isDark
-      ? AppColors.beige100.withOpacity(0.10)
-      : AppColors.wine900.withOpacity(0.10);
+  return AppColors.wine900.withOpacity(
+    Theme.of(context).brightness == Brightness.dark ? 0.24 : 0.10,
+  );
 }
 
 Color _titleColor(BuildContext context) {
@@ -1262,7 +1260,7 @@ Color _bodyColor(BuildContext context) {
 
 Color _mutedColor(BuildContext context) {
   return Theme.of(context).brightness == Brightness.dark
-      ? AppColors.beige100.withOpacity(0.76)
+      ? AppColors.beige100.withOpacity(0.68)
       : AppColors.wine900.withOpacity(0.62);
 }
 

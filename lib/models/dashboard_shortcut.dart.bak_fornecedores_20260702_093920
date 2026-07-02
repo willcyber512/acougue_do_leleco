@@ -18,7 +18,7 @@ extension DashboardShortcutTypeInfo on DashboardShortcutType {
       case DashboardShortcutType.credit:
         return 'Cobrar fiado';
       case DashboardShortcutType.notes:
-        return 'Fornecedores';
+        return 'Anotações';
       case DashboardShortcutType.cash:
         return 'Caixa';
       case DashboardShortcutType.reports:
@@ -37,7 +37,7 @@ extension DashboardShortcutTypeInfo on DashboardShortcutType {
       case DashboardShortcutType.credit:
         return 'Consultar clientes devendo';
       case DashboardShortcutType.notes:
-        return 'Compras e fornecedores';
+        return 'Recados e lembretes';
       case DashboardShortcutType.cash:
         return 'Ver vendas do dia';
       case DashboardShortcutType.reports:
@@ -75,12 +75,18 @@ DashboardShortcutType dashboardShortcutTypeFromName(String? value) {
 }
 
 class DashboardShortcut {
-  const DashboardShortcut({required this.type, required this.enabled});
+  const DashboardShortcut({
+    required this.type,
+    required this.enabled,
+  });
 
   final DashboardShortcutType type;
   final bool enabled;
 
-  DashboardShortcut copyWith({DashboardShortcutType? type, bool? enabled}) {
+  DashboardShortcut copyWith({
+    DashboardShortcutType? type,
+    bool? enabled,
+  }) {
     return DashboardShortcut(
       type: type ?? this.type,
       enabled: enabled ?? this.enabled,
@@ -88,7 +94,10 @@ class DashboardShortcut {
   }
 
   Map<String, dynamic> toMap() {
-    return {'type': type.name, 'enabled': enabled};
+    return {
+      'type': type.name,
+      'enabled': enabled,
+    };
   }
 
   factory DashboardShortcut.fromMap(Map<String, dynamic> map) {

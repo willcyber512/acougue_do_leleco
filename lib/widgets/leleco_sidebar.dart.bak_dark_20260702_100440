@@ -33,7 +33,7 @@ class LelecoSidebar extends StatelessWidget {
       duration: const Duration(milliseconds: 220),
       width: compact ? 78 : 245,
       height: double.infinity,
-      color: isDark ? AppColors.darkSidebar : AppColors.white,
+      color: isDark ? AppColors.darkSurface : AppColors.white,
       child: SafeArea(
         child: Column(
           children: [
@@ -45,9 +45,9 @@ class LelecoSidebar extends StatelessWidget {
                 'Açougue do\nLeleco',
                 textAlign: TextAlign.center,
                 style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                  fontWeight: FontWeight.w900,
-                  height: 0.95,
-                ),
+                      fontWeight: FontWeight.w900,
+                      height: 0.95,
+                    ),
               ),
             ],
             const SizedBox(height: 22),
@@ -99,19 +99,8 @@ class _SidebarItemTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-
-    final foreground = selected
-        ? AppColors.beige100
-        : isDark
-        ? AppColors.beige100.withOpacity(0.72)
-        : AppColors.wine700;
-
-    final background = selected
-        ? AppColors.wine700
-        : isDark
-        ? Colors.transparent
-        : Colors.transparent;
+    final foreground = selected ? AppColors.beige100 : AppColors.wine700;
+    final background = selected ? AppColors.wine900 : Colors.transparent;
 
     return Tooltip(
       message: label,
@@ -124,13 +113,18 @@ class _SidebarItemTile extends StatelessWidget {
           borderRadius: BorderRadius.circular(18),
           child: Container(
             height: 52,
-            padding: EdgeInsets.symmetric(horizontal: compact ? 0 : 16),
+            padding: EdgeInsets.symmetric(
+              horizontal: compact ? 0 : 16,
+            ),
             child: Row(
-              mainAxisAlignment: compact
-                  ? MainAxisAlignment.center
-                  : MainAxisAlignment.start,
+              mainAxisAlignment:
+                  compact ? MainAxisAlignment.center : MainAxisAlignment.start,
               children: [
-                Icon(icon, color: foreground, size: 23),
+                Icon(
+                  icon,
+                  color: foreground,
+                  size: 23,
+                ),
                 if (!compact) ...[
                   const SizedBox(width: 14),
                   Expanded(
@@ -140,9 +134,8 @@ class _SidebarItemTile extends StatelessWidget {
                       overflow: TextOverflow.ellipsis,
                       style: TextStyle(
                         color: foreground,
-                        fontWeight: selected
-                            ? FontWeight.w900
-                            : FontWeight.w700,
+                        fontWeight:
+                            selected ? FontWeight.w900 : FontWeight.w700,
                       ),
                     ),
                   ),

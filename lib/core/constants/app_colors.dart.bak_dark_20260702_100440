@@ -14,10 +14,10 @@ class AppColors {
   static const Color lightSurface = Color(0xFFFFFBF7);
   static const Color lightSidebar = Color(0xFFFFFDFB);
 
-  static const Color darkBackground = Color(0xFF241518);
-  static const Color darkSurface = Color(0xFF302024);
-  static const Color darkSurfaceAlt = Color(0xFF3B272D);
-  static const Color darkSidebar = Color(0xFF1F1417);
+  static const Color darkBackground = Color(0xFF171012);
+  static const Color darkSurface = Color(0xFF24191B);
+  static const Color darkSurfaceAlt = Color(0xFF2F2023);
+  static const Color darkSidebar = Color(0xFF1C1516);
 
   static const Color success = Color(0xFF2E7D32);
   static const Color warning = Color(0xFFF9A825);
