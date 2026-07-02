@@ -2452,7 +2452,7 @@ class _PurchaseDialogState extends State<_PurchaseDialog> {
 
   List<Product> _stockProductsForSelectedUnit(List<Product> products) {
     final result = products.where((product) {
-      return !product.isDeleted;
+      return !product.isDeleted && product.unit == selectedUnit;
     }).toList();
 
     result.sort((a, b) {
@@ -2594,17 +2594,15 @@ class _PurchaseDialogState extends State<_PurchaseDialog> {
               },
             ),
             const SizedBox(height: 14),
-            if (widget.purchase != null || !replenishStock) ...[
-              TextField(
-                controller: itemController,
-                decoration: const InputDecoration(
-                  labelText: 'O que comprou',
-                  hintText: 'Ex: Alcatra, frango, costela...',
-                ),
-                onChanged: (_) => setState(() {}),
+            TextField(
+              controller: itemController,
+              decoration: const InputDecoration(
+                labelText: 'O que comprou',
+                hintText: 'Ex: Alcatra, frango, costela...',
               ),
-              const SizedBox(height: 12),
-            ],
+              onChanged: (_) => setState(() {}),
+            ),
+            const SizedBox(height: 12),
             if (widget.purchase == null)
               Consumer<InventoryProvider>(
                 builder: (context, inventory, _) {
@@ -2652,7 +2650,7 @@ class _PurchaseDialogState extends State<_PurchaseDialog> {
                             Align(
                               alignment: Alignment.centerLeft,
                               child: Text(
-                                'Nenhum produto ativo cadastrado no estoque. Cadastre o produto no estoque ou desligue a reposição automática.',
+                                'Nenhum produto no estoque com unidade ${selectedUnit.label}. Cadastre o produto no estoque ou troque a unidade.',
                                 style: TextStyle(
                                   color: AppColors.warning,
                                   fontWeight: FontWeight.w900,
@@ -2676,23 +2674,8 @@ class _PurchaseDialogState extends State<_PurchaseDialog> {
                                 );
                               }).toList(),
                               onChanged: (value) {
-                                Product? selectedProduct;
-
-                                for (final product in stockProducts) {
-                                  if (product.id == value) {
-                                    selectedProduct = product;
-                                    break;
-                                  }
-                                }
-
                                 setState(() {
                                   selectedStockProductId = value;
-
-                                  if (selectedProduct != null) {
-                                    itemController.text = selectedProduct.name;
-                                    selectedCategory = selectedProduct.category;
-                                    selectedUnit = selectedProduct.unit;
-                                  }
                                 });
                               },
                             ),
@@ -2882,30 +2865,9 @@ class _PurchaseDialogState extends State<_PurchaseDialog> {
 
   void _save() {
     final supplierName = supplierController.text.trim();
+    final itemName = itemController.text.trim();
     final quantity = _parsePurchaseDouble(quantityController.text);
     final unitCost = _parsePurchaseDouble(unitCostController.text);
-
-    final suppliers = context.read<SuppliersProvider>();
-    final inventory = context.read<InventoryProvider>();
-
-    final stockProductId = replenishStock && widget.purchase == null
-        ? _selectedStockProductIdForSave(inventory.products)
-        : null;
-
-    Product? stockProduct;
-
-    if (stockProductId != null) {
-      for (final product in inventory.products) {
-        if (product.id == stockProductId) {
-          stockProduct = product;
-          break;
-        }
-      }
-    }
-
-    final itemName = replenishStock && widget.purchase == null && stockProduct != null
-        ? stockProduct.name
-        : itemController.text.trim();
 
     if (supplierName.isEmpty || itemName.isEmpty) {
       _showSnack('Informe fornecedor e item comprado.');
@@ -2922,6 +2884,13 @@ class _PurchaseDialogState extends State<_PurchaseDialog> {
       return;
     }
 
+    final suppliers = context.read<SuppliersProvider>();
+    final inventory = context.read<InventoryProvider>();
+
+    final stockProductId = replenishStock && widget.purchase == null
+        ? _selectedStockProductIdForSave(inventory.products)
+        : null;
+
     if (replenishStock && widget.purchase == null && stockProductId == null) {
       _showSnack('Escolha um produto do estoque para receber a reposição.');
       return;
@@ -2934,8 +2903,8 @@ class _PurchaseDialogState extends State<_PurchaseDialog> {
       id: old?.id ?? const Uuid().v4(),
       supplierName: supplierName,
       itemName: itemName,
-      category: stockProduct?.category ?? selectedCategory,
-      unit: stockProduct?.unit ?? selectedUnit,
+      category: selectedCategory,
+      unit: selectedUnit,
       quantity: quantity,
       unitCost: unitCost,
       purchaseDate: purchaseDate,
