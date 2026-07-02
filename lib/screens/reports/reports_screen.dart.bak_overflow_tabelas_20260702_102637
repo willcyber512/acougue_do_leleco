@@ -25,7 +25,12 @@ enum _ReportSection {
   detailed,
 }
 
-enum _ReportPeriod { today, sevenDays, thirtyDays, all }
+enum _ReportPeriod {
+  today,
+  sevenDays,
+  thirtyDays,
+  all,
+}
 
 class ReportsScreen extends StatefulWidget {
   const ReportsScreen({super.key});
@@ -40,14 +45,13 @@ class _ReportsScreenState extends State<ReportsScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return Consumer4<
-      SalesProvider,
-      InventoryProvider,
-      CustomersProvider,
-      SuppliersProvider
-    >(
+    return Consumer4<SalesProvider, InventoryProvider, CustomersProvider,
+        SuppliersProvider>(
       builder: (context, salesProvider, inventory, customers, suppliers, _) {
-        final sales = _filterSalesByPeriod(salesProvider.sales, selectedPeriod);
+        final sales = _filterSalesByPeriod(
+          salesProvider.sales,
+          selectedPeriod,
+        );
 
         final purchases = _filterPurchasesByPeriod(
           suppliers.purchases,
@@ -171,7 +175,9 @@ class _ReportsHeader extends StatelessWidget {
                             children: [
                               Text(
                                 'Central de relatórios',
-                                style: Theme.of(context).textTheme.headlineSmall
+                                style: Theme.of(context)
+                                    .textTheme
+                                    .headlineSmall
                                     ?.copyWith(
                                       fontWeight: FontWeight.w900,
                                       color: _titleColor(context),
@@ -311,8 +317,8 @@ class _KpiGrid extends StatelessWidget {
         final columns = width >= 1100
             ? 3
             : width >= 720
-            ? 2
-            : 1;
+                ? 2
+                : 1;
 
         const gap = 14.0;
         final cardWidth = (width - gap * (columns - 1)) / columns;
@@ -413,7 +419,10 @@ class _KpiCard extends StatelessWidget {
           SizedBox(
             height: 26,
             child: CustomPaint(
-              painter: _SparkLinePainter(values, color: AppColors.wine700),
+              painter: _SparkLinePainter(
+                values,
+                color: AppColors.wine700,
+              ),
               size: Size.infinite,
             ),
           ),
@@ -424,7 +433,10 @@ class _KpiCard extends StatelessWidget {
 }
 
 class _ReportMenu extends StatelessWidget {
-  const _ReportMenu({required this.selected, required this.onChanged});
+  const _ReportMenu({
+    required this.selected,
+    required this.onChanged,
+  });
 
   final _ReportSection selected;
   final ValueChanged<_ReportSection> onChanged;
@@ -433,33 +445,13 @@ class _ReportMenu extends StatelessWidget {
   Widget build(BuildContext context) {
     final items = [
       _ReportOption(_ReportSection.overview, 'Geral', Icons.dashboard_rounded),
-      _ReportOption(
-        _ReportSection.products,
-        'Produtos',
-        Icons.shopping_basket_rounded,
-      ),
-      _ReportOption(
-        _ReportSection.categories,
-        'Categorias',
-        Icons.category_rounded,
-      ),
-      _ReportOption(
-        _ReportSection.payments,
-        'Pagamentos',
-        Icons.credit_card_rounded,
-      ),
-      _ReportOption(
-        _ReportSection.suppliers,
-        'Fornecedores',
-        Icons.local_shipping_rounded,
-      ),
+      _ReportOption(_ReportSection.products, 'Produtos', Icons.shopping_basket_rounded),
+      _ReportOption(_ReportSection.categories, 'Categorias', Icons.category_rounded),
+      _ReportOption(_ReportSection.payments, 'Pagamentos', Icons.credit_card_rounded),
+      _ReportOption(_ReportSection.suppliers, 'Fornecedores', Icons.local_shipping_rounded),
       _ReportOption(_ReportSection.lowStock, 'Estoque', Icons.warning_rounded),
       _ReportOption(_ReportSection.credit, 'Fiado', Icons.person_rounded),
-      _ReportOption(
-        _ReportSection.detailed,
-        'Detalhadas',
-        Icons.receipt_long_rounded,
-      ),
+      _ReportOption(_ReportSection.detailed, 'Detalhadas', Icons.receipt_long_rounded),
     ];
 
     return _LelecoPanel(
@@ -487,7 +479,9 @@ class _ReportMenu extends StatelessWidget {
                         : _chipBackground(context),
                     borderRadius: BorderRadius.circular(18),
                     border: Border.all(
-                      color: active ? AppColors.wine900 : _borderColor(context),
+                      color: active
+                          ? AppColors.wine900
+                          : _borderColor(context),
                     ),
                   ),
                   child: Row(
@@ -495,7 +489,9 @@ class _ReportMenu extends StatelessWidget {
                       Icon(
                         item.icon,
                         size: 19,
-                        color: active ? AppColors.beige100 : AppColors.wine700,
+                        color: active
+                            ? AppColors.beige100
+                            : AppColors.wine700,
                       ),
                       const SizedBox(width: 8),
                       Text(
@@ -609,7 +605,10 @@ class _ReportBody extends StatelessWidget {
           totalValue: _formatMoney(total),
           headers: const ['Forma', 'Total'],
           rows: PaymentMethod.values.map((method) {
-            return [method.label, _formatMoney(paymentTotals[method] ?? 0)];
+            return [
+              method.label,
+              _formatMoney(paymentTotals[method] ?? 0),
+            ];
           }).toList(),
           emptyText: 'Sem pagamentos nesse período.',
         );
@@ -620,14 +619,7 @@ class _ReportBody extends StatelessWidget {
           subtitle: 'Período: $periodLabel',
           totalLabel: 'Total comprado',
           totalValue: _formatMoney(totalSupplierPurchases),
-          headers: const [
-            'Data',
-            'Fornecedor',
-            'Item',
-            'Qtd',
-            'Total',
-            'Status',
-          ],
+          headers: const ['Data', 'Fornecedor', 'Item', 'Qtd', 'Total', 'Status'],
           rows: purchases.map((purchase) {
             return [
               _formatDate(purchase.purchaseDate),
@@ -679,14 +671,7 @@ class _ReportBody extends StatelessWidget {
           subtitle: 'Período: $periodLabel',
           totalLabel: 'Vendas',
           totalValue: sales.length.toString(),
-          headers: const [
-            'Venda',
-            'Data',
-            'Hora',
-            'Pagamento',
-            'Itens',
-            'Total',
-          ],
+          headers: const ['Venda', 'Data', 'Hora', 'Pagamento', 'Itens', 'Total'],
           rows: sales.map((sale) {
             final date = sale.createdAt as DateTime;
 
@@ -729,142 +714,74 @@ class _OverviewDashboard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final totalPayments = paymentTotals.values.fold<double>(0, (s, v) => s + v);
-    final averageTicket = salesCount == 0 ? 0.0 : revenue / salesCount;
-
-    final summary = _LelecoPanel(
-      padding: const EdgeInsets.all(18),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              _IconBadge(icon: Icons.analytics_rounded),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'Resumo financeiro',
-                      style: TextStyle(
-                        color: _titleColor(context),
-                        fontSize: 19,
-                        fontWeight: FontWeight.w900,
-                      ),
-                    ),
-                    const SizedBox(height: 3),
-                    Text(
-                      'Período: $periodLabel',
-                      style: TextStyle(
-                        color: _mutedColor(context),
-                        fontWeight: FontWeight.w700,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 16),
-          LayoutBuilder(
-            builder: (context, constraints) {
-              final width = constraints.maxWidth;
-              final columns = width >= 720
-                  ? 4
-                  : width >= 460
-                  ? 2
-                  : 1;
-
-              const gap = 10.0;
-              final cardWidth = (width - gap * (columns - 1)) / columns;
-
-              final cards = [
-                _OverviewMetricData(
-                  icon: Icons.payments_rounded,
-                  label: 'Faturamento',
-                  value: _formatMoney(revenue),
-                ),
-                _OverviewMetricData(
-                  icon: Icons.point_of_sale_rounded,
-                  label: 'Vendas',
-                  value: salesCount.toString(),
-                ),
-                _OverviewMetricData(
-                  icon: Icons.receipt_long_rounded,
-                  label: 'Ticket médio',
-                  value: _formatMoney(averageTicket),
-                ),
-                _OverviewMetricData(
-                  icon: Icons.local_shipping_rounded,
-                  label: 'Fornecedores',
-                  value: _formatMoney(totalSupplierPurchases),
-                ),
-              ];
-
-              return Wrap(
-                spacing: gap,
-                runSpacing: gap,
-                children: cards.map((card) {
-                  return SizedBox(
-                    width: cardWidth,
-                    child: _OverviewMetricTile(data: card),
-                  );
-                }).toList(),
-              );
-            },
-          ),
-        ],
-      ),
-    );
-
-    final payments = _BreakdownPanel(
-      title: 'Pagamentos',
-      total: totalPayments,
-      rows: PaymentMethod.values.map((method) {
-        return _MiniRow(method.label, _formatMoney(paymentTotals[method] ?? 0));
-      }).toList(),
-    );
-
-    final topProducts = _MiniListPanel(
-      title: 'Top produtos',
-      emptyText: 'Nenhum produto vendido.',
-      rows: productTotals.take(5).map((item) {
-        return _MiniRow(item.name, _formatMoney(item.total));
-      }).toList(),
-    );
-
-    final categories = _MiniListPanel(
-      title: 'Categorias',
-      emptyText: 'Nenhuma categoria vendida.',
-      rows: categoryTotals.take(5).map((item) {
-        return _MiniRow(item.category, _formatMoney(item.total));
-      }).toList(),
-    );
-
-    final suppliers = _MiniListPanel(
-      title: 'Fornecedores',
-      emptyText: 'Nenhuma compra registrada.',
-      rows: supplierTotals.take(5).map((item) {
-        return _MiniRow(item.supplierName, _formatMoney(item.total));
-      }).toList(),
-    );
 
     return LayoutBuilder(
       builder: (context, constraints) {
         final compact = constraints.maxWidth < 980;
 
+        final left = Column(
+          children: [
+            _ChartPanel(
+              title: 'Resumo financeiro',
+              subtitle: 'Período: $periodLabel',
+              totalLabel: 'Faturamento',
+              totalValue: _formatMoney(revenue),
+              values: productTotals.take(8).map((e) => e.total).toList(),
+            ),
+            const SizedBox(height: 14),
+            _InsightPanel(
+              revenue: revenue,
+              purchases: totalSupplierPurchases,
+              salesCount: salesCount,
+            ),
+          ],
+        );
+
+        final right = Column(
+          children: [
+            _BreakdownPanel(
+              title: 'Pagamentos',
+              total: totalPayments,
+              rows: PaymentMethod.values.map((method) {
+                return _MiniRow(
+                  method.label,
+                  _formatMoney(paymentTotals[method] ?? 0),
+                );
+              }).toList(),
+            ),
+            const SizedBox(height: 14),
+            _MiniListPanel(
+              title: 'Top produtos',
+              emptyText: 'Nenhum produto vendido.',
+              rows: productTotals.take(5).map((item) {
+                return _MiniRow(item.name, _formatMoney(item.total));
+              }).toList(),
+            ),
+            const SizedBox(height: 14),
+            _MiniListPanel(
+              title: 'Categorias',
+              emptyText: 'Nenhuma categoria vendida.',
+              rows: categoryTotals.take(5).map((item) {
+                return _MiniRow(item.category, _formatMoney(item.total));
+              }).toList(),
+            ),
+            const SizedBox(height: 14),
+            _MiniListPanel(
+              title: 'Fornecedores',
+              emptyText: 'Nenhuma compra registrada.',
+              rows: supplierTotals.take(5).map((item) {
+                return _MiniRow(item.supplierName, _formatMoney(item.total));
+              }).toList(),
+            ),
+          ],
+        );
+
         if (compact) {
           return Column(
             children: [
-              summary,
+              left,
               const SizedBox(height: 14),
-              payments,
-              const SizedBox(height: 14),
-              topProducts,
-              const SizedBox(height: 14),
-              categories,
-              const SizedBox(height: 14),
-              suppliers,
+              right,
             ],
           );
         }
@@ -872,94 +789,12 @@ class _OverviewDashboard extends StatelessWidget {
         return Row(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Expanded(
-              flex: 7,
-              child: Column(
-                children: [summary, const SizedBox(height: 14), topProducts],
-              ),
-            ),
+            Expanded(flex: 7, child: left),
             const SizedBox(width: 14),
-            Expanded(
-              flex: 5,
-              child: Column(
-                children: [
-                  payments,
-                  const SizedBox(height: 14),
-                  categories,
-                  const SizedBox(height: 14),
-                  suppliers,
-                ],
-              ),
-            ),
+            Expanded(flex: 5, child: right),
           ],
         );
       },
-    );
-  }
-}
-
-class _OverviewMetricData {
-  const _OverviewMetricData({
-    required this.icon,
-    required this.label,
-    required this.value,
-  });
-
-  final IconData icon;
-  final String label;
-  final String value;
-}
-
-class _OverviewMetricTile extends StatelessWidget {
-  const _OverviewMetricTile({required this.data});
-
-  final _OverviewMetricData data;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      height: 92,
-      padding: const EdgeInsets.all(13),
-      decoration: BoxDecoration(
-        color: _cardBackground(context),
-        borderRadius: BorderRadius.circular(18),
-        border: Border.all(color: _borderColor(context)),
-      ),
-      child: Row(
-        children: [
-          _IconBadge(icon: data.icon),
-          const SizedBox(width: 10),
-          Expanded(
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  data.value,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: TextStyle(
-                    color: _titleColor(context),
-                    fontWeight: FontWeight.w900,
-                    fontSize: 18,
-                  ),
-                ),
-                const SizedBox(height: 2),
-                Text(
-                  data.label,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: TextStyle(
-                    color: _mutedColor(context),
-                    fontWeight: FontWeight.w800,
-                    fontSize: 12,
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ],
-      ),
     );
   }
 }
@@ -1021,106 +856,44 @@ class _PanelHeader extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return LayoutBuilder(
-      builder: (context, constraints) {
-        final compact = constraints.maxWidth < 640;
-
-        final titleBlock = Row(
-          children: [
-            _IconBadge(icon: Icons.analytics_rounded),
-            const SizedBox(width: 12),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    title,
-                    maxLines: compact ? 2 : 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: TextStyle(
-                      color: _titleColor(context),
-                      fontSize: 18,
-                      fontWeight: FontWeight.w900,
-                    ),
-                  ),
-                  const SizedBox(height: 3),
-                  Text(
-                    subtitle,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: TextStyle(
-                      color: _mutedColor(context),
-                      fontWeight: FontWeight.w700,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ],
-        );
-
-        final totalBadge = Container(
-          constraints: BoxConstraints(
-            minWidth: compact ? 0 : 112,
-            maxWidth: compact ? constraints.maxWidth : 170,
-          ),
-          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-          decoration: BoxDecoration(
-            color: _tagBackground(context),
-            borderRadius: BorderRadius.circular(18),
-            border: Border.all(color: _borderColor(context)),
-          ),
+    return Row(
+      children: [
+        const _IconBadge(icon: Icons.analytics_rounded),
+        const SizedBox(width: 12),
+        Expanded(
           child: Column(
-            crossAxisAlignment: compact
-                ? CrossAxisAlignment.start
-                : CrossAxisAlignment.center,
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(
-                totalLabel,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
+                title,
                 style: TextStyle(
-                  color: _mutedColor(context),
-                  fontWeight: FontWeight.w800,
-                  fontSize: 12,
+                  color: _titleColor(context),
+                  fontWeight: FontWeight.w900,
+                  fontSize: 19,
                 ),
               ),
               const SizedBox(height: 3),
               Text(
-                totalValue,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
+                subtitle,
                 style: TextStyle(
-                  color: _titleColor(context),
-                  fontWeight: FontWeight.w900,
-                  fontSize: 17,
+                  color: _mutedColor(context),
+                  fontWeight: FontWeight.w700,
                 ),
               ),
             ],
           ),
-        );
-
-        if (compact) {
-          return Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [titleBlock, const SizedBox(height: 12), totalBadge],
-          );
-        }
-
-        return Row(
-          children: [
-            Expanded(child: titleBlock),
-            const SizedBox(width: 16),
-            totalBadge,
-          ],
-        );
-      },
+        ),
+        _TotalBadge(label: totalLabel, value: totalValue),
+      ],
     );
   }
 }
 
 class _TotalBadge extends StatelessWidget {
-  const _TotalBadge({required this.label, required this.value});
+  const _TotalBadge({
+    required this.label,
+    required this.value,
+  });
 
   final String label;
   final String value;
@@ -1247,9 +1020,7 @@ class _BreakdownPanel extends StatelessWidget {
                 height: 128,
                 child: CustomPaint(
                   painter: _DonutPainter(
-                    values: rows
-                        .map((row) => _moneyFromText(row.value))
-                        .toList(),
+                    values: rows.map((row) => _moneyFromText(row.value)).toList(),
                     primary: AppColors.wine900,
                     secondary: AppColors.wine700,
                     soft: AppColors.beige300,
@@ -1431,31 +1202,29 @@ class _InsightPanel extends StatelessWidget {
 }
 
 class _ReportTable extends StatelessWidget {
-  const _ReportTable({required this.headers, required this.rows});
+  const _ReportTable({
+    required this.headers,
+    required this.rows,
+  });
 
   final List<String> headers;
   final List<List<String>> rows;
 
   @override
   Widget build(BuildContext context) {
+    final minWidth = headers.length * 160.0;
+
     return LayoutBuilder(
       builder: (context, constraints) {
-        final columnCount = headers.isEmpty ? 1 : headers.length;
-        final minCellWidth = columnCount >= 6
-            ? 132.0
-            : columnCount >= 4
-            ? 150.0
-            : 190.0;
-
-        final tableWidth = math.max(
-          constraints.maxWidth,
-          columnCount * minCellWidth,
-        );
+        final available =
+            constraints.maxWidth.isFinite ? constraints.maxWidth : minWidth;
+        final tableWidth = math.max(available, minWidth);
 
         return ClipRRect(
           borderRadius: BorderRadius.circular(18),
-          child: DecoratedBox(
+          child: Container(
             decoration: BoxDecoration(
+              color: _cardBackground(context),
               border: Border.all(color: _borderColor(context)),
               borderRadius: BorderRadius.circular(18),
             ),
@@ -1465,10 +1234,20 @@ class _ReportTable extends StatelessWidget {
                 width: tableWidth,
                 child: Column(
                   children: [
-                    _ReportTableLine(cells: headers, header: true),
-                    ...rows.map(
-                      (row) => _ReportTableLine(cells: row, header: false),
+                    _ReportTableLine(
+                      cells: headers,
+                      header: true,
+                      tableWidth: tableWidth,
+                      striped: false,
                     ),
+                    ...rows.asMap().entries.map((entry) {
+                      return _ReportTableLine(
+                        cells: entry.value,
+                        header: false,
+                        tableWidth: tableWidth,
+                        striped: entry.key.isOdd,
+                      );
+                    }),
                   ],
                 ),
               ),
@@ -1481,52 +1260,67 @@ class _ReportTable extends StatelessWidget {
 }
 
 class _ReportTableLine extends StatelessWidget {
-  const _ReportTableLine({required this.cells, required this.header});
+  const _ReportTableLine({
+    required this.cells,
+    required this.header,
+    required this.tableWidth,
+    required this.striped,
+  });
 
   final List<String> cells;
   final bool header;
+  final double tableWidth;
+  final bool striped;
 
   @override
   Widget build(BuildContext context) {
-    final safeCells = cells.isEmpty ? const [''] : cells;
+    final background = header
+        ? AppColors.wine900
+        : striped
+            ? _stripeColor(context)
+            : _cardBackground(context);
 
-    return LayoutBuilder(
-      builder: (context, constraints) {
-        final cellWidth = constraints.maxWidth / safeCells.length;
+    final foreground = header ? AppColors.beige100 : _bodyColor(context);
 
-        return Container(
-          decoration: BoxDecoration(
-            color: header ? AppColors.wine900 : _cardBackground(context),
-            border: header
-                ? null
-                : Border(bottom: BorderSide(color: _borderColor(context))),
-          ),
-          child: Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: safeCells.map((cell) {
-              return SizedBox(
-                width: cellWidth,
-                child: Padding(
-                  padding: EdgeInsets.symmetric(
-                    horizontal: header ? 14 : 14,
-                    vertical: header ? 13 : 12,
-                  ),
-                  child: Text(
-                    cell,
-                    maxLines: header ? 1 : 2,
-                    overflow: TextOverflow.ellipsis,
-                    style: TextStyle(
-                      color: header ? AppColors.beige100 : _bodyColor(context),
-                      fontWeight: header ? FontWeight.w900 : FontWeight.w700,
-                      fontSize: header ? 13 : 13,
-                    ),
-                  ),
+    final firstWidth =
+        cells.length <= 2 ? tableWidth * 0.55 : tableWidth * 0.32;
+    final otherWidth = cells.length <= 1
+        ? tableWidth
+        : (tableWidth - firstWidth) / (cells.length - 1);
+
+    return Container(
+      width: tableWidth,
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 13),
+      decoration: BoxDecoration(
+        color: background,
+        border: header
+            ? null
+            : Border(top: BorderSide(color: _borderColor(context))),
+      ),
+      child: Row(
+        children: List.generate(cells.length, (index) {
+          final width = index == 0 ? firstWidth : otherWidth;
+
+          return SizedBox(
+            width: width - 10,
+            child: Padding(
+              padding: EdgeInsets.only(
+                right: index == cells.length - 1 ? 0 : 10,
+              ),
+              child: Text(
+                cells[index],
+                maxLines: header ? 1 : 2,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(
+                  color: foreground,
+                  fontWeight: header ? FontWeight.w900 : FontWeight.w700,
+                  fontSize: 13,
                 ),
-              );
-            }).toList(),
-          ),
-        );
-      },
+              ),
+            ),
+          );
+        }),
+      ),
     );
   }
 }
@@ -1682,7 +1476,8 @@ class _BarChartPainter extends CustomPainter {
       final x = i * (barWidth * 1.8) + barWidth * 0.35;
       final rect = Rect.fromLTWH(x, size.height - height, barWidth, height);
 
-      final paint = Paint()..color = color.withOpacity(0.88);
+      final paint = Paint()
+        ..color = color.withOpacity(0.88);
 
       canvas.drawRRect(
         RRect.fromRectAndRadius(rect, const Radius.circular(8)),
@@ -1787,13 +1582,9 @@ List<dynamic> _filterSalesByPeriod(List<dynamic> sales, _ReportPeriod period) {
       case _ReportPeriod.today:
         return _sameDay(createdAt, now);
       case _ReportPeriod.sevenDays:
-        return !createdAt.isBefore(
-          todayStart.subtract(const Duration(days: 6)),
-        );
+        return !createdAt.isBefore(todayStart.subtract(const Duration(days: 6)));
       case _ReportPeriod.thirtyDays:
-        return !createdAt.isBefore(
-          todayStart.subtract(const Duration(days: 29)),
-        );
+        return !createdAt.isBefore(todayStart.subtract(const Duration(days: 29)));
       case _ReportPeriod.all:
         return true;
     }
@@ -1837,7 +1628,10 @@ List<SupplierPurchase> _filterPurchasesByPeriod(
 }
 
 double _salesRevenue(List<dynamic> sales) {
-  return sales.fold<double>(0, (sum, sale) => sum + (sale.total as double));
+  return sales.fold<double>(
+    0,
+    (sum, sale) => sum + (sale.total as double),
+  );
 }
 
 Map<PaymentMethod, double> _paymentTotals(List<dynamic> sales) {
@@ -1971,15 +1765,21 @@ bool _isDark(BuildContext context) {
 }
 
 Color _pageBackground(BuildContext context) {
-  return _isDark(context) ? AppColors.darkBackground : const Color(0xFFFBF6F0);
+  return _isDark(context)
+      ? AppColors.darkBackground
+      : const Color(0xFFFBF6F0);
 }
 
 Color _sectionBackground(BuildContext context) {
-  return _isDark(context) ? const Color(0xFF21171A) : const Color(0xFFFBF6F0);
+  return _isDark(context)
+      ? const Color(0xFF21171A)
+      : const Color(0xFFFBF6F0);
 }
 
 Color _cardBackground(BuildContext context) {
-  return _isDark(context) ? const Color(0xFF2A1D21) : const Color(0xFFFBF6F0);
+  return _isDark(context)
+      ? const Color(0xFF2A1D21)
+      : const Color(0xFFFBF6F0);
 }
 
 Color _chipBackground(BuildContext context) {
@@ -2074,7 +1874,10 @@ class _ProductTotal {
   final double quantity;
   final double total;
 
-  _ProductTotal copyWith({double? quantity, double? total}) {
+  _ProductTotal copyWith({
+    double? quantity,
+    double? total,
+  }) {
     return _ProductTotal(
       name: name,
       quantity: quantity ?? this.quantity,
@@ -2094,7 +1897,10 @@ class _CategoryTotal {
   final double quantity;
   final double total;
 
-  _CategoryTotal copyWith({double? quantity, double? total}) {
+  _CategoryTotal copyWith({
+    double? quantity,
+    double? total,
+  }) {
     return _CategoryTotal(
       category: category,
       quantity: quantity ?? this.quantity,
@@ -2114,7 +1920,10 @@ class _SupplierTotal {
   final int count;
   final double total;
 
-  _SupplierTotal copyWith({int? count, double? total}) {
+  _SupplierTotal copyWith({
+    int? count,
+    double? total,
+  }) {
     return _SupplierTotal(
       supplierName: supplierName,
       count: count ?? this.count,
