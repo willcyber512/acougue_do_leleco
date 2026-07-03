@@ -10,7 +10,7 @@ import 'leleco_logo.dart';
 import 'operation_mode_button.dart';
 import 'ramuza_barcode_config_dialog.dart';
 import 'ramuza_barcode_history_dialog.dart';
-import 'ramuza_integration_center_dialog.dart';
+import 'ramuza_export_dialog.dart';
 import 'safe_restore_dialog.dart';
 import 'shortcuts_config_dialog.dart';
 import 'system_diagnostics_dialog.dart';
@@ -245,12 +245,12 @@ class LelecoTopBar extends StatelessWidget {
       actions.add(
         compact
             ? IconButton.filledTonal(
-                onPressed: () => showRamuzaIntegrationCenterDialog(context),
-                tooltip: 'Central Ramuza',
+                onPressed: () => showRamuzaExportDialog(context),
+                tooltip: 'Exportação Ramuza',
                 icon: const Icon(Icons.scale_rounded),
               )
             : FilledButton.icon(
-                onPressed: () => showRamuzaIntegrationCenterDialog(context),
+                onPressed: () => showRamuzaExportDialog(context),
                 icon: const Icon(Icons.scale_rounded),
                 label: const Text('Ramuza'),
               ),
