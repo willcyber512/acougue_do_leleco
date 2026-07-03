@@ -1,0 +1,16 @@
+RELATÓRIO DE VALIDAÇÃO RAMUZA
+Produtos: 4
+Erros: 0
+Avisos: 1
+
+ERROS: nenhum
+
+AVISOS:
+- Carvão 3kg: produto não está em kg. Será exportado como peça.
+
+ARQUIVOS GERADOS:
+- ramuza_plu_completo_com_cabecalho.csv (PLU completo CSV com cabeçalho)
+- ramuza_plu_completo_sem_cabecalho.csv (PLU completo CSV sem cabeçalho)
+- ramuza_plu_completo_tab.txt (PLU completo TXT por TAB)
+- ramuza_simples_codigo_nome_preco.csv (CSV simples código/nome/preço)
+- ramuza_minimo_plu_preco.csv (CSV mínimo PLU/preço)

@@ -1,0 +1,25 @@
+INSTRUÇÕES DE TESTE NO SOFTWARE RAMUZA
+
+1. Abra o software oficial da Ramuza no Windows.
+2. Faça backup antes de importar qualquer arquivo.
+3. Use Arquivo > Importar/Exportar > Excel/CSV ou Carregar TXT.
+4. Teste primeiro: ramuza_plu_completo_com_cabecalho.csv.
+5. Se o software não aceitar cabeçalho, teste: ramuza_plu_completo_sem_cabecalho.csv.
+6. Se ainda não aceitar, teste: ramuza_plu_completo_tab.txt.
+7. Depois de importar os PLUs, envie para a balança pelo próprio software Ramuza.
+8. Imprima uma etiqueta de teste.
+9. Leia a etiqueta no PDV do Açougue do Leleco.
+10. Se a etiqueta sair com outro padrão de código, ajuste em "Configurar leitura".
+
+PADRÃO PREPARADO NO APP
+
+Código interno do produto = PLU.
+Produtos em kg = Peso.
+Produtos em unidade/pacote = Peca.
+Decimal de preço = vírgula.
+Separador CSV = ponto e vírgula.
+
+OBSERVAÇÃO
+
+O manual mostra que o software da Ramuza trabalha com importação/exportação por TMS, Excel/CSV e TXT.
+O formato TMS parece ser backup próprio do software, então o app gera CSV/TXT para importação segura.
