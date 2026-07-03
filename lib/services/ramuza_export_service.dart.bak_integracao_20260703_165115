@@ -21,7 +21,7 @@ extension RamuzaExportFormatLabel on RamuzaExportFormat {
       case RamuzaExportFormat.simpleCsv:
         return 'CSV simples código/nome/preço';
       case RamuzaExportFormat.priceOnlyCsv:
-        return 'CSV mínimo PLU/preço';
+        return 'CSV básico preço';
     }
   }
 
@@ -36,22 +36,22 @@ extension RamuzaExportFormatLabel on RamuzaExportFormat {
       case RamuzaExportFormat.simpleCsv:
         return 'ramuza_simples_codigo_nome_preco.csv';
       case RamuzaExportFormat.priceOnlyCsv:
-        return 'ramuza_minimo_plu_preco.csv';
+        return 'ramuza_basico_preco.csv';
     }
   }
 
   String get description {
     switch (this) {
       case RamuzaExportFormat.pluCsvHeader:
-        return 'Formato principal para importar no software Ramuza via Excel/CSV, com campos de PLU, nome, tipo, preço, código, validade e setor.';
+        return 'Tenta seguir a estrutura de PLU com colunas: Número, Nome, Unidade, Preço, Código, Endereço, Imprimir data de e Validade.';
       case RamuzaExportFormat.pluCsvNoHeader:
-        return 'Mesmo formato principal, mas sem cabeçalho. Use se o importador não aceitar a primeira linha.';
+        return 'Mesmo formato completo, mas sem a primeira linha de cabeçalho.';
       case RamuzaExportFormat.pluTxtTab:
-        return 'Mesmo formato principal separado por TAB para testar em Carregar TXT.';
+        return 'Mesmo formato completo, mas separado por TAB. Alguns importadores aceitam melhor TXT/tabulado.';
       case RamuzaExportFormat.simpleCsv:
-        return 'Formato simples para teste manual: código, nome, unidade, preço e validade.';
+        return 'Formato simples para testar importação manual: código, nome, unidade, preço e validade.';
       case RamuzaExportFormat.priceOnlyCsv:
-        return 'Formato mínimo para importadores que pedem só PLU, descrição e preço.';
+        return 'Formato mínimo com código, nome e preço.';
     }
   }
 }
@@ -69,7 +69,10 @@ class RamuzaExportFile {
 }
 
 class RamuzaExportValidation {
-  const RamuzaExportValidation({required this.errors, required this.warnings});
+  const RamuzaExportValidation({
+    required this.errors,
+    required this.warnings,
+  });
 
   final List<String> errors;
   final List<String> warnings;
@@ -86,10 +89,6 @@ class RamuzaExportService {
     final warnings = <String>[];
     final seenCodes = <String, String>{};
 
-    if (products.isEmpty) {
-      errors.add('Selecione pelo menos um produto para exportar.');
-    }
-
     for (final product in products) {
       final code = _digitsOnly(product.code);
 
@@ -102,31 +101,15 @@ class RamuzaExportService {
       }
 
       if (product.salePrice <= 0) {
-        errors.add(
-          '${product.name}: preço de venda precisa ser maior que zero.',
-        );
+        errors.add('${product.name}: preço de venda precisa ser maior que zero.');
       }
 
       if (code.length > 6) {
-        warnings.add(
-          '${product.name}: código/PLU com mais de 6 dígitos. A balança pode não aceitar.',
-        );
-      }
-
-      if (code.length > 4) {
-        warnings.add(
-          '${product.name}: o leitor padrão está configurado para 4 dígitos de PLU. Ajuste em "Configurar leitura" se a balança imprimir mais dígitos.',
-        );
+        warnings.add('${product.name}: código/PLU com mais de 6 dígitos. A balança pode não aceitar.');
       }
 
       if (product.name.length > 40) {
         warnings.add('${product.name}: nome será cortado para 40 caracteres.');
-      }
-
-      if (product.unit != ProductUnit.kg) {
-        warnings.add(
-          '${product.name}: produto não está em kg. Será exportado como peça.',
-        );
       }
 
       if (seenCodes.containsKey(code)) {
@@ -138,7 +121,10 @@ class RamuzaExportService {
       }
     }
 
-    return RamuzaExportValidation(errors: errors, warnings: warnings);
+    return RamuzaExportValidation(
+      errors: errors,
+      warnings: warnings,
+    );
   }
 
   static RamuzaExportFile buildFile({
@@ -148,36 +134,36 @@ class RamuzaExportService {
     required bool removeAccents,
   }) {
     final content = switch (format) {
-      RamuzaExportFormat.pluCsvHeader => _buildPluFile(
-        products: products,
-        validityDays: validityDays,
-        removeAccents: removeAccents,
-        includeHeader: true,
-        separator: ';',
-      ),
-      RamuzaExportFormat.pluCsvNoHeader => _buildPluFile(
-        products: products,
-        validityDays: validityDays,
-        removeAccents: removeAccents,
-        includeHeader: false,
-        separator: ';',
-      ),
-      RamuzaExportFormat.pluTxtTab => _buildPluFile(
-        products: products,
-        validityDays: validityDays,
-        removeAccents: removeAccents,
-        includeHeader: false,
-        separator: '\t',
-      ),
+      RamuzaExportFormat.pluCsvHeader => _buildPluCsv(
+          products: products,
+          validityDays: validityDays,
+          removeAccents: removeAccents,
+          includeHeader: true,
+          separator: ';',
+        ),
+      RamuzaExportFormat.pluCsvNoHeader => _buildPluCsv(
+          products: products,
+          validityDays: validityDays,
+          removeAccents: removeAccents,
+          includeHeader: false,
+          separator: ';',
+        ),
+      RamuzaExportFormat.pluTxtTab => _buildPluCsv(
+          products: products,
+          validityDays: validityDays,
+          removeAccents: removeAccents,
+          includeHeader: false,
+          separator: '\t',
+        ),
       RamuzaExportFormat.simpleCsv => _buildSimpleCsv(
-        products: products,
-        validityDays: validityDays,
-        removeAccents: removeAccents,
-      ),
+          products: products,
+          validityDays: validityDays,
+          removeAccents: removeAccents,
+        ),
       RamuzaExportFormat.priceOnlyCsv => _buildPriceOnlyCsv(
-        products: products,
-        removeAccents: removeAccents,
-      ),
+          products: products,
+          removeAccents: removeAccents,
+        ),
     };
 
     return RamuzaExportFile(
@@ -239,34 +225,21 @@ class RamuzaExportService {
     return '''
 INSTRUÇÕES DE TESTE NO SOFTWARE RAMUZA
 
-1. Abra o software oficial da Ramuza no Windows.
+1. Abra o software da Ramuza no Windows.
 2. Faça backup antes de importar qualquer arquivo.
-3. Use Arquivo > Importar/Exportar > Excel/CSV ou Carregar TXT.
-4. Teste primeiro: ramuza_plu_completo_com_cabecalho.csv.
-5. Se o software não aceitar cabeçalho, teste: ramuza_plu_completo_sem_cabecalho.csv.
-6. Se ainda não aceitar, teste: ramuza_plu_completo_tab.txt.
-7. Depois de importar os PLUs, envie para a balança pelo próprio software Ramuza.
-8. Imprima uma etiqueta de teste.
-9. Leia a etiqueta no PDV do Açougue do Leleco.
-10. Se a etiqueta sair com outro padrão de código, ajuste em "Configurar leitura".
+3. Procure a área de PLU/produtos.
+4. Teste primeiro o formato "PLU completo CSV com cabeçalho".
+5. Se não importar, teste o formato "PLU completo CSV sem cabeçalho".
+6. Se ainda não funcionar, teste o TXT por TAB.
+7. Depois de importar, envie os PLUs para a balança pelo próprio software Ramuza.
+8. Imprima uma etiqueta de teste e leia no PDV do sistema.
 
-PADRÃO PREPARADO NO APP
-
-Código interno do produto = PLU.
-Produtos em kg = Peso.
-Produtos em unidade/pacote = Peca.
-Decimal de preço = vírgula.
-Separador CSV = ponto e vírgula.
-
-OBSERVAÇÃO
-
-O manual mostra que o software da Ramuza trabalha com importação/exportação por TMS, Excel/CSV e TXT.
-O formato TMS parece ser backup próprio do software, então o app gera CSV/TXT para importação segura.
-'''
-        .trim();
+Observação:
+Este gerador prepara os dados em vários layouts. A confirmação final depende do importador do software oficial da Ramuza instalado no Windows.
+'''.trim();
   }
 
-  static String _buildPluFile({
+  static String _buildPluCsv({
     required List<Product> products,
     required int validityDays,
     required bool removeAccents,
@@ -278,43 +251,36 @@ O formato TMS parece ser backup próprio do software, então o app gera CSV/TXT 
     if (includeHeader) {
       buffer.writeln(
         [
-          'NumeroPLU',
+          'Número',
           'Nome',
-          'Tipo',
-          'PrecoUnitario',
-          'CodigoProduto',
-          'EAN13Fornecedor',
-          'ValidadeDias',
-          'Setor',
-          'SubSetor',
-          'Lote',
-          'DataImpressao',
+          'Unidade',
+          'Preço',
+          'Código',
+          'Endereço',
+          'Imprimir data de',
+          'Validade',
         ].join(separator),
       );
     }
 
     for (var index = 0; index < products.length; index++) {
       final product = products[index];
-      final plu = _pluNumber(product, index);
 
       buffer.writeln(
         [
-          plu,
+          _pluNumber(product, index),
           _cleanText(product.name, removeAccents: removeAccents, max: 40),
           _scaleUnit(product.unit),
           _formatMoney(product.salePrice),
           _digitsOnly(product.code),
-          '',
-          validityDays.toString(),
-          '1',
-          '1',
-          '0',
+          _pluNumber(product, index),
           'Pesagem',
+          validityDays.toString(),
         ].join(separator),
       );
     }
 
-    return buffer.toString().trimRight();
+    return buffer.toString().trim();
   }
 
   static String _buildSimpleCsv({
@@ -338,7 +304,7 @@ O formato TMS parece ser backup próprio do software, então o app gera CSV/TXT 
       );
     }
 
-    return buffer.toString().trimRight();
+    return buffer.toString().trim();
   }
 
   static String _buildPriceOnlyCsv({
@@ -347,7 +313,7 @@ O formato TMS parece ser backup próprio do software, então o app gera CSV/TXT 
   }) {
     final buffer = StringBuffer();
 
-    buffer.writeln('PLU;Descricao;Preco');
+    buffer.writeln('Codigo;Nome;Preco');
 
     for (final product in products) {
       buffer.writeln(
@@ -359,7 +325,7 @@ O formato TMS parece ser backup próprio do software, então o app gera CSV/TXT 
       );
     }
 
-    return buffer.toString().trimRight();
+    return buffer.toString().trim();
   }
 
   static String _pluNumber(Product product, int index) {
@@ -377,8 +343,7 @@ O formato TMS parece ser backup próprio do software, então o app gera CSV/TXT 
     switch (unit) {
       case ProductUnit.kg:
         return 'Peso';
-      case ProductUnit.unidade:
-      case ProductUnit.pacote:
+      default:
         return 'Peca';
     }
   }

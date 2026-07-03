@@ -30,9 +30,15 @@ class SalesScreen extends StatelessWidget {
           return SingleChildScrollView(
             child: Column(
               children: const [
-                SizedBox(height: 560, child: _ProductsPanel()),
+                SizedBox(
+                  height: 560,
+                  child: _ProductsPanel(),
+                ),
                 SizedBox(height: 14),
-                SizedBox(height: 520, child: _CartPanel()),
+                SizedBox(
+                  height: 520,
+                  child: _CartPanel(),
+                ),
               ],
             ),
           );
@@ -40,9 +46,15 @@ class SalesScreen extends StatelessWidget {
 
         return const Row(
           children: [
-            Expanded(flex: 7, child: _ProductsPanel()),
+            Expanded(
+              flex: 7,
+              child: _ProductsPanel(),
+            ),
             SizedBox(width: 18),
-            Expanded(flex: 4, child: _CartPanel()),
+            Expanded(
+              flex: 4,
+              child: _CartPanel(),
+            ),
           ],
         );
       },
@@ -65,7 +77,10 @@ class _ProductsPanel extends StatelessWidget {
         );
 
         final products = parsedBarcode == null
-            ? _filterProducts(inventory.products, sales.searchTerm)
+            ? _filterProducts(
+                inventory.products,
+                sales.searchTerm,
+              )
             : _filterProductsForRamuzaCode(
                 inventory.products,
                 parsedBarcode.productCode,
@@ -100,11 +115,11 @@ class _ProductsPanel extends StatelessWidget {
                       itemCount: products.length,
                       gridDelegate:
                           const SliverGridDelegateWithMaxCrossAxisExtent(
-                            maxCrossAxisExtent: 270,
-                            mainAxisExtent: 230,
-                            crossAxisSpacing: 14,
-                            mainAxisSpacing: 14,
-                          ),
+                        maxCrossAxisExtent: 270,
+                        mainAxisExtent: 230,
+                        crossAxisSpacing: 14,
+                        mainAxisSpacing: 14,
+                      ),
                       itemBuilder: (context, index) {
                         return _ProductSaleCard(product: products[index]);
                       },
@@ -117,7 +132,7 @@ class _ProductsPanel extends StatelessWidget {
   }
 }
 
-class _BarcodeSearchField extends StatefulWidget {
+class _BarcodeSearchField extends StatelessWidget {
   const _BarcodeSearchField({
     required this.value,
     required this.onChanged,
@@ -129,71 +144,16 @@ class _BarcodeSearchField extends StatefulWidget {
   final ValueChanged<String> onSubmitted;
 
   @override
-  State<_BarcodeSearchField> createState() => _BarcodeSearchFieldState();
-}
-
-class _BarcodeSearchFieldState extends State<_BarcodeSearchField> {
-  late final TextEditingController controller;
-  late final FocusNode focusNode;
-
-  @override
-  void initState() {
-    super.initState();
-
-    controller = TextEditingController(text: widget.value);
-    focusNode = FocusNode();
-
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (!mounted) return;
-      focusNode.requestFocus();
-    });
-  }
-
-  @override
-  void didUpdateWidget(covariant _BarcodeSearchField oldWidget) {
-    super.didUpdateWidget(oldWidget);
-
-    if (widget.value != controller.text) {
-      controller.text = widget.value;
-      controller.selection = TextSelection.collapsed(
-        offset: controller.text.length,
-      );
-    }
-
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (!mounted) return;
-      if (!focusNode.hasFocus) {
-        focusNode.requestFocus();
-      }
-    });
-  }
-
-  @override
-  void dispose() {
-    controller.dispose();
-    focusNode.dispose();
-    super.dispose();
-  }
-
-  @override
   Widget build(BuildContext context) {
     return Card(
       child: Padding(
         padding: const EdgeInsets.all(18),
         child: TextField(
           autofocus: true,
-          focusNode: focusNode,
-          controller: controller,
-          onTap: focusNode.requestFocus,
-          onChanged: widget.onChanged,
-          onSubmitted: (value) {
-            widget.onSubmitted(value);
-
-            WidgetsBinding.instance.addPostFrameCallback((_) {
-              if (!mounted) return;
-              focusNode.requestFocus();
-            });
-          },
+          controller: TextEditingController(text: value)
+            ..selection = TextSelection.collapsed(offset: value.length),
+          onChanged: onChanged,
+          onSubmitted: onSubmitted,
           decoration: InputDecoration(
             hintText: 'Digite ou leia o código do produto...',
             prefixIcon: const Icon(Icons.qr_code_scanner_rounded),
@@ -277,9 +237,9 @@ class _ProductSaleCard extends StatelessWidget {
                   product.name,
                   maxLines: 2,
                   overflow: TextOverflow.ellipsis,
-                  style: Theme.of(
-                    context,
-                  ).textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w900),
+                  style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                        fontWeight: FontWeight.w900,
+                      ),
                 ),
                 const SizedBox(height: 5),
                 Text(
@@ -310,8 +270,7 @@ class _ProductSaleCard extends StatelessWidget {
                       child: SizedBox(
                         height: 32,
                         child: OutlinedButton(
-                          onPressed: () =>
-                              _openQuantityDialog(context, product),
+                          onPressed: () => _openQuantityDialog(context, product),
                           style: OutlinedButton.styleFrom(
                             padding: EdgeInsets.zero,
                           ),
@@ -373,8 +332,8 @@ class _CartPanel extends StatelessWidget {
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                         style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                          fontWeight: FontWeight.w900,
-                        ),
+                              fontWeight: FontWeight.w900,
+                            ),
                       ),
                     ),
                     const SizedBox(width: 8),
@@ -413,11 +372,7 @@ class _CartPanel extends StatelessWidget {
                       child: OutlinedButton.icon(
                         onPressed: sales.hasItems ? sales.clearCart : null,
                         icon: const Icon(Icons.delete_outline_rounded),
-                        label: const Text(
-                          'Limpar',
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                        ),
+                        label: const Text('Limpar', maxLines: 1, overflow: TextOverflow.ellipsis),
                       ),
                     ),
                     const SizedBox(width: 12),
@@ -426,15 +381,14 @@ class _CartPanel extends StatelessWidget {
                       child: FilledButton.icon(
                         onPressed: sales.hasItems
                             ? () async {
-                                final inventory = context
-                                    .read<InventoryProvider>();
-                                final customersProvider = context
-                                    .read<CustomersProvider>();
+                                final inventory =
+                                    context.read<InventoryProvider>();
+                                final customersProvider =
+                                    context.read<CustomersProvider>();
 
                                 Customer? selectedCustomer;
 
-                                if (sales.paymentMethod ==
-                                    PaymentMethod.fiado) {
+                                if (sales.paymentMethod == PaymentMethod.fiado) {
                                   selectedCustomer =
                                       await _selectCustomerForFiado(context);
 
@@ -443,8 +397,8 @@ class _CartPanel extends StatelessWidget {
                                   }
                                 }
 
-                                final validationError = inventory
-                                    .validateSaleItems(sales.items);
+                                final validationError =
+                                    inventory.validateSaleItems(sales.items);
 
                                 if (validationError != null) {
                                   _showMessage(context, validationError);
@@ -464,9 +418,7 @@ class _CartPanel extends StatelessWidget {
                                   return;
                                 }
 
-                                final stockOk = inventory.deductSaleRecord(
-                                  sale,
-                                );
+                                final stockOk = inventory.deductSaleRecord(sale);
 
                                 if (!stockOk) {
                                   _showMessage(
@@ -497,11 +449,7 @@ class _CartPanel extends StatelessWidget {
                               }
                             : null,
                         icon: const Icon(Icons.check_circle_rounded),
-                        label: const Text(
-                          'Finalizar',
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                        ),
+                        label: const Text('Finalizar', maxLines: 1, overflow: TextOverflow.ellipsis),
                       ),
                     ),
                   ],
@@ -619,7 +567,10 @@ class _CartItemTile extends StatelessWidget {
 }
 
 class _PaymentSelector extends StatelessWidget {
-  const _PaymentSelector({required this.selected, required this.onChanged});
+  const _PaymentSelector({
+    required this.selected,
+    required this.onChanged,
+  });
 
   final PaymentMethod selected;
   final ValueChanged<PaymentMethod> onChanged;
@@ -637,7 +588,10 @@ class _PaymentSelector extends StatelessWidget {
         ),
       ),
       items: PaymentMethod.values.map((method) {
-        return DropdownMenuItem(value: method, child: Text(method.label));
+        return DropdownMenuItem(
+          value: method,
+          child: Text(method.label),
+        );
       }).toList(),
       onChanged: (value) {
         if (value == null) return;
@@ -675,9 +629,9 @@ class _TotalBox extends StatelessWidget {
           Text(
             _formatMoney(total),
             style: Theme.of(context).textTheme.headlineMedium?.copyWith(
-              color: AppColors.beige100,
-              fontWeight: FontWeight.w900,
-            ),
+                  color: AppColors.beige100,
+                  fontWeight: FontWeight.w900,
+                ),
           ),
         ],
       ),
@@ -690,20 +644,27 @@ class _EmptyCart extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return const Center(child: Text('Adicione produtos para iniciar a venda.'));
+    return const Center(
+      child: Text('Adicione produtos para iniciar a venda.'),
+    );
   }
 }
 
 class _EmptyProducts extends StatelessWidget {
-  const _EmptyProducts({required this.message});
+  const _EmptyProducts({
+    required this.message,
+  });
 
   final String message;
 
   @override
   Widget build(BuildContext context) {
-    return Center(child: Text(message));
+    return Center(
+      child: Text(message),
+    );
   }
 }
+
 
 Future<void> _handleSalesInput(BuildContext context, String value) async {
   final inventory = context.read<InventoryProvider>();
@@ -734,8 +695,7 @@ Future<void> _handleSalesInput(BuildContext context, String value) async {
           parsed: parsed,
           product: null,
           status: RamuzaBarcodeStatus.canceledQuickRegister,
-          message:
-              'PLU ${parsed.productCode} não cadastrado. Cadastro rápido cancelado.',
+          message: 'PLU ${parsed.productCode} não cadastrado. Cadastro rápido cancelado.',
           screen: 'PDV',
         );
 
@@ -817,7 +777,10 @@ Future<void> _handleSalesInput(BuildContext context, String value) async {
         quantity: quantity,
       );
 
-      _showMessage(context, 'Etiqueta lida: ${product.name}. $error');
+      _showMessage(
+        context,
+        'Etiqueta lida: ${product.name}. $error',
+      );
 
       sales.setSearchTerm('');
       return;
@@ -872,20 +835,20 @@ void _logRamuzaBarcodeRead({
   final now = DateTime.now();
 
   context.read<RamuzaBarcodeLogProvider>().addEvent(
-    RamuzaBarcodeEvent(
-      id: now.microsecondsSinceEpoch.toString(),
-      rawBarcode: parsed.raw,
-      digits: parsed.digits,
-      productCode: parsed.productCode,
-      productName: product?.name,
-      quantity: quantity,
-      totalPrice: parsed.totalPrice,
-      status: status,
-      message: message,
-      screen: screen,
-      createdAt: now,
-    ),
-  );
+        RamuzaBarcodeEvent(
+          id: now.microsecondsSinceEpoch.toString(),
+          rawBarcode: parsed.raw,
+          digits: parsed.digits,
+          productCode: parsed.productCode,
+          productName: product?.name,
+          quantity: quantity,
+          totalPrice: parsed.totalPrice,
+          status: status,
+          message: message,
+          screen: screen,
+          createdAt: now,
+        ),
+      );
 }
 
 Product? _findByRamuzaCode(List<Product> products, String code) {
@@ -911,7 +874,10 @@ String _normalizeNumericCode(String value) {
   return parsed.toString();
 }
 
-Future<void> _openQuantityDialog(BuildContext context, Product product) async {
+Future<void> _openQuantityDialog(
+  BuildContext context,
+  Product product,
+) async {
   final sales = context.read<SalesProvider>();
   final quantityController = TextEditingController(
     text: product.unit == ProductUnit.kg ? '1,000' : '1',
@@ -938,9 +904,8 @@ Future<void> _openQuantityDialog(BuildContext context, Product product) async {
                 keyboardType: TextInputType.number,
                 decoration: InputDecoration(
                   labelText: 'Quantidade (${product.unit.label})',
-                  hintText: product.unit == ProductUnit.kg
-                      ? 'Ex: 1,250'
-                      : 'Ex: 2',
+                  hintText:
+                      product.unit == ProductUnit.kg ? 'Ex: 1,250' : 'Ex: 2',
                   suffixText: product.unit.label,
                 ),
                 onSubmitted: (_) {
@@ -1044,9 +1009,8 @@ Future<void> _openCartQuantityDialog(
                 keyboardType: TextInputType.number,
                 decoration: InputDecoration(
                   labelText: 'Nova quantidade (${product.unit.label})',
-                  hintText: product.unit == ProductUnit.kg
-                      ? 'Ex: 0,750'
-                      : 'Ex: 3',
+                  hintText:
+                      product.unit == ProductUnit.kg ? 'Ex: 0,750' : 'Ex: 3',
                   suffixText: product.unit.label,
                 ),
                 onSubmitted: (_) {
@@ -1078,11 +1042,7 @@ Future<void> _openCartQuantityDialog(
               );
             },
             icon: const Icon(Icons.save_rounded),
-            label: const Text(
-              'Salvar',
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-            ),
+            label: const Text('Salvar', maxLines: 1, overflow: TextOverflow.ellipsis),
           ),
         ],
       );
@@ -1157,9 +1117,7 @@ Future<Customer?> _selectCustomerForFiado(BuildContext context) async {
                       separatorBuilder: (_, __) => const SizedBox(height: 10),
                       itemBuilder: (context, index) {
                         final customer = customers[index];
-                        final balance = provider.balanceForCustomer(
-                          customer.id,
-                        );
+                        final balance = provider.balanceForCustomer(customer.id);
 
                         return Card(
                           child: ListTile(
@@ -1250,12 +1208,14 @@ Product? _findByCodeOrName(List<Product> products, String value) {
   if (term.isEmpty) return null;
 
   try {
-    return products.firstWhere((product) {
-      return !product.isDeleted &&
-          product.stockQuantity > 0 &&
-          (product.code.toLowerCase() == term ||
-              product.name.toLowerCase() == term);
-    });
+    return products.firstWhere(
+      (product) {
+        return !product.isDeleted &&
+            product.stockQuantity > 0 &&
+            (product.code.toLowerCase() == term ||
+                product.name.toLowerCase() == term);
+      },
+    );
   } catch (_) {
     return null;
   }
@@ -1264,7 +1224,9 @@ Product? _findByCodeOrName(List<Product> products, String value) {
 void _showMessage(BuildContext context, String message) {
   ScaffoldMessenger.of(context)
     ..clearSnackBars()
-    ..showSnackBar(SnackBar(content: Text(message)));
+    ..showSnackBar(
+      SnackBar(content: Text(message)),
+    );
 }
 
 String _formatMoney(double value) {
