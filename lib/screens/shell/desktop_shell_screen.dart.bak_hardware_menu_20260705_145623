@@ -11,7 +11,6 @@ import '../inventory/inventory_screen.dart';
 import '../reports/reports_screen.dart';
 import '../sales/sales_screen.dart';
 import '../settings/settings_screen.dart';
-import '../settings/hardware_center_screen.dart';
 import '../suppliers/suppliers_screen.dart';
 
 class DesktopShellScreen extends StatefulWidget {
@@ -33,7 +32,6 @@ class _DesktopShellScreenState extends State<DesktopShellScreen> {
     'Relatórios',
     'Fornecedores',
     'Alertas',
-    'Hardware',
     'Ajustes',
   ];
 
@@ -46,7 +44,6 @@ class _DesktopShellScreenState extends State<DesktopShellScreen> {
     Icons.bar_chart_rounded,
     Icons.local_shipping_rounded,
     Icons.notifications_rounded,
-    Icons.devices_other_rounded,
     Icons.settings_rounded,
   ];
 
@@ -128,10 +125,6 @@ class _DesktopShellScreenState extends State<DesktopShellScreen> {
     }
 
     if (index == 8) {
-      return const HardwareCenterScreen(showAppBar: false);
-    }
-
-    if (index == 9) {
       return const SettingsScreen();
     }
 

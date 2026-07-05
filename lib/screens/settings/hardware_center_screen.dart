@@ -1,0 +1,163 @@
+import 'package:flutter/material.dart';
+
+import '../sales/quick_weight_sale_screen.dart';
+import 'scale_integration_screen.dart';
+
+class HardwareCenterScreen extends StatelessWidget {
+  const HardwareCenterScreen({
+    super.key,
+    this.showAppBar = true,
+  });
+
+  final bool showAppBar;
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: showAppBar
+          ? AppBar(
+              title: const Text('Central de Hardware'),
+            )
+          : null,
+      body: ListView(
+        padding: const EdgeInsets.all(16),
+        children: [
+          const Text(
+            'Equipamentos do açougue',
+            style: TextStyle(
+              fontSize: 22,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+          const SizedBox(height: 8),
+          const Text(
+            'Área para testar e configurar balança, leitor USB e modos de emergência.',
+          ),
+          const SizedBox(height: 16),
+          _HardwareCard(
+            icon: Icons.scale,
+            title: 'Ramuza Atena II',
+            subtitle: 'Testar conexão, simular envio de PLU e preparar integração com a balança.',
+            buttonText: 'Abrir integração',
+            onTap: () {
+              Navigator.of(context).push(
+                MaterialPageRoute(
+                  builder: (_) => const ScaleIntegrationScreen(),
+                ),
+              );
+            },
+          ),
+          const SizedBox(height: 12),
+          _HardwareCard(
+            icon: Icons.point_of_sale,
+            title: 'Venda rápida por peso',
+            subtitle: 'Modo manual para vender mesmo se o teclado da balança estiver com defeito.',
+            buttonText: 'Abrir venda por peso',
+            onTap: () {
+              Navigator.of(context).push(
+                MaterialPageRoute(
+                  builder: (_) => const QuickWeightSaleScreen(),
+                ),
+              );
+            },
+          ),
+          const SizedBox(height: 12),
+          const _InfoCard(),
+        ],
+      ),
+    );
+  }
+}
+
+class _HardwareCard extends StatelessWidget {
+  final IconData icon;
+  final String title;
+  final String subtitle;
+  final String buttonText;
+  final VoidCallback onTap;
+
+  const _HardwareCard({
+    required this.icon,
+    required this.title,
+    required this.subtitle,
+    required this.buttonText,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Card(
+      child: InkWell(
+        borderRadius: BorderRadius.circular(12),
+        onTap: onTap,
+        child: Padding(
+          padding: const EdgeInsets.all(16),
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              CircleAvatar(
+                child: Icon(icon),
+              ),
+              const SizedBox(width: 14),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      title,
+                      style: const TextStyle(
+                        fontSize: 17,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                    const SizedBox(height: 6),
+                    Text(subtitle),
+                    const SizedBox(height: 12),
+                    Align(
+                      alignment: Alignment.centerLeft,
+                      child: FilledButton.icon(
+                        onPressed: onTap,
+                        icon: const Icon(Icons.open_in_new),
+                        label: Text(buttonText),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _InfoCard extends StatelessWidget {
+  const _InfoCard();
+
+  @override
+  Widget build(BuildContext context) {
+    return Card(
+      color: Theme.of(context).colorScheme.surfaceContainerHighest,
+      child: const Padding(
+        padding: EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'Plano seguro de integração',
+              style: TextStyle(
+                fontSize: 17,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+            SizedBox(height: 8),
+            Text(
+              'O sistema funciona mesmo sem o cabo de rede da balança. Primeiro usamos simulador, peso manual e leitor USB. Depois ativamos a comunicação real com a Ramuza pela rede.',
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
