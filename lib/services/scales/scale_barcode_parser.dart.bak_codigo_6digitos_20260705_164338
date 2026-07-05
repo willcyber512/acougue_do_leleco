@@ -62,14 +62,8 @@ class ScaleBarcodeParser {
     required int valueInCentsOrGrams,
   }) {
     final cleanProductCode = productCode.replaceAll(RegExp(r'[^0-9]'), '');
-    final cleanProduct = cleanProductCode.length > 6
-        ? cleanProductCode.substring(cleanProductCode.length - 6)
-        : cleanProductCode.padLeft(6, '0');
-
-    final rawValue = valueInCentsOrGrams < 0 ? '0' : valueInCentsOrGrams.toString();
-    final cleanValue = rawValue.length > 5
-        ? rawValue.substring(rawValue.length - 5)
-        : rawValue.padLeft(5, '0');
+    final cleanProduct = cleanProductCode.padLeft(6, '0').substring(0, 6);
+    final cleanValue = valueInCentsOrGrams.toString().padLeft(5, '0').substring(0, 5);
 
     final first12 = '2$cleanProduct$cleanValue';
     final digit = _calculateEan13CheckDigit(first12);

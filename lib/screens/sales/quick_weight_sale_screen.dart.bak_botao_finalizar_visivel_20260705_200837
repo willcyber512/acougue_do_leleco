@@ -585,16 +585,6 @@ class _QuickWeightSaleScreenState extends State<QuickWeightSaleScreen> {
                             _focusBarcodeField();
                           },
                         ),
-                        const SizedBox(height: 16),
-                        FilledButton.icon(
-                          onPressed: () => _finishSale(
-                            inventory: inventory,
-                            sales: sales,
-                            product: selectedProduct,
-                          ),
-                          icon: const Icon(Icons.check_circle),
-                          label: const Text('Finalizar venda'),
-                        ),
                         if (_message != null) ...[
                           const SizedBox(height: 12),
                           Text(_message!),

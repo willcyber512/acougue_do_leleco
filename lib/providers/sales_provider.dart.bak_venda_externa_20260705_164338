@@ -231,13 +231,6 @@ class SalesProvider extends ChangeNotifier {
     notifyListeners();
   }
 
-  void registerExternalSale(SaleRecord sale) {
-    _sales.insert(0, sale);
-
-    _saveSales();
-    notifyListeners();
-  }
-
   bool cancelSale(String saleId, String reason) {
     final index = _sales.indexWhere((sale) => sale.id == saleId);
 
