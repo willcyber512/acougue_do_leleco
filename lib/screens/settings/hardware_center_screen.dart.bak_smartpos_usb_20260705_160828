@@ -23,7 +23,7 @@ class HardwareCenterScreen extends StatelessWidget {
         padding: const EdgeInsets.all(16),
         children: [
           const Text(
-            'Leitor USB e etiquetas',
+            'Equipamentos do açougue',
             style: TextStyle(
               fontSize: 22,
               fontWeight: FontWeight.bold,
@@ -31,14 +31,14 @@ class HardwareCenterScreen extends StatelessWidget {
           ),
           const SizedBox(height: 8),
           const Text(
-            'Área para vender lendo a etiqueta gerada pela balança, como um SmartPOS do açougue.',
+            'Área para testar e configurar balança, leitor USB e modos de emergência.',
           ),
           const SizedBox(height: 16),
           _HardwareCard(
             icon: Icons.scale,
-            title: 'Etiqueta da balança / leitor USB',
-            subtitle: 'Testar leitura de código, simular etiqueta e validar se o sistema entende o código lido.',
-            buttonText: 'Testar leitura',
+            title: 'Ramuza Atena II',
+            subtitle: 'Testar conexão, simular envio de PLU e preparar integração com a balança.',
+            buttonText: 'Abrir integração',
             onTap: () {
               Navigator.of(context).push(
                 MaterialPageRoute(
@@ -50,9 +50,9 @@ class HardwareCenterScreen extends StatelessWidget {
           const SizedBox(height: 12),
           _HardwareCard(
             icon: Icons.point_of_sale,
-            title: 'Venda por peso manual',
-            subtitle: 'Permite vender digitando o peso visto na balança ou lendo a etiqueta com o leitor USB.',
-            buttonText: 'Abrir venda',
+            title: 'Venda rápida por peso',
+            subtitle: 'Modo manual para vender mesmo se o teclado da balança estiver com defeito.',
+            buttonText: 'Abrir venda por peso',
             onTap: () {
               Navigator.of(context).push(
                 MaterialPageRoute(
@@ -145,7 +145,7 @@ class _InfoCard extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(
-              'Fluxo seguro tipo SmartPOS',
+              'Plano seguro de integração',
               style: TextStyle(
                 fontSize: 17,
                 fontWeight: FontWeight.bold,
@@ -153,7 +153,7 @@ class _InfoCard extends StatelessWidget {
             ),
             SizedBox(height: 8),
             Text(
-              'A balança gera a etiqueta. O leitor USB lê o código. O sistema identifica o produto, calcula/confere a venda e o funcionário confirma. Não é obrigatório controlar a balança por cabo ou rede.',
+              'O sistema funciona mesmo sem o cabo de rede da balança. Primeiro usamos simulador, peso manual e leitor USB. Depois ativamos a comunicação real com a Ramuza pela rede.',
             ),
           ],
         ),

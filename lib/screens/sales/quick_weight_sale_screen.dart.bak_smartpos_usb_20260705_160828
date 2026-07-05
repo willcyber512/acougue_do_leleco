@@ -52,7 +52,7 @@ class _QuickWeightSaleScreenState extends State<QuickWeightSaleScreen> {
       _lastBarcode = parsed;
 
       if (parsed == null) {
-        _message = 'Código inválido. A etiqueta precisa ter 13 números e começar com 2.';
+        _message = 'Código inválido. Passe o leitor USB ou digite um EAN-13 começando com 2.';
         return;
       }
 
@@ -160,7 +160,7 @@ class _QuickWeightSaleScreenState extends State<QuickWeightSaleScreen> {
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
                   const Text(
-                    'Venda por peso / etiqueta da balança',
+                    'Modo emergência da balança',
                     style: TextStyle(
                       fontSize: 18,
                       fontWeight: FontWeight.bold,
@@ -168,7 +168,7 @@ class _QuickWeightSaleScreenState extends State<QuickWeightSaleScreen> {
                   ),
                   const SizedBox(height: 8),
                   const Text(
-                    'Use para vender pelo peso visto na balança ou pela etiqueta impressa. O leitor USB funciona como teclado: ele lê o código e envia para este campo.',
+                    'Use quando a balança pesa, mas o teclado/PLU não funciona. O funcionário digita o peso visto no visor ou passa o leitor USB na etiqueta.',
                   ),
                   const SizedBox(height: 16),
                   DropdownButtonFormField<_DemoProduct>(
@@ -222,7 +222,7 @@ class _QuickWeightSaleScreenState extends State<QuickWeightSaleScreen> {
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
                   const Text(
-                    'Leitor USB de etiqueta',
+                    'Leitor USB / etiqueta da balança',
                     style: TextStyle(
                       fontSize: 18,
                       fontWeight: FontWeight.bold,
@@ -257,8 +257,8 @@ class _QuickWeightSaleScreenState extends State<QuickWeightSaleScreen> {
                     controller: _barcodeController,
                     autofocus: true,
                     decoration: const InputDecoration(
-                      labelText: 'Código da etiqueta',
-                      hintText: 'Passe o leitor USB ou cole/digite o código',
+                      labelText: 'Código lido pelo leitor USB',
+                      hintText: 'Passe o leitor ou digite o código',
                       border: OutlineInputBorder(),
                     ),
                     onSubmitted: (_) => _readBarcode(),
@@ -267,7 +267,7 @@ class _QuickWeightSaleScreenState extends State<QuickWeightSaleScreen> {
                   ElevatedButton.icon(
                     onPressed: _readBarcode,
                     icon: const Icon(Icons.qr_code_scanner),
-                    label: const Text('Ler etiqueta'),
+                    label: const Text('Ler código'),
                   ),
                   if (_lastBarcode != null) ...[
                     const SizedBox(height: 12),
