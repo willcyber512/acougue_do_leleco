@@ -1,0 +1,151 @@
+import 'package:flutter/material.dart';
+
+import '../sales/quick_weight_sale_screen.dart';
+
+class HardwareCenterScreen extends StatelessWidget {
+  const HardwareCenterScreen({
+    super.key,
+    this.showAppBar = true,
+  });
+
+  final bool showAppBar;
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: showAppBar
+          ? AppBar(
+              title: const Text('Leitor USB e etiquetas'),
+            )
+          : null,
+      body: ListView(
+        padding: const EdgeInsets.all(16),
+        children: [
+          const Text(
+            'Leitor USB e etiquetas da balança',
+            style: TextStyle(
+              fontSize: 22,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+          const SizedBox(height: 8),
+          const Text(
+            'A balança gera a etiqueta. O leitor USB lê o código. O sistema identifica o produto e registra a venda.',
+          ),
+          const SizedBox(height: 16),
+          _HardwareCard(
+            icon: Icons.qr_code_scanner,
+            title: 'Venda por etiqueta',
+            subtitle:
+                'Use o leitor USB para ler a etiqueta impressa pela balança ou digite o peso manualmente quando precisar.',
+            buttonText: 'Abrir venda',
+            onTap: () {
+              Navigator.of(context).push(
+                MaterialPageRoute(
+                  builder: (_) => const QuickWeightSaleScreen(),
+                ),
+              );
+            },
+          ),
+          const SizedBox(height: 12),
+          const _FlowCard(),
+        ],
+      ),
+    );
+  }
+}
+
+class _HardwareCard extends StatelessWidget {
+  final IconData icon;
+  final String title;
+  final String subtitle;
+  final String buttonText;
+  final VoidCallback onTap;
+
+  const _HardwareCard({
+    required this.icon,
+    required this.title,
+    required this.subtitle,
+    required this.buttonText,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Card(
+      child: InkWell(
+        borderRadius: BorderRadius.circular(12),
+        onTap: onTap,
+        child: Padding(
+          padding: const EdgeInsets.all(16),
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              CircleAvatar(
+                child: Icon(icon),
+              ),
+              const SizedBox(width: 14),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      title,
+                      style: const TextStyle(
+                        fontSize: 17,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                    const SizedBox(height: 6),
+                    Text(subtitle),
+                    const SizedBox(height: 12),
+                    Align(
+                      alignment: Alignment.centerLeft,
+                      child: FilledButton.icon(
+                        onPressed: onTap,
+                        icon: const Icon(Icons.open_in_new),
+                        label: Text(buttonText),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _FlowCard extends StatelessWidget {
+  const _FlowCard();
+
+  @override
+  Widget build(BuildContext context) {
+    return Card(
+      color: Theme.of(context).colorScheme.surfaceContainerHighest,
+      child: const Padding(
+        padding: EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'Fluxo correto do sistema',
+              style: TextStyle(
+                fontSize: 17,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+            SizedBox(height: 10),
+            Text('1. Cadastrar o produto na balança com código/PLU e preço por kg.'),
+            Text('2. Cadastrar o mesmo produto no sistema com o mesmo código/PLU.'),
+            Text('3. A balança imprime a etiqueta.'),
+            Text('4. O leitor USB lê o código da etiqueta.'),
+            Text('5. O sistema registra a venda, caixa e baixa de estoque.'),
+          ],
+        ),
+      ),
+    );
+  }
+}

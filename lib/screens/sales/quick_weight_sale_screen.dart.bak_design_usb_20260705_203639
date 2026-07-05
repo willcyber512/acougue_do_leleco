@@ -1,0 +1,779 @@
+import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
+
+import '../../models/product.dart';
+import '../../models/product_unit.dart';
+import '../../models/sale.dart';
+import '../../models/sale_cart_item.dart';
+import '../../models/scale_barcode_data.dart';
+import '../../providers/inventory_provider.dart';
+import '../../providers/sales_provider.dart';
+import '../../services/scales/scale_barcode_parser.dart';
+
+class QuickWeightSaleScreen extends StatefulWidget {
+  const QuickWeightSaleScreen({super.key});
+
+  @override
+  State<QuickWeightSaleScreen> createState() => _QuickWeightSaleScreenState();
+}
+
+class _QuickWeightSaleScreenState extends State<QuickWeightSaleScreen> {
+  final _barcodeController = TextEditingController();
+  final _weightController = TextEditingController(text: '0.000');
+  final _barcodeFocusNode = FocusNode();
+  final _parser = const ScaleBarcodeParser();
+
+  ScaleBarcodeMode _barcodeMode = ScaleBarcodeMode.priceEmbedded;
+  Product? _selectedProduct;
+  String? _message;
+
+  final List<_LabelSaleItem> _pendingItems = [];
+
+  @override
+  void initState() {
+    super.initState();
+    _focusBarcodeField();
+  }
+
+  @override
+  void dispose() {
+    _barcodeController.dispose();
+    _weightController.dispose();
+    _barcodeFocusNode.dispose();
+    super.dispose();
+  }
+
+  void _focusBarcodeField() {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      _barcodeFocusNode.requestFocus();
+    });
+  }
+
+  double get _weightKg {
+    final text = _weightController.text.trim().replaceAll(',', '.');
+    return double.tryParse(text) ?? 0;
+  }
+
+  double get _pendingTotal {
+    return _pendingItems.fold(0.0, (total, item) => total + item.total);
+  }
+
+  double _manualTotal(Product? product) {
+    if (product == null) return 0;
+    return _weightKg * product.salePrice;
+  }
+
+  String _formatMoney(double value) {
+    final cents = (value * 100).round();
+    return (cents / 100).toStringAsFixed(2);
+  }
+
+  String _formatQty(double value) {
+    if (value == value.roundToDouble()) {
+      return value.toStringAsFixed(0);
+    }
+
+    return value
+        .toStringAsFixed(3)
+        .replaceAll(RegExp(r'0+$'), '')
+        .replaceAll(RegExp(r'\.$'), '');
+  }
+
+  String _digitsOnly(String value) {
+    return value.replaceAll(RegExp(r'[^0-9]'), '');
+  }
+
+  String _normalizeProductCode(String value) {
+    final digits = _digitsOnly(value);
+
+    if (digits.isEmpty) return '';
+
+    if (digits.length > 6) {
+      return digits.substring(digits.length - 6);
+    }
+
+    return digits.padLeft(6, '0');
+  }
+
+  Product? _findProductByScaleCode(List<Product> products, String code) {
+    final normalizedCode = _normalizeProductCode(code);
+    final codeWithoutZeros = normalizedCode.replaceFirst(RegExp(r'^0+'), '');
+
+    for (final product in products) {
+      final productCode = _normalizeProductCode(product.code);
+      final productWithoutZeros = productCode.replaceFirst(RegExp(r'^0+'), '');
+
+      if (productCode == normalizedCode) {
+        return product;
+      }
+
+      if (productWithoutZeros.isNotEmpty &&
+          productWithoutZeros == codeWithoutZeros) {
+        return product;
+      }
+    }
+
+    return null;
+  }
+
+  double _quantityFromBarcode(Product product, ScaleBarcodeData barcode) {
+    if (_barcodeMode == ScaleBarcodeMode.weightEmbedded) {
+      return barcode.weightKgFromBarcode;
+    }
+
+    final price = barcode.priceFromBarcode;
+
+    if (product.salePrice <= 0) {
+      return 0;
+    }
+
+    return price / product.salePrice;
+  }
+
+  double _totalFromBarcode(Product product, ScaleBarcodeData barcode) {
+    if (_barcodeMode == ScaleBarcodeMode.priceEmbedded) {
+      return barcode.priceFromBarcode;
+    }
+
+    return barcode.weightKgFromBarcode * product.salePrice;
+  }
+
+  void _generateTestBarcode(Product? product) {
+    if (product == null) {
+      _showError('Cadastre ou selecione um produto primeiro.');
+      return;
+    }
+
+    final productCode = _normalizeProductCode(product.code);
+
+    if (productCode.isEmpty) {
+      _showError('Esse produto está sem código/PLU.');
+      return;
+    }
+
+    final value = _barcodeMode == ScaleBarcodeMode.priceEmbedded
+        ? (_manualTotal(product) * 100).round()
+        : (_weightKg * 1000).round();
+
+    if (value <= 0) {
+      _showError('Digite um peso/quantidade maior que zero para gerar a etiqueta teste.');
+      return;
+    }
+
+    final code = _parser.buildInternalScaleCode(
+      productCode: productCode,
+      valueInCentsOrGrams: value,
+    );
+
+    setState(() {
+      _barcodeController.text = code;
+      _message =
+          'Etiqueta teste gerada para ${product.name}. Agora clique em "Adicionar etiqueta".';
+    });
+
+    _focusBarcodeField();
+  }
+
+  void _addBarcodeToSale(List<Product> products) {
+    final parsed = _parser.parse(
+      _barcodeController.text,
+      mode: _barcodeMode,
+    );
+
+    if (parsed == null) {
+      _showError('Código inválido. A etiqueta precisa ter 13 números e começar com 2.');
+      return;
+    }
+
+    final product = _findProductByScaleCode(products, parsed.productCode);
+
+    if (product == null) {
+      _showError(
+        'Etiqueta lida, mas nenhum produto do estoque tem o código/PLU ${parsed.productCode}. Cadastre o produto no sistema com o mesmo código da balança.',
+      );
+      return;
+    }
+
+    final quantity = _quantityFromBarcode(product, parsed);
+    final total = _totalFromBarcode(product, parsed);
+
+    if (quantity <= 0 || total <= 0) {
+      _showError('A etiqueta foi lida, mas o peso/valor ficou zerado.');
+      return;
+    }
+
+    setState(() {
+      _selectedProduct = product;
+      _weightController.text = quantity.toStringAsFixed(3);
+      _pendingItems.add(
+        _LabelSaleItem(
+          product: product,
+          quantity: quantity,
+          total: total,
+          rawBarcode: parsed.rawCode,
+          productCodeFromBarcode: parsed.productCode,
+        ),
+      );
+      _barcodeController.clear();
+      _message =
+          'Etiqueta adicionada: ${product.name} | ${_formatQty(quantity)} ${product.unit.label} | R\$ ${_formatMoney(total)}.';
+    });
+
+    _focusBarcodeField();
+  }
+
+  void _addManualItem(Product? product) {
+    if (product == null) {
+      _showError('Selecione um produto.');
+      return;
+    }
+
+    final quantity = _weightKg;
+    final total = _manualTotal(product);
+
+    if (quantity <= 0 || total <= 0) {
+      _showError('Digite um peso/quantidade maior que zero.');
+      return;
+    }
+
+    setState(() {
+      _pendingItems.add(
+        _LabelSaleItem(
+          product: product,
+          quantity: quantity,
+          total: total,
+          rawBarcode: null,
+          productCodeFromBarcode: _normalizeProductCode(product.code),
+        ),
+      );
+      _weightController.text = '0.000';
+      _message =
+          'Item manual adicionado: ${product.name} | ${_formatQty(quantity)} ${product.unit.label} | R\$ ${_formatMoney(total)}.';
+    });
+
+    _focusBarcodeField();
+  }
+
+  List<SaleCartItem> _buildGroupedCartItems() {
+    final grouped = <String, _GroupedItem>{};
+
+    for (final item in _pendingItems) {
+      final current = grouped[item.product.id];
+
+      if (current == null) {
+        grouped[item.product.id] = _GroupedItem(
+          product: item.product,
+          quantity: item.quantity,
+        );
+      } else {
+        grouped[item.product.id] = _GroupedItem(
+          product: current.product,
+          quantity: current.quantity + item.quantity,
+        );
+      }
+    }
+
+    return grouped.values.map((item) {
+      return SaleCartItem(
+        product: item.product,
+        quantity: item.quantity,
+      );
+    }).toList();
+  }
+
+  void _finishSale({
+    required InventoryProvider inventory,
+    required SalesProvider sales,
+  }) {
+    if (_pendingItems.isEmpty) {
+      _showError('Adicione pelo menos uma etiqueta/item antes de finalizar.');
+      return;
+    }
+
+    final cartItems = _buildGroupedCartItems();
+
+    final validationError = inventory.validateSaleItems(cartItems);
+
+    if (validationError != null) {
+      _showError(validationError);
+      return;
+    }
+
+    final sale = SaleRecord.fromCart(
+      cartItems: cartItems,
+      paymentMethod: sales.paymentMethod,
+      createdAt: DateTime.now(),
+    );
+
+    final deducted = inventory.deductSaleRecord(sale);
+
+    if (!deducted) {
+      _showError('Não foi possível baixar o estoque dessa venda.');
+      return;
+    }
+
+    sales.registerExternalSale(sale);
+
+    final itemCount = _pendingItems.length;
+    final total = sale.total;
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(
+          'Venda #${sale.shortId} registrada: $itemCount item(ns) - R\$ ${_formatMoney(total)}',
+        ),
+        backgroundColor: Colors.green,
+      ),
+    );
+
+    setState(() {
+      _pendingItems.clear();
+      _barcodeController.clear();
+      _weightController.text = '0.000';
+      _message = 'Venda #${sale.shortId} registrada com sucesso.';
+    });
+
+    _focusBarcodeField();
+  }
+
+  void _removePendingItem(int index) {
+    if (index < 0 || index >= _pendingItems.length) return;
+
+    final removed = _pendingItems[index];
+
+    setState(() {
+      _pendingItems.removeAt(index);
+      _message = 'Item removido: ${removed.product.name}.';
+    });
+
+    _focusBarcodeField();
+  }
+
+  void _clearPendingItems() {
+    setState(() {
+      _pendingItems.clear();
+      _message = 'Venda atual limpa.';
+    });
+
+    _focusBarcodeField();
+  }
+
+  void _showError(String message) {
+    setState(() {
+      _message = message;
+    });
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(message),
+        backgroundColor: Colors.red,
+      ),
+    );
+
+    _focusBarcodeField();
+  }
+
+  String _modeLabel(ScaleBarcodeMode mode) {
+    switch (mode) {
+      case ScaleBarcodeMode.priceEmbedded:
+        return 'Código contém preço';
+      case ScaleBarcodeMode.weightEmbedded:
+        return 'Código contém peso';
+      case ScaleBarcodeMode.unknown:
+        return 'Desconhecido';
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final inventory = context.watch<InventoryProvider>();
+    final sales = context.watch<SalesProvider>();
+
+    final products = inventory.products;
+    final selectedProduct =
+        _selectedProduct != null && products.any((p) => p.id == _selectedProduct!.id)
+            ? products.firstWhere((p) => p.id == _selectedProduct!.id)
+            : products.isNotEmpty
+                ? products.first
+                : null;
+
+    _selectedProduct = selectedProduct;
+
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text('Venda por etiqueta'),
+      ),
+      bottomNavigationBar: SafeArea(
+        child: Container(
+          padding: const EdgeInsets.all(12),
+          decoration: BoxDecoration(
+            color: Theme.of(context).colorScheme.surface,
+            boxShadow: const [
+              BoxShadow(
+                blurRadius: 8,
+                offset: Offset(0, -2),
+                color: Color(0x22000000),
+              ),
+            ],
+          ),
+          child: Row(
+            children: [
+              Expanded(
+                child: Text(
+                  'Total: R\$ ${_formatMoney(_pendingTotal)}',
+                  style: const TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ),
+              const SizedBox(width: 12),
+              FilledButton.icon(
+                onPressed: () => _finishSale(
+                  inventory: inventory,
+                  sales: sales,
+                ),
+                icon: const Icon(Icons.check_circle),
+                label: const Text('Finalizar venda'),
+              ),
+            ],
+          ),
+        ),
+      ),
+      body: products.isEmpty
+          ? const _EmptyProductsView()
+          : ListView(
+              padding: const EdgeInsets.all(16),
+              children: [
+                Card(
+                  child: Padding(
+                    padding: const EdgeInsets.all(16),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        const Text(
+                          'Leitor USB de etiqueta',
+                          style: TextStyle(
+                            fontSize: 18,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                        const SizedBox(height: 8),
+                        const Text(
+                          'Clique no campo abaixo e passe o leitor na etiqueta. Cada leitura entra na venda atual.',
+                        ),
+                        const SizedBox(height: 12),
+                        DropdownButtonFormField<ScaleBarcodeMode>(
+                          value: _barcodeMode,
+                          decoration: const InputDecoration(
+                            labelText: 'Formato da etiqueta',
+                            border: OutlineInputBorder(),
+                          ),
+                          items: const [
+                            ScaleBarcodeMode.priceEmbedded,
+                            ScaleBarcodeMode.weightEmbedded,
+                          ].map((mode) {
+                            return DropdownMenuItem(
+                              value: mode,
+                              child: Text(_modeLabel(mode)),
+                            );
+                          }).toList(),
+                          onChanged: (value) {
+                            if (value == null) return;
+
+                            setState(() {
+                              _barcodeMode = value;
+                            });
+
+                            _focusBarcodeField();
+                          },
+                        ),
+                        const SizedBox(height: 12),
+                        TextField(
+                          controller: _barcodeController,
+                          focusNode: _barcodeFocusNode,
+                          autofocus: true,
+                          decoration: const InputDecoration(
+                            labelText: 'Código da etiqueta',
+                            hintText:
+                                'Passe o leitor USB ou cole/digite o código',
+                            border: OutlineInputBorder(),
+                          ),
+                          onSubmitted: (_) => _addBarcodeToSale(products),
+                        ),
+                        const SizedBox(height: 8),
+                        Wrap(
+                          spacing: 8,
+                          runSpacing: 8,
+                          children: [
+                            ElevatedButton.icon(
+                              onPressed: () => _addBarcodeToSale(products),
+                              icon: const Icon(Icons.qr_code_scanner),
+                              label: const Text('Adicionar etiqueta'),
+                            ),
+                            OutlinedButton.icon(
+                              onPressed: () => _generateTestBarcode(selectedProduct),
+                              icon: const Icon(Icons.auto_fix_high),
+                              label: const Text('Gerar etiqueta teste'),
+                            ),
+                          ],
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 16),
+                Card(
+                  child: Padding(
+                    padding: const EdgeInsets.all(16),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        const Text(
+                          'Adicionar manualmente',
+                          style: TextStyle(
+                            fontSize: 18,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                        const SizedBox(height: 8),
+                        const Text(
+                          'Use este modo se a etiqueta não sair ou se precisar digitar o peso visto na balança.',
+                        ),
+                        const SizedBox(height: 16),
+                        DropdownButtonFormField<Product>(
+                          value: selectedProduct,
+                          decoration: const InputDecoration(
+                            labelText: 'Produto',
+                            border: OutlineInputBorder(),
+                          ),
+                          items: products.map((product) {
+                            return DropdownMenuItem(
+                              value: product,
+                              child: Text(
+                                '${product.code} - ${product.name} | R\$ ${_formatMoney(product.salePrice)}/${product.unit.label} | Estoque ${_formatQty(product.stockQuantity)}',
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                            );
+                          }).toList(),
+                          onChanged: (value) {
+                            if (value == null) return;
+
+                            setState(() {
+                              _selectedProduct = value;
+                            });
+
+                            _focusBarcodeField();
+                          },
+                        ),
+                        const SizedBox(height: 12),
+                        TextField(
+                          controller: _weightController,
+                          keyboardType:
+                              const TextInputType.numberWithOptions(decimal: true),
+                          decoration: InputDecoration(
+                            labelText:
+                                'Peso/quantidade em ${selectedProduct?.unit.label ?? 'kg'}',
+                            hintText: 'Ex: 0.750',
+                            border: const OutlineInputBorder(),
+                          ),
+                          onChanged: (_) => setState(() {}),
+                        ),
+                        const SizedBox(height: 12),
+                        Text(
+                          'Total manual: R\$ ${_formatMoney(_manualTotal(selectedProduct))}',
+                          style: const TextStyle(
+                            fontSize: 18,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                        const SizedBox(height: 12),
+                        OutlinedButton.icon(
+                          onPressed: () => _addManualItem(selectedProduct),
+                          icon: const Icon(Icons.add_shopping_cart),
+                          label: const Text('Adicionar item manual'),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 16),
+                Card(
+                  child: Padding(
+                    padding: const EdgeInsets.all(16),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        Row(
+                          children: [
+                            const Expanded(
+                              child: Text(
+                                'Venda atual',
+                                style: TextStyle(
+                                  fontSize: 18,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                            ),
+                            if (_pendingItems.isNotEmpty)
+                              TextButton.icon(
+                                onPressed: _clearPendingItems,
+                                icon: const Icon(Icons.delete_outline),
+                                label: const Text('Limpar'),
+                              ),
+                          ],
+                        ),
+                        const SizedBox(height: 8),
+                        if (_pendingItems.isEmpty)
+                          const Text('Nenhum item adicionado ainda.'),
+                        for (var i = 0; i < _pendingItems.length; i++)
+                          _PendingItemTile(
+                            item: _pendingItems[i],
+                            index: i,
+                            formatMoney: _formatMoney,
+                            formatQty: _formatQty,
+                            onRemove: () => _removePendingItem(i),
+                          ),
+                        const Divider(height: 24),
+                        Text(
+                          'Total da venda: R\$ ${_formatMoney(_pendingTotal)}',
+                          style: const TextStyle(
+                            fontSize: 22,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                        const SizedBox(height: 12),
+                        DropdownButtonFormField<PaymentMethod>(
+                          value: sales.paymentMethod,
+                          decoration: const InputDecoration(
+                            labelText: 'Forma de pagamento',
+                            border: OutlineInputBorder(),
+                          ),
+                          items: PaymentMethod.values.map((method) {
+                            return DropdownMenuItem(
+                              value: method,
+                              child: Text(method.label),
+                            );
+                          }).toList(),
+                          onChanged: (value) {
+                            if (value == null) return;
+                            sales.setPaymentMethod(value);
+                            _focusBarcodeField();
+                          },
+                        ),
+                        const SizedBox(height: 16),
+                        FilledButton.icon(
+                          onPressed: () => _finishSale(
+                            inventory: inventory,
+                            sales: sales,
+                          ),
+                          icon: const Icon(Icons.check_circle),
+                          label: const Text('Finalizar venda'),
+                        ),
+                        if (_message != null) ...[
+                          const SizedBox(height: 12),
+                          Text(_message!),
+                        ],
+                      ],
+                    ),
+                  ),
+                ),
+              ],
+            ),
+    );
+  }
+}
+
+class _PendingItemTile extends StatelessWidget {
+  const _PendingItemTile({
+    required this.item,
+    required this.index,
+    required this.formatMoney,
+    required this.formatQty,
+    required this.onRemove,
+  });
+
+  final _LabelSaleItem item;
+  final int index;
+  final String Function(double value) formatMoney;
+  final String Function(double value) formatQty;
+  final VoidCallback onRemove;
+
+  @override
+  Widget build(BuildContext context) {
+    final subtitle = item.rawBarcode == null
+        ? 'Manual'
+        : 'Etiqueta ${item.rawBarcode}';
+
+    return ListTile(
+      contentPadding: EdgeInsets.zero,
+      leading: CircleAvatar(
+        child: Text('${index + 1}'),
+      ),
+      title: Text(item.product.name),
+      subtitle: Text(
+        '$subtitle • ${formatQty(item.quantity)} ${item.product.unit.label}',
+      ),
+      trailing: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Text(
+            'R\$ ${formatMoney(item.total)}',
+            style: const TextStyle(fontWeight: FontWeight.bold),
+          ),
+          IconButton(
+            tooltip: 'Remover',
+            onPressed: onRemove,
+            icon: const Icon(Icons.close),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _EmptyProductsView extends StatelessWidget {
+  const _EmptyProductsView();
+
+  @override
+  Widget build(BuildContext context) {
+    return const Center(
+      child: Card(
+        child: Padding(
+          padding: EdgeInsets.all(24),
+          child: Text(
+            'Nenhum produto cadastrado no estoque. Cadastre primeiro os produtos com o mesmo código/PLU usado na balança.',
+            textAlign: TextAlign.center,
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _LabelSaleItem {
+  const _LabelSaleItem({
+    required this.product,
+    required this.quantity,
+    required this.total,
+    required this.rawBarcode,
+    required this.productCodeFromBarcode,
+  });
+
+  final Product product;
+  final double quantity;
+  final double total;
+  final String? rawBarcode;
+  final String productCodeFromBarcode;
+}
+
+class _GroupedItem {
+  const _GroupedItem({
+    required this.product,
+    required this.quantity,
+  });
+
+  final Product product;
+  final double quantity;
+}

@@ -781,7 +781,7 @@ class _HeaderPanel extends StatelessWidget {
                   ),
                 ),
                 SizedBox(height: 4),
-                Text('Tela preparada para leitor USB.'),
+                Text('Tela preparada para leitor USB tipo teclado.'),
               ],
             ),
           ),
