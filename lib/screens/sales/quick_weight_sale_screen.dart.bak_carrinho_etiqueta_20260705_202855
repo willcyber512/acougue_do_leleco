@@ -25,9 +25,9 @@ class _QuickWeightSaleScreenState extends State<QuickWeightSaleScreen> {
 
   ScaleBarcodeMode _barcodeMode = ScaleBarcodeMode.priceEmbedded;
   Product? _selectedProduct;
+  Product? _lastBarcodeProduct;
+  ScaleBarcodeData? _lastBarcode;
   String? _message;
-
-  final List<_LabelSaleItem> _pendingItems = [];
 
   @override
   void initState() {
@@ -53,10 +53,6 @@ class _QuickWeightSaleScreenState extends State<QuickWeightSaleScreen> {
   double get _weightKg {
     final text = _weightController.text.trim().replaceAll(',', '.');
     return double.tryParse(text) ?? 0;
-  }
-
-  double get _pendingTotal {
-    return _pendingItems.fold(0.0, (total, item) => total + item.total);
   }
 
   double _manualTotal(Product? product) {
@@ -168,132 +164,81 @@ class _QuickWeightSaleScreenState extends State<QuickWeightSaleScreen> {
 
     setState(() {
       _barcodeController.text = code;
+      _lastBarcode = null;
+      _lastBarcodeProduct = null;
       _message =
-          'Etiqueta teste gerada para ${product.name}. Agora clique em "Adicionar etiqueta".';
+          'Etiqueta teste gerada para ${product.name}. Agora clique em "Ler etiqueta".';
     });
 
     _focusBarcodeField();
   }
 
-  void _addBarcodeToSale(List<Product> products) {
+  void _readBarcode(List<Product> products) {
     final parsed = _parser.parse(
       _barcodeController.text,
       mode: _barcodeMode,
     );
 
-    if (parsed == null) {
-      _showError('Código inválido. A etiqueta precisa ter 13 números e começar com 2.');
-      return;
-    }
-
-    final product = _findProductByScaleCode(products, parsed.productCode);
-
-    if (product == null) {
-      _showError(
-        'Etiqueta lida, mas nenhum produto do estoque tem o código/PLU ${parsed.productCode}. Cadastre o produto no sistema com o mesmo código da balança.',
-      );
-      return;
-    }
-
-    final quantity = _quantityFromBarcode(product, parsed);
-    final total = _totalFromBarcode(product, parsed);
-
-    if (quantity <= 0 || total <= 0) {
-      _showError('A etiqueta foi lida, mas o peso/valor ficou zerado.');
-      return;
-    }
-
     setState(() {
-      _selectedProduct = product;
-      _weightController.text = quantity.toStringAsFixed(3);
-      _pendingItems.add(
-        _LabelSaleItem(
-          product: product,
-          quantity: quantity,
-          total: total,
-          rawBarcode: parsed.rawCode,
-          productCodeFromBarcode: parsed.productCode,
-        ),
-      );
-      _barcodeController.clear();
-      _message =
-          'Etiqueta adicionada: ${product.name} | ${_formatQty(quantity)} ${product.unit.label} | R\$ ${_formatMoney(total)}.';
-    });
+      _lastBarcode = parsed;
+      _lastBarcodeProduct = null;
 
-    _focusBarcodeField();
-  }
-
-  void _addManualItem(Product? product) {
-    if (product == null) {
-      _showError('Selecione um produto.');
-      return;
-    }
-
-    final quantity = _weightKg;
-    final total = _manualTotal(product);
-
-    if (quantity <= 0 || total <= 0) {
-      _showError('Digite um peso/quantidade maior que zero.');
-      return;
-    }
-
-    setState(() {
-      _pendingItems.add(
-        _LabelSaleItem(
-          product: product,
-          quantity: quantity,
-          total: total,
-          rawBarcode: null,
-          productCodeFromBarcode: _normalizeProductCode(product.code),
-        ),
-      );
-      _weightController.text = '0.000';
-      _message =
-          'Item manual adicionado: ${product.name} | ${_formatQty(quantity)} ${product.unit.label} | R\$ ${_formatMoney(total)}.';
-    });
-
-    _focusBarcodeField();
-  }
-
-  List<SaleCartItem> _buildGroupedCartItems() {
-    final grouped = <String, _GroupedItem>{};
-
-    for (final item in _pendingItems) {
-      final current = grouped[item.product.id];
-
-      if (current == null) {
-        grouped[item.product.id] = _GroupedItem(
-          product: item.product,
-          quantity: item.quantity,
-        );
-      } else {
-        grouped[item.product.id] = _GroupedItem(
-          product: current.product,
-          quantity: current.quantity + item.quantity,
-        );
+      if (parsed == null) {
+        _message =
+            'Código inválido. A etiqueta precisa ter 13 números e começar com 2.';
+        return;
       }
-    }
 
-    return grouped.values.map((item) {
-      return SaleCartItem(
-        product: item.product,
-        quantity: item.quantity,
-      );
-    }).toList();
+      final product = _findProductByScaleCode(products, parsed.productCode);
+
+      if (product == null) {
+        _message =
+            'Etiqueta lida, mas nenhum produto do estoque tem o código/PLU ${parsed.productCode}. Cadastre o produto no sistema com o mesmo código da balança.';
+        return;
+      }
+
+      _selectedProduct = product;
+      _lastBarcodeProduct = product;
+
+      if (_barcodeMode == ScaleBarcodeMode.weightEmbedded) {
+        _weightController.text = parsed.weightKgFromBarcode.toStringAsFixed(3);
+      } else {
+        final quantity = _quantityFromBarcode(product, parsed);
+        _weightController.text = quantity.toStringAsFixed(3);
+      }
+
+      _message =
+          'Etiqueta lida: ${product.name} | código ${parsed.productCode} | ${parsed.modeLabel}.';
+    });
+
+    _focusBarcodeField();
   }
 
   void _finishSale({
     required InventoryProvider inventory,
     required SalesProvider sales,
+    required Product? product,
   }) {
-    if (_pendingItems.isEmpty) {
-      _showError('Adicione pelo menos uma etiqueta/item antes de finalizar.');
+    if (product == null) {
+      _showError('Cadastre ou selecione um produto antes de finalizar.');
       return;
     }
 
-    final cartItems = _buildGroupedCartItems();
+    final quantity = _lastBarcode != null && _lastBarcodeProduct?.id == product.id
+        ? _quantityFromBarcode(product, _lastBarcode!)
+        : _weightKg;
 
-    final validationError = inventory.validateSaleItems(cartItems);
+    if (quantity <= 0) {
+      _showError('Informe um peso/quantidade maior que zero.');
+      return;
+    }
+
+    final cartItem = SaleCartItem(
+      product: product,
+      quantity: quantity,
+    );
+
+    final validationError = inventory.validateSaleItems([cartItem]);
 
     if (validationError != null) {
       _showError(validationError);
@@ -301,7 +246,7 @@ class _QuickWeightSaleScreenState extends State<QuickWeightSaleScreen> {
     }
 
     final sale = SaleRecord.fromCart(
-      cartItems: cartItems,
+      cartItems: [cartItem],
       paymentMethod: sales.paymentMethod,
       createdAt: DateTime.now(),
     );
@@ -315,45 +260,24 @@ class _QuickWeightSaleScreenState extends State<QuickWeightSaleScreen> {
 
     sales.registerExternalSale(sale);
 
-    final itemCount = _pendingItems.length;
     final total = sale.total;
 
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Text(
-          'Venda #${sale.shortId} registrada: $itemCount item(ns) - R\$ ${_formatMoney(total)}',
+          'Venda #${sale.shortId} registrada: ${product.name} - R\$ ${_formatMoney(total)}',
         ),
         backgroundColor: Colors.green,
       ),
     );
 
     setState(() {
-      _pendingItems.clear();
+      _message =
+          'Venda #${sale.shortId} registrada. Baixou ${_formatQty(quantity)} ${product.unit.label} de ${product.name}.';
       _barcodeController.clear();
+      _lastBarcode = null;
+      _lastBarcodeProduct = null;
       _weightController.text = '0.000';
-      _message = 'Venda #${sale.shortId} registrada com sucesso.';
-    });
-
-    _focusBarcodeField();
-  }
-
-  void _removePendingItem(int index) {
-    if (index < 0 || index >= _pendingItems.length) return;
-
-    final removed = _pendingItems[index];
-
-    setState(() {
-      _pendingItems.removeAt(index);
-      _message = 'Item removido: ${removed.product.name}.';
-    });
-
-    _focusBarcodeField();
-  }
-
-  void _clearPendingItems() {
-    setState(() {
-      _pendingItems.clear();
-      _message = 'Venda atual limpa.';
     });
 
     _focusBarcodeField();
@@ -400,6 +324,14 @@ class _QuickWeightSaleScreenState extends State<QuickWeightSaleScreen> {
 
     _selectedProduct = selectedProduct;
 
+    final totalByBarcode = _lastBarcode != null &&
+            selectedProduct != null &&
+            _lastBarcodeProduct?.id == selectedProduct.id
+        ? _totalFromBarcode(selectedProduct, _lastBarcode!)
+        : null;
+
+    final totalToShow = totalByBarcode ?? _manualTotal(selectedProduct);
+
     return Scaffold(
       appBar: AppBar(
         title: const Text('Venda por etiqueta'),
@@ -421,7 +353,7 @@ class _QuickWeightSaleScreenState extends State<QuickWeightSaleScreen> {
             children: [
               Expanded(
                 child: Text(
-                  'Total: R\$ ${_formatMoney(_pendingTotal)}',
+                  'Total: R\$ ${_formatMoney(totalToShow)}',
                   style: const TextStyle(
                     fontSize: 18,
                     fontWeight: FontWeight.bold,
@@ -433,9 +365,10 @@ class _QuickWeightSaleScreenState extends State<QuickWeightSaleScreen> {
                 onPressed: () => _finishSale(
                   inventory: inventory,
                   sales: sales,
+                  product: selectedProduct,
                 ),
                 icon: const Icon(Icons.check_circle),
-                label: const Text('Finalizar venda'),
+                label: const Text('Finalizar'),
               ),
             ],
           ),
@@ -453,7 +386,7 @@ class _QuickWeightSaleScreenState extends State<QuickWeightSaleScreen> {
                       crossAxisAlignment: CrossAxisAlignment.stretch,
                       children: [
                         const Text(
-                          'Leitor USB de etiqueta',
+                          'Produto real do estoque',
                           style: TextStyle(
                             fontSize: 18,
                             fontWeight: FontWeight.bold,
@@ -461,85 +394,7 @@ class _QuickWeightSaleScreenState extends State<QuickWeightSaleScreen> {
                         ),
                         const SizedBox(height: 8),
                         const Text(
-                          'Clique no campo abaixo e passe o leitor na etiqueta. Cada leitura entra na venda atual.',
-                        ),
-                        const SizedBox(height: 12),
-                        DropdownButtonFormField<ScaleBarcodeMode>(
-                          value: _barcodeMode,
-                          decoration: const InputDecoration(
-                            labelText: 'Formato da etiqueta',
-                            border: OutlineInputBorder(),
-                          ),
-                          items: const [
-                            ScaleBarcodeMode.priceEmbedded,
-                            ScaleBarcodeMode.weightEmbedded,
-                          ].map((mode) {
-                            return DropdownMenuItem(
-                              value: mode,
-                              child: Text(_modeLabel(mode)),
-                            );
-                          }).toList(),
-                          onChanged: (value) {
-                            if (value == null) return;
-
-                            setState(() {
-                              _barcodeMode = value;
-                            });
-
-                            _focusBarcodeField();
-                          },
-                        ),
-                        const SizedBox(height: 12),
-                        TextField(
-                          controller: _barcodeController,
-                          focusNode: _barcodeFocusNode,
-                          autofocus: true,
-                          decoration: const InputDecoration(
-                            labelText: 'Código da etiqueta',
-                            hintText:
-                                'Passe o leitor USB ou cole/digite o código',
-                            border: OutlineInputBorder(),
-                          ),
-                          onSubmitted: (_) => _addBarcodeToSale(products),
-                        ),
-                        const SizedBox(height: 8),
-                        Wrap(
-                          spacing: 8,
-                          runSpacing: 8,
-                          children: [
-                            ElevatedButton.icon(
-                              onPressed: () => _addBarcodeToSale(products),
-                              icon: const Icon(Icons.qr_code_scanner),
-                              label: const Text('Adicionar etiqueta'),
-                            ),
-                            OutlinedButton.icon(
-                              onPressed: () => _generateTestBarcode(selectedProduct),
-                              icon: const Icon(Icons.auto_fix_high),
-                              label: const Text('Gerar etiqueta teste'),
-                            ),
-                          ],
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-                const SizedBox(height: 16),
-                Card(
-                  child: Padding(
-                    padding: const EdgeInsets.all(16),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.stretch,
-                      children: [
-                        const Text(
-                          'Adicionar manualmente',
-                          style: TextStyle(
-                            fontSize: 18,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                        const SizedBox(height: 8),
-                        const Text(
-                          'Use este modo se a etiqueta não sair ou se precisar digitar o peso visto na balança.',
+                          'Cadastre no sistema o mesmo código/PLU que foi cadastrado na balança. Assim o leitor USB identifica o produto pela etiqueta.',
                         ),
                         const SizedBox(height: 16),
                         DropdownButtonFormField<Product>(
@@ -562,6 +417,9 @@ class _QuickWeightSaleScreenState extends State<QuickWeightSaleScreen> {
 
                             setState(() {
                               _selectedProduct = value;
+                              _lastBarcode = null;
+                              _lastBarcodeProduct = null;
+                              _message = null;
                             });
 
                             _focusBarcodeField();
@@ -578,7 +436,12 @@ class _QuickWeightSaleScreenState extends State<QuickWeightSaleScreen> {
                             hintText: 'Ex: 0.750',
                             border: const OutlineInputBorder(),
                           ),
-                          onChanged: (_) => setState(() {}),
+                          onChanged: (_) {
+                            setState(() {
+                              _lastBarcode = null;
+                              _lastBarcodeProduct = null;
+                            });
+                          },
                         ),
                         const SizedBox(height: 12),
                         Text(
@@ -587,12 +450,6 @@ class _QuickWeightSaleScreenState extends State<QuickWeightSaleScreen> {
                             fontSize: 18,
                             fontWeight: FontWeight.bold,
                           ),
-                        ),
-                        const SizedBox(height: 12),
-                        OutlinedButton.icon(
-                          onPressed: () => _addManualItem(selectedProduct),
-                          icon: const Icon(Icons.add_shopping_cart),
-                          label: const Text('Adicionar item manual'),
                         ),
                       ],
                     ),
@@ -605,43 +462,109 @@ class _QuickWeightSaleScreenState extends State<QuickWeightSaleScreen> {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.stretch,
                       children: [
-                        Row(
-                          children: [
-                            const Expanded(
-                              child: Text(
-                                'Venda atual',
-                                style: TextStyle(
-                                  fontSize: 18,
-                                  fontWeight: FontWeight.bold,
-                                ),
-                              ),
-                            ),
-                            if (_pendingItems.isNotEmpty)
-                              TextButton.icon(
-                                onPressed: _clearPendingItems,
-                                icon: const Icon(Icons.delete_outline),
-                                label: const Text('Limpar'),
-                              ),
-                          ],
+                        const Text(
+                          'Leitor USB de etiqueta',
+                          style: TextStyle(
+                            fontSize: 18,
+                            fontWeight: FontWeight.bold,
+                          ),
                         ),
                         const SizedBox(height: 8),
-                        if (_pendingItems.isEmpty)
-                          const Text('Nenhum item adicionado ainda.'),
-                        for (var i = 0; i < _pendingItems.length; i++)
-                          _PendingItemTile(
-                            item: _pendingItems[i],
-                            index: i,
-                            formatMoney: _formatMoney,
-                            formatQty: _formatQty,
-                            onRemove: () => _removePendingItem(i),
+                        const Text(
+                          'Clique no campo abaixo e passe o leitor na etiqueta. Enquanto o leitor não chega, cole/digite o código para testar.',
+                        ),
+                        const SizedBox(height: 12),
+                        DropdownButtonFormField<ScaleBarcodeMode>(
+                          value: _barcodeMode,
+                          decoration: const InputDecoration(
+                            labelText: 'Formato da etiqueta',
+                            border: OutlineInputBorder(),
                           ),
-                        const Divider(height: 24),
+                          items: const [
+                            ScaleBarcodeMode.priceEmbedded,
+                            ScaleBarcodeMode.weightEmbedded,
+                          ].map((mode) {
+                            return DropdownMenuItem(
+                              value: mode,
+                              child: Text(_modeLabel(mode)),
+                            );
+                          }).toList(),
+                          onChanged: (value) {
+                            if (value == null) return;
+
+                            setState(() {
+                              _barcodeMode = value;
+                              _lastBarcode = null;
+                              _lastBarcodeProduct = null;
+                            });
+
+                            _focusBarcodeField();
+                          },
+                        ),
+                        const SizedBox(height: 12),
+                        TextField(
+                          controller: _barcodeController,
+                          focusNode: _barcodeFocusNode,
+                          autofocus: true,
+                          decoration: const InputDecoration(
+                            labelText: 'Código da etiqueta',
+                            hintText:
+                                'Passe o leitor USB ou cole/digite o código',
+                            border: OutlineInputBorder(),
+                          ),
+                          onSubmitted: (_) => _readBarcode(products),
+                        ),
+                        const SizedBox(height: 8),
+                        Wrap(
+                          spacing: 8,
+                          runSpacing: 8,
+                          children: [
+                            ElevatedButton.icon(
+                              onPressed: () => _readBarcode(products),
+                              icon: const Icon(Icons.qr_code_scanner),
+                              label: const Text('Ler etiqueta'),
+                            ),
+                            OutlinedButton.icon(
+                              onPressed: () => _generateTestBarcode(selectedProduct),
+                              icon: const Icon(Icons.auto_fix_high),
+                              label: const Text('Gerar etiqueta teste'),
+                            ),
+                          ],
+                        ),
+                        if (_lastBarcode != null) ...[
+                          const SizedBox(height: 12),
+                          Text('Código: ${_lastBarcode!.rawCode}'),
+                          Text(
+                            'PLU/produto na etiqueta: ${_lastBarcode!.productCode}',
+                          ),
+                          Text('Valor na etiqueta: ${_lastBarcode!.valueCode}'),
+                          Text(
+                            'Dígito verificador correto: ${_lastBarcode!.isCheckDigitValid ? 'sim' : 'não'}',
+                          ),
+                        ],
+                      ],
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 16),
+                Card(
+                  child: Padding(
+                    padding: const EdgeInsets.all(16),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
                         Text(
-                          'Total da venda: R\$ ${_formatMoney(_pendingTotal)}',
+                          'Total da venda: R\$ ${_formatMoney(totalToShow)}',
                           style: const TextStyle(
                             fontSize: 22,
                             fontWeight: FontWeight.bold,
                           ),
+                        ),
+                        const SizedBox(height: 8),
+                        Text('Produto: ${selectedProduct?.name ?? '-'}'),
+                        Text('Código/PLU: ${selectedProduct?.code ?? '-'}'),
+                        Text(
+                          'Preço: R\$ ${_formatMoney(selectedProduct?.salePrice ?? 0)}/${selectedProduct?.unit.label ?? 'kg'}',
                         ),
                         const SizedBox(height: 12),
                         DropdownButtonFormField<PaymentMethod>(
@@ -667,6 +590,7 @@ class _QuickWeightSaleScreenState extends State<QuickWeightSaleScreen> {
                           onPressed: () => _finishSale(
                             inventory: inventory,
                             sales: sales,
+                            product: selectedProduct,
                           ),
                           icon: const Icon(Icons.check_circle),
                           label: const Text('Finalizar venda'),
@@ -681,54 +605,6 @@ class _QuickWeightSaleScreenState extends State<QuickWeightSaleScreen> {
                 ),
               ],
             ),
-    );
-  }
-}
-
-class _PendingItemTile extends StatelessWidget {
-  const _PendingItemTile({
-    required this.item,
-    required this.index,
-    required this.formatMoney,
-    required this.formatQty,
-    required this.onRemove,
-  });
-
-  final _LabelSaleItem item;
-  final int index;
-  final String Function(double value) formatMoney;
-  final String Function(double value) formatQty;
-  final VoidCallback onRemove;
-
-  @override
-  Widget build(BuildContext context) {
-    final subtitle = item.rawBarcode == null
-        ? 'Manual'
-        : 'Etiqueta ${item.rawBarcode}';
-
-    return ListTile(
-      contentPadding: EdgeInsets.zero,
-      leading: CircleAvatar(
-        child: Text('${index + 1}'),
-      ),
-      title: Text(item.product.name),
-      subtitle: Text(
-        '$subtitle • ${formatQty(item.quantity)} ${item.product.unit.label}',
-      ),
-      trailing: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Text(
-            'R\$ ${formatMoney(item.total)}',
-            style: const TextStyle(fontWeight: FontWeight.bold),
-          ),
-          IconButton(
-            tooltip: 'Remover',
-            onPressed: onRemove,
-            icon: const Icon(Icons.close),
-          ),
-        ],
-      ),
     );
   }
 }
@@ -750,30 +626,4 @@ class _EmptyProductsView extends StatelessWidget {
       ),
     );
   }
-}
-
-class _LabelSaleItem {
-  const _LabelSaleItem({
-    required this.product,
-    required this.quantity,
-    required this.total,
-    required this.rawBarcode,
-    required this.productCodeFromBarcode,
-  });
-
-  final Product product;
-  final double quantity;
-  final double total;
-  final String? rawBarcode;
-  final String productCodeFromBarcode;
-}
-
-class _GroupedItem {
-  const _GroupedItem({
-    required this.product,
-    required this.quantity,
-  });
-
-  final Product product;
-  final double quantity;
 }
