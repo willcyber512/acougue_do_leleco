@@ -1,5 +1,3 @@
-import 'dart:async';
-
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
@@ -28,8 +26,6 @@ class _QuickWeightSaleScreenState extends State<QuickWeightSaleScreen> {
   ScaleBarcodeMode _barcodeMode = ScaleBarcodeMode.priceEmbedded;
   Product? _selectedProduct;
   String? _message;
-  bool _autoAddBarcode = true;
-  Timer? _barcodeDebounce;
 
   final List<_LabelSaleItem> _pendingItems = [];
 
@@ -41,7 +37,6 @@ class _QuickWeightSaleScreenState extends State<QuickWeightSaleScreen> {
 
   @override
   void dispose() {
-    _barcodeDebounce?.cancel();
     _barcodeController.dispose();
     _weightController.dispose();
     _barcodeFocusNode.dispose();
@@ -99,28 +94,6 @@ class _QuickWeightSaleScreenState extends State<QuickWeightSaleScreen> {
     }
 
     return digits.padLeft(6, '0');
-  }
-
-  void _onBarcodeChanged(List<Product> products, String value) {
-    if (!_autoAddBarcode) return;
-
-    final digits = _digitsOnly(value);
-
-    _barcodeDebounce?.cancel();
-
-    if (digits.length < 13) return;
-
-    if (digits.length > 13) {
-      _barcodeController.text = digits.substring(0, 13);
-      _barcodeController.selection = TextSelection.fromPosition(
-        TextPosition(offset: _barcodeController.text.length),
-      );
-    }
-
-    _barcodeDebounce = Timer(const Duration(milliseconds: 180), () {
-      if (!mounted) return;
-      _addBarcodeToSale(products, silentWhenEmpty: true);
-    });
   }
 
   Product? _findProductByScaleCode(List<Product> products, String code) {
@@ -202,20 +175,9 @@ class _QuickWeightSaleScreenState extends State<QuickWeightSaleScreen> {
     _focusBarcodeField();
   }
 
-  void _addBarcodeToSale(List<Product> products, {bool silentWhenEmpty = false}) {
-    _barcodeDebounce?.cancel();
-
-    final rawCode = _barcodeController.text.trim();
-
-    if (rawCode.isEmpty) {
-      if (!silentWhenEmpty) {
-        _showError('Passe uma etiqueta ou digite o código antes de adicionar.');
-      }
-      return;
-    }
-
+  void _addBarcodeToSale(List<Product> products) {
     final parsed = _parser.parse(
-      rawCode,
+      _barcodeController.text,
       mode: _barcodeMode,
     );
 
@@ -572,22 +534,6 @@ class _QuickWeightSaleScreenState extends State<QuickWeightSaleScreen> {
               },
             ),
             const SizedBox(height: 12),
-            SwitchListTile(
-              contentPadding: EdgeInsets.zero,
-              value: _autoAddBarcode,
-              title: const Text('Adicionar automaticamente'),
-              subtitle: const Text(
-                'Quando o leitor enviar 13 números ou Enter, a etiqueta entra na venda.',
-              ),
-              onChanged: (value) {
-                setState(() {
-                  _autoAddBarcode = value;
-                });
-
-                _focusBarcodeField();
-              },
-            ),
-            const SizedBox(height: 8),
             TextField(
               controller: _barcodeController,
               focusNode: _barcodeFocusNode,
@@ -611,11 +557,7 @@ class _QuickWeightSaleScreenState extends State<QuickWeightSaleScreen> {
                   icon: const Icon(Icons.close),
                 ),
               ),
-              onChanged: (value) => _onBarcodeChanged(products, value),
-              onSubmitted: (_) => _addBarcodeToSale(
-                products,
-                silentWhenEmpty: true,
-              ),
+              onSubmitted: (_) => _addBarcodeToSale(products),
             ),
             const SizedBox(height: 12),
             Wrap(
@@ -625,7 +567,7 @@ class _QuickWeightSaleScreenState extends State<QuickWeightSaleScreen> {
                 FilledButton.icon(
                   onPressed: () => _addBarcodeToSale(products),
                   icon: const Icon(Icons.add_shopping_cart_rounded),
-                  label: const Text('Adicionar agora'),
+                  label: const Text('Adicionar etiqueta'),
                 ),
                 OutlinedButton.icon(
                   onPressed: () => _generateTestBarcode(_selectedProduct),
