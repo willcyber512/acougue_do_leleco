@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../sales/quick_weight_sale_screen.dart';
+import 'scale_integration_screen.dart';
 
 class HardwareCenterScreen extends StatelessWidget {
   const HardwareCenterScreen({
@@ -15,14 +16,14 @@ class HardwareCenterScreen extends StatelessWidget {
     return Scaffold(
       appBar: showAppBar
           ? AppBar(
-              title: const Text('Leitor USB e etiquetas'),
+              title: const Text('Central de Hardware'),
             )
           : null,
       body: ListView(
         padding: const EdgeInsets.all(16),
         children: [
           const Text(
-            'Leitor USB e etiquetas da balança',
+            'Leitor USB e etiquetas',
             style: TextStyle(
               fontSize: 22,
               fontWeight: FontWeight.bold,
@@ -30,14 +31,27 @@ class HardwareCenterScreen extends StatelessWidget {
           ),
           const SizedBox(height: 8),
           const Text(
-            'A balança gera a etiqueta. O leitor USB lê o código. O sistema identifica o produto e registra a venda.',
+            'Área para vender lendo a etiqueta gerada pela balança, como um SmartPOS do açougue.',
           ),
           const SizedBox(height: 16),
           _HardwareCard(
-            icon: Icons.qr_code_scanner,
-            title: 'Venda por etiqueta',
-            subtitle:
-                'Use o leitor USB para ler a etiqueta impressa pela balança ou digite o peso manualmente quando precisar.',
+            icon: Icons.scale,
+            title: 'Etiqueta da balança / leitor USB',
+            subtitle: 'Testar leitura de código, simular etiqueta e validar se o sistema entende o código lido.',
+            buttonText: 'Testar leitura',
+            onTap: () {
+              Navigator.of(context).push(
+                MaterialPageRoute(
+                  builder: (_) => const ScaleIntegrationScreen(),
+                ),
+              );
+            },
+          ),
+          const SizedBox(height: 12),
+          _HardwareCard(
+            icon: Icons.point_of_sale,
+            title: 'Venda por peso manual',
+            subtitle: 'Permite vender digitando o peso visto na balança ou lendo a etiqueta com o leitor USB.',
             buttonText: 'Abrir venda',
             onTap: () {
               Navigator.of(context).push(
@@ -48,7 +62,7 @@ class HardwareCenterScreen extends StatelessWidget {
             },
           ),
           const SizedBox(height: 12),
-          const _FlowCard(),
+          const _InfoCard(),
         ],
       ),
     );
@@ -118,8 +132,8 @@ class _HardwareCard extends StatelessWidget {
   }
 }
 
-class _FlowCard extends StatelessWidget {
-  const _FlowCard();
+class _InfoCard extends StatelessWidget {
+  const _InfoCard();
 
   @override
   Widget build(BuildContext context) {
@@ -131,18 +145,16 @@ class _FlowCard extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(
-              'Fluxo correto do sistema',
+              'Fluxo seguro tipo SmartPOS',
               style: TextStyle(
                 fontSize: 17,
                 fontWeight: FontWeight.bold,
               ),
             ),
-            SizedBox(height: 10),
-            Text('1. Cadastrar o produto na balança com código/PLU e preço por kg.'),
-            Text('2. Cadastrar o mesmo produto no sistema com o mesmo código/PLU.'),
-            Text('3. A balança imprime a etiqueta.'),
-            Text('4. O leitor USB lê o código da etiqueta.'),
-            Text('5. O sistema registra a venda, caixa e baixa de estoque.'),
+            SizedBox(height: 8),
+            Text(
+              'A balança gera a etiqueta. O leitor USB lê o código. O sistema identifica o produto, calcula/confere a venda e o funcionário confirma. Não é obrigatório controlar a balança por cabo ou rede.',
+            ),
           ],
         ),
       ),

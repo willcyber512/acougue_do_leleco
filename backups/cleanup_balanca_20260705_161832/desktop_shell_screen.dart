@@ -33,7 +33,7 @@ class _DesktopShellScreenState extends State<DesktopShellScreen> {
     'Relatórios',
     'Fornecedores',
     'Alertas',
-    'Leitor USB',
+    'Hardware',
     'Ajustes',
   ];
 
@@ -46,7 +46,7 @@ class _DesktopShellScreenState extends State<DesktopShellScreen> {
     Icons.bar_chart_rounded,
     Icons.local_shipping_rounded,
     Icons.notifications_rounded,
-    Icons.qr_code_scanner,
+    Icons.devices_other_rounded,
     Icons.settings_rounded,
   ];
 

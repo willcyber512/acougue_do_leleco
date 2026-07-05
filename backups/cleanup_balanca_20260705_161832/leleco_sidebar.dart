@@ -191,7 +191,7 @@ const List<String> _defaultLabels = [
   'Relatórios',
   'Fornecedores',
   'Alertas',
-  'Leitor USB',
+  'Hardware',
   'Ajustes',
 ];
 
@@ -204,6 +204,6 @@ const List<IconData> _defaultIcons = [
   Icons.bar_chart_rounded,
   Icons.local_shipping_rounded,
   Icons.notifications_rounded,
-  Icons.qr_code_scanner,
+  Icons.devices_other_rounded,
   Icons.settings_rounded,
 ];
