@@ -144,60 +144,26 @@ class _QuickWeightSaleScreenState extends State<QuickWeightSaleScreen> {
     return null;
   }
 
-  _DecodedLabel _decodeLabel(Product product, ScaleBarcodeData barcode) {
-    final valueAsPrice = barcode.priceFromBarcode;
-    final valueAsWeight = barcode.weightKgFromBarcode;
-
-    final quantityIfPrice = product.salePrice <= 0 ? 0.0 : valueAsPrice / product.salePrice;
-    final totalIfWeight = valueAsWeight * product.salePrice;
-
-    final stockLimit = product.stockQuantity <= 0 ? 999999.0 : product.stockQuantity * 1.05;
-
-    final priceLooksPossible = valueAsPrice > 0 &&
-        quantityIfPrice > 0 &&
-        quantityIfPrice <= stockLimit;
-
-    final weightLooksPossible = valueAsWeight > 0 &&
-        valueAsWeight <= stockLimit &&
-        valueAsWeight <= 30;
-
-    if (weightLooksPossible && !priceLooksPossible) {
-      return _DecodedLabel(
-        modeLabel: 'peso detectado',
-        quantity: valueAsWeight,
-        total: totalIfWeight,
-      );
+  double _quantityFromBarcode(Product product, ScaleBarcodeData barcode) {
+    if (_barcodeMode == ScaleBarcodeMode.weightEmbedded) {
+      return barcode.weightKgFromBarcode;
     }
 
-    if (priceLooksPossible && !weightLooksPossible) {
-      return _DecodedLabel(
-        modeLabel: 'preço detectado',
-        quantity: quantityIfPrice,
-        total: valueAsPrice,
-      );
+    final price = barcode.priceFromBarcode;
+
+    if (product.salePrice <= 0) {
+      return 0;
     }
 
-    if (valueAsWeight > 30 && priceLooksPossible) {
-      return _DecodedLabel(
-        modeLabel: 'preço detectado',
-        quantity: quantityIfPrice,
-        total: valueAsPrice,
-      );
+    return price / product.salePrice;
+  }
+
+  double _totalFromBarcode(Product product, ScaleBarcodeData barcode) {
+    if (_barcodeMode == ScaleBarcodeMode.priceEmbedded) {
+      return barcode.priceFromBarcode;
     }
 
-    if (valueAsPrice < 1 && weightLooksPossible) {
-      return _DecodedLabel(
-        modeLabel: 'peso detectado',
-        quantity: valueAsWeight,
-        total: totalIfWeight,
-      );
-    }
-
-    return _DecodedLabel(
-      modeLabel: 'preço detectado',
-      quantity: quantityIfPrice,
-      total: valueAsPrice,
-    );
+    return barcode.weightKgFromBarcode * product.salePrice;
   }
 
   void _generateTestBarcode(Product? product) {
@@ -267,9 +233,8 @@ class _QuickWeightSaleScreenState extends State<QuickWeightSaleScreen> {
       return;
     }
 
-    final decoded = _decodeLabel(product, parsed);
-    final quantity = decoded.quantity;
-    final total = decoded.total;
+    final quantity = _quantityFromBarcode(product, parsed);
+    final total = _totalFromBarcode(product, parsed);
 
     if (quantity <= 0 || total <= 0) {
       _showError('A etiqueta foi lida, mas o peso/valor ficou zerado.');
@@ -290,7 +255,7 @@ class _QuickWeightSaleScreenState extends State<QuickWeightSaleScreen> {
       );
       _barcodeController.clear();
       _message =
-          'Etiqueta adicionada: ${product.name} | ${decoded.modeLabel} | ${_formatQty(quantity)} ${product.unit.label} | R\$ ${_formatMoney(total)}.';
+          'Etiqueta adicionada: ${product.name} | ${_formatQty(quantity)} ${product.unit.label} | R\$ ${_formatMoney(total)}.';
     });
 
     _focusBarcodeField();
@@ -813,7 +778,7 @@ class _ScannerInfoBox extends StatelessWidget {
           SizedBox(width: 10),
           Expanded(
             child: Text(
-              'Modo leitor USB: a balança gera a etiqueta e o leitor envia o código para o sistema. O sistema encontra o produto pelo código/PLU e tenta detectar automaticamente se a etiqueta trouxe preço total ou peso.',
+              'Modo leitor USB: a balança gera a etiqueta e o leitor envia o código para o sistema. O produto é encontrado pelo código/PLU cadastrado no estoque.',
             ),
           ),
         ],
@@ -1169,19 +1134,6 @@ class _EmptyProductsView extends StatelessWidget {
       ),
     );
   }
-}
-
-
-class _DecodedLabel {
-  const _DecodedLabel({
-    required this.modeLabel,
-    required this.quantity,
-    required this.total,
-  });
-
-  final String modeLabel;
-  final double quantity;
-  final double total;
 }
 
 class _LabelSaleItem {
