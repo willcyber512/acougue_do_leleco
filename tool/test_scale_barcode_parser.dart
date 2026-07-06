@@ -1,3 +1,5 @@
+// ignore_for_file: avoid_print
+
 import '../lib/models/scale_barcode_data.dart';
 import '../lib/services/scales/scale_barcode_parser.dart';
 
