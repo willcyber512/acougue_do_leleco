@@ -430,7 +430,7 @@ class _TipsCard extends StatelessWidget {
             SizedBox(width: 12),
             Expanded(
               child: Text(
-                'Quando o leitor USB chegar, ele deve funcionar como teclado. É só clicar no campo de código e passar a etiqueta. Para testar agora, use o botão "Gerar etiqueta teste".',
+                'O leitor USB ideal é o comum que funciona como teclado (USB HID Keyboard), lê EAN-13 e envia Enter no final. Para testar agora, use "Teste do leitor USB" ou "Gerar etiqueta teste" na venda.',
               ),
             ),
           ],
