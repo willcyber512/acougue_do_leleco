@@ -25,7 +25,7 @@ class _QuickWeightSaleScreenState extends State<QuickWeightSaleScreen> {
   final _barcodeFocusNode = FocusNode();
   final _parser = const ScaleBarcodeParser();
 
-  static const ScaleBarcodeMode _barcodeMode = ScaleBarcodeMode.priceEmbedded;
+  ScaleBarcodeMode _barcodeMode = ScaleBarcodeMode.priceEmbedded;
   Product? _selectedProduct;
   String? _message;
   bool _autoAddBarcode = true;
@@ -411,6 +411,17 @@ class _QuickWeightSaleScreenState extends State<QuickWeightSaleScreen> {
     _focusBarcodeField();
   }
 
+  String _modeLabel(ScaleBarcodeMode mode) {
+    switch (mode) {
+      case ScaleBarcodeMode.priceEmbedded:
+        return 'Código contém preço';
+      case ScaleBarcodeMode.weightEmbedded:
+        return 'Código contém peso';
+      case ScaleBarcodeMode.unknown:
+        return 'Desconhecido';
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final inventory = context.watch<InventoryProvider>();
@@ -535,7 +546,31 @@ class _QuickWeightSaleScreenState extends State<QuickWeightSaleScreen> {
               subtitle: 'Passe a etiqueta da balança. Cada leitura entra na venda atual.',
             ),
             const SizedBox(height: 16),
-            _ScannerInfoBox(),
+            DropdownButtonFormField<ScaleBarcodeMode>(
+              value: _barcodeMode,
+              decoration: const InputDecoration(
+                labelText: 'Formato da etiqueta',
+                border: OutlineInputBorder(),
+              ),
+              items: const [
+                ScaleBarcodeMode.priceEmbedded,
+                ScaleBarcodeMode.weightEmbedded,
+              ].map((mode) {
+                return DropdownMenuItem(
+                  value: mode,
+                  child: Text(_modeLabel(mode)),
+                );
+              }).toList(),
+              onChanged: (value) {
+                if (value == null) return;
+
+                setState(() {
+                  _barcodeMode = value;
+                });
+
+                _focusBarcodeField();
+              },
+            ),
             const SizedBox(height: 12),
             SwitchListTile(
               contentPadding: EdgeInsets.zero,
@@ -752,36 +787,6 @@ class _QuickWeightSaleScreenState extends State<QuickWeightSaleScreen> {
             ),
           ],
         ),
-      ),
-    );
-  }
-}
-
-
-class _ScannerInfoBox extends StatelessWidget {
-  const _ScannerInfoBox();
-
-  @override
-  Widget build(BuildContext context) {
-    final colorScheme = Theme.of(context).colorScheme;
-
-    return Container(
-      padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        color: colorScheme.surfaceContainerHighest,
-        borderRadius: BorderRadius.circular(14),
-      ),
-      child: const Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Icon(Icons.usb_rounded),
-          SizedBox(width: 10),
-          Expanded(
-            child: Text(
-              'Modo leitor USB: a balança gera a etiqueta e o leitor envia o código para o sistema. O produto é encontrado pelo código/PLU cadastrado no estoque.',
-            ),
-          ),
-        ],
       ),
     );
   }
