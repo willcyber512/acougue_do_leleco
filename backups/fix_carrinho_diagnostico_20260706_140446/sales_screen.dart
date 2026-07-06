@@ -525,137 +525,92 @@ class _CartItemTile extends StatelessWidget {
     final sales = context.read<SalesProvider>();
     final product = item.product;
     final quantity = item.quantity;
-    final isDark = Theme.of(context).brightness == Brightness.dark;
 
     return Container(
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
-        color: isDark ? AppColors.darkSurfaceAlt : AppColors.white,
+        color: Theme.of(context).brightness == Brightness.dark
+            ? AppColors.darkSurfaceAlt
+            : AppColors.white,
         borderRadius: BorderRadius.circular(20),
-        border: Border.all(
-          color: isDark
-              ? AppColors.beige100.withOpacity(0.06)
-              : AppColors.wine900.withOpacity(0.05),
-        ),
       ),
-      child: Column(
+      child: Row(
         children: [
-          Row(
-            children: [
-              Container(
-                width: 42,
-                height: 42,
-                decoration: BoxDecoration(
-                  color: AppColors.wine900,
-                  borderRadius: BorderRadius.circular(15),
-                ),
-                child: const Icon(
-                  Icons.shopping_basket_rounded,
-                  color: AppColors.beige100,
-                  size: 21,
-                ),
-              ),
-              const SizedBox(width: 10),
-              Expanded(
-                child: InkWell(
-                  onTap: () => _openCartQuantityDialog(context, item),
-                  borderRadius: BorderRadius.circular(12),
-                  child: Padding(
-                    padding: const EdgeInsets.symmetric(vertical: 3),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          product.name,
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: const TextStyle(fontWeight: FontWeight.w900),
-                        ),
-                        const SizedBox(height: 3),
-                        Text(
-                          '${_formatMoney(product.salePrice)} x ${_formatNumber(quantity)} ${product.unit.label}',
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: Theme.of(context).textTheme.bodySmall,
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-              ),
-              const SizedBox(width: 8),
-              Text(
-                _formatMoney(item.subtotal),
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                textAlign: TextAlign.end,
-                style: const TextStyle(fontWeight: FontWeight.w900),
-              ),
-              const SizedBox(width: 4),
-              IconButton(
-                tooltip: 'Remover',
-                visualDensity: VisualDensity.compact,
-                onPressed: () => sales.removeItem(product.id),
-                icon: const Icon(Icons.close_rounded),
-              ),
-            ],
+          Container(
+            width: 44,
+            height: 44,
+            decoration: BoxDecoration(
+              color: AppColors.wine900,
+              borderRadius: BorderRadius.circular(15),
+            ),
+            child: const Icon(
+              Icons.shopping_basket_rounded,
+              color: AppColors.beige100,
+            ),
           ),
-          const SizedBox(height: 10),
-          Row(
-            children: [
-              SizedBox(
-                width: 46,
-                height: 40,
-                child: OutlinedButton(
-                  onPressed: () => sales.decreaseQuantity(product.id),
-                  style: OutlinedButton.styleFrom(
-                    padding: EdgeInsets.zero,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(14),
-                    ),
-                  ),
-                  child: const Icon(Icons.remove_rounded, size: 20),
-                ),
-              ),
-              const SizedBox(width: 8),
-              Expanded(
-                child: InkWell(
-                  onTap: () => _openCartQuantityDialog(context, item),
-                  borderRadius: BorderRadius.circular(14),
-                  child: Container(
-                    height: 40,
-                    alignment: Alignment.center,
-                    decoration: BoxDecoration(
-                      color: isDark
-                          ? AppColors.beige100.withOpacity(0.08)
-                          : AppColors.wine700.withOpacity(0.08),
-                      borderRadius: BorderRadius.circular(14),
-                    ),
-                    child: Text(
-                      _formatNumber(quantity),
+          const SizedBox(width: 12),
+          Expanded(
+            child: InkWell(
+              onTap: () => _openCartQuantityDialog(context, item),
+              borderRadius: BorderRadius.circular(12),
+              child: Padding(
+                padding: const EdgeInsets.symmetric(vertical: 4),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      product.name,
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(fontWeight: FontWeight.w900),
+                      style: TextStyle(fontWeight: FontWeight.w900),
                     ),
-                  ),
+                    const SizedBox(height: 3),
+                    Text(
+                      '${_formatMoney(product.salePrice)} x ${_formatNumber(quantity)} ${product.unit.label}',
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: Theme.of(context).textTheme.bodySmall,
+                    ),
+                  ],
                 ),
               ),
-              const SizedBox(width: 8),
-              SizedBox(
-                width: 46,
-                height: 40,
-                child: FilledButton(
-                  onPressed: () => sales.increaseQuantity(product.id),
-                  style: FilledButton.styleFrom(
-                    padding: EdgeInsets.zero,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(14),
-                    ),
-                  ),
-                  child: const Icon(Icons.add_rounded, size: 20),
-                ),
+            ),
+          ),
+          IconButton(
+            tooltip: 'Diminuir',
+            onPressed: () => sales.decreaseQuantity(product.id),
+            icon: const Icon(Icons.remove_circle_outline_rounded),
+          ),
+          InkWell(
+            onTap: () => _openCartQuantityDialog(context, item),
+            borderRadius: BorderRadius.circular(12),
+            child: Container(
+              width: 58,
+              padding: const EdgeInsets.symmetric(vertical: 8),
+              child: Text(
+                _formatNumber(quantity),
+                textAlign: TextAlign.center,
+                style: TextStyle(fontWeight: FontWeight.w900),
               ),
-            ],
+            ),
+          ),
+          IconButton(
+            tooltip: 'Aumentar',
+            onPressed: () => sales.increaseQuantity(product.id),
+            icon: const Icon(Icons.add_circle_outline_rounded),
+          ),
+          SizedBox(
+            width: 78,
+            child: Text(
+              _formatMoney(item.subtotal),
+              textAlign: TextAlign.end,
+              style: TextStyle(fontWeight: FontWeight.w900),
+            ),
+          ),
+          IconButton(
+            tooltip: 'Remover',
+            onPressed: () => sales.removeItem(product.id),
+            icon: const Icon(Icons.close_rounded),
           ),
         ],
       ),

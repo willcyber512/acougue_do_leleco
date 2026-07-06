@@ -468,28 +468,24 @@ class _ReportMenu extends StatelessWidget {
 
     return _LelecoPanel(
       padding: const EdgeInsets.all(12),
-      child: LayoutBuilder(
-        builder: (context, constraints) {
-          final width = constraints.maxWidth;
-          final columns = width >= 760 ? 4 : width >= 520 ? 2 : 1;
-          const gap = 10.0;
-          final buttonWidth = (width - gap * (columns - 1)) / columns;
-
-          return Wrap(
-            spacing: gap,
-            runSpacing: gap,
-            children: items.map((item) {
-              return SizedBox(
-                width: buttonWidth,
-                child: _ReportMenuButton(
-                  item: item,
-                  active: selected == item.section,
-                  onTap: () => onChanged(item.section),
+      child: Scrollbar(
+        thumbVisibility: false,
+        child: SingleChildScrollView(
+          scrollDirection: Axis.horizontal,
+          padding: const EdgeInsets.only(right: 12),
+          child: Row(
+            children: [
+              for (var i = 0; i < items.length; i++) ...[
+                _ReportMenuButton(
+                  item: items[i],
+                  active: selected == items[i].section,
+                  onTap: () => onChanged(items[i].section),
                 ),
-              );
-            }).toList(),
-          );
-        },
+                if (i != items.length - 1) const SizedBox(width: 8),
+              ],
+            ],
+          ),
+        ),
       ),
     );
   }
@@ -515,7 +511,7 @@ class _ReportMenuButton extends StatelessWidget {
         duration: const Duration(milliseconds: 180),
         height: 48,
         padding: const EdgeInsets.symmetric(
-          horizontal: 12,
+          horizontal: 16,
           vertical: 12,
         ),
         decoration: BoxDecoration(
@@ -526,7 +522,7 @@ class _ReportMenuButton extends StatelessWidget {
           ),
         ),
         child: Row(
-          mainAxisAlignment: MainAxisAlignment.center,
+          mainAxisSize: MainAxisSize.min,
           children: [
             Icon(
               item.icon,
@@ -534,16 +530,14 @@ class _ReportMenuButton extends StatelessWidget {
               color: active ? AppColors.beige100 : AppColors.wine700,
             ),
             const SizedBox(width: 8),
-            Flexible(
-              child: Text(
-                item.label,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: TextStyle(
-                  color: active ? AppColors.beige100 : _titleColor(context),
-                  fontWeight: FontWeight.w900,
-                  fontSize: 14,
-                ),
+            Text(
+              item.label,
+              maxLines: 1,
+              overflow: TextOverflow.visible,
+              style: TextStyle(
+                color: active ? AppColors.beige100 : _titleColor(context),
+                fontWeight: FontWeight.w900,
+                fontSize: 14,
               ),
             ),
           ],
@@ -552,13 +546,6 @@ class _ReportMenuButton extends StatelessWidget {
     );
   }
 }
-
-
-
-
-
-
-
 
 
 

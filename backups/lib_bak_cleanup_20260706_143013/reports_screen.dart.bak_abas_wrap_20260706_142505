@@ -429,8 +429,9 @@ class _ReportMenu extends StatelessWidget {
   final _ReportSection selected;
   final ValueChanged<_ReportSection> onChanged;
 
-  List<_ReportOption> get _items {
-    return [
+  @override
+  Widget build(BuildContext context) {
+    final items = [
       _ReportOption(_ReportSection.overview, 'Geral', Icons.dashboard_rounded),
       _ReportOption(
         _ReportSection.products,
@@ -456,114 +457,67 @@ class _ReportMenu extends StatelessWidget {
       _ReportOption(_ReportSection.credit, 'Fiado', Icons.person_rounded),
       _ReportOption(
         _ReportSection.detailed,
-        'Vendas',
+        'Detalhadas',
         Icons.receipt_long_rounded,
       ),
     ];
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final items = _items;
 
     return _LelecoPanel(
       padding: const EdgeInsets.all(12),
-      child: LayoutBuilder(
-        builder: (context, constraints) {
-          final width = constraints.maxWidth;
-          final columns = width >= 760 ? 4 : width >= 520 ? 2 : 1;
-          const gap = 10.0;
-          final buttonWidth = (width - gap * (columns - 1)) / columns;
-
-          return Wrap(
-            spacing: gap,
-            runSpacing: gap,
-            children: items.map((item) {
-              return SizedBox(
-                width: buttonWidth,
-                child: _ReportMenuButton(
-                  item: item,
-                  active: selected == item.section,
-                  onTap: () => onChanged(item.section),
-                ),
-              );
-            }).toList(),
-          );
-        },
-      ),
-    );
-  }
-}
-
-class _ReportMenuButton extends StatelessWidget {
-  const _ReportMenuButton({
-    required this.item,
-    required this.active,
-    required this.onTap,
-  });
-
-  final _ReportOption item;
-  final bool active;
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    return InkWell(
-      borderRadius: BorderRadius.circular(18),
-      onTap: onTap,
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 180),
-        height: 48,
-        padding: const EdgeInsets.symmetric(
-          horizontal: 12,
-          vertical: 12,
-        ),
-        decoration: BoxDecoration(
-          color: active ? AppColors.wine900 : _chipBackground(context),
-          borderRadius: BorderRadius.circular(18),
-          border: Border.all(
-            color: active ? AppColors.wine900 : _borderColor(context),
-          ),
-        ),
+      child: SingleChildScrollView(
+        scrollDirection: Axis.horizontal,
         child: Row(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(
-              item.icon,
-              size: 18,
-              color: active ? AppColors.beige100 : AppColors.wine700,
-            ),
-            const SizedBox(width: 8),
-            Flexible(
-              child: Text(
-                item.label,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: TextStyle(
-                  color: active ? AppColors.beige100 : _titleColor(context),
-                  fontWeight: FontWeight.w900,
-                  fontSize: 14,
+          children: items.map((item) {
+            final active = selected == item.section;
+
+            return Padding(
+              padding: const EdgeInsets.only(right: 10),
+              child: InkWell(
+                borderRadius: BorderRadius.circular(18),
+                onTap: () => onChanged(item.section),
+                child: AnimatedContainer(
+                  duration: const Duration(milliseconds: 180),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 14,
+                    vertical: 12,
+                  ),
+                  decoration: BoxDecoration(
+                    color: active
+                        ? AppColors.wine900
+                        : _chipBackground(context),
+                    borderRadius: BorderRadius.circular(18),
+                    border: Border.all(
+                      color: active ? AppColors.wine900 : _borderColor(context),
+                    ),
+                  ),
+                  child: Row(
+                    children: [
+                      Icon(
+                        item.icon,
+                        size: 19,
+                        color: active ? AppColors.beige100 : AppColors.wine700,
+                      ),
+                      const SizedBox(width: 8),
+                      Text(
+                        item.label,
+                        style: TextStyle(
+                          color: active
+                              ? AppColors.beige100
+                              : _titleColor(context),
+                          fontWeight: FontWeight.w900,
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
               ),
-            ),
-          ],
+            );
+          }).toList(),
         ),
       ),
     );
   }
 }
-
-
-
-
-
-
-
-
-
-
-
-
 
 class _ReportBody extends StatelessWidget {
   const _ReportBody({

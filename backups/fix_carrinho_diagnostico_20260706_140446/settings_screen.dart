@@ -13,7 +13,6 @@ import '../../providers/sales_provider.dart';
 import '../../providers/shortcuts_provider.dart';
 import '../../services/local_backup_service.dart';
 import '../../widgets/system_about_card.dart';
-import '../../widgets/system_diagnostics_dialog.dart';
 
 class SettingsScreen extends StatefulWidget {
   const SettingsScreen({super.key});
@@ -44,8 +43,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
         _HeaderCard(),
         const SizedBox(height: 18),
         const SystemAboutCard(),
-        const SizedBox(height: 18),
-        const _DiagnosticsCard(),
         const SizedBox(height: 18),
         Row(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -240,60 +237,6 @@ class _HeaderCard extends StatelessWidget {
                   ),
                 ],
               ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-class _DiagnosticsCard extends StatelessWidget {
-  const _DiagnosticsCard();
-
-  @override
-  Widget build(BuildContext context) {
-    return Card(
-      child: Container(
-        width: double.infinity,
-        padding: const EdgeInsets.all(20),
-        child: Row(
-          children: [
-            Container(
-              width: 54,
-              height: 54,
-              decoration: BoxDecoration(
-                color: AppColors.wine900,
-                borderRadius: BorderRadius.circular(18),
-              ),
-              child: const Icon(
-                Icons.health_and_safety_rounded,
-                color: AppColors.beige100,
-              ),
-            ),
-            const SizedBox(width: 14),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    'Diagnóstico do sistema',
-                    style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                          fontWeight: FontWeight.w900,
-                        ),
-                  ),
-                  const SizedBox(height: 4),
-                  const Text(
-                    'Confira produtos, estoque, vendas, backup e leitura de etiquetas antes da entrega.',
-                  ),
-                ],
-              ),
-            ),
-            const SizedBox(width: 12),
-            FilledButton.icon(
-              onPressed: () => showSystemDiagnosticsDialog(context),
-              icon: const Icon(Icons.fact_check_rounded),
-              label: const Text('Abrir diagnóstico'),
             ),
           ],
         ),

@@ -584,14 +584,16 @@ class _CartItemTile extends StatelessWidget {
                 ),
               ),
               const SizedBox(width: 8),
-              Text(
-                _formatMoney(item.subtotal),
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                textAlign: TextAlign.end,
-                style: const TextStyle(fontWeight: FontWeight.w900),
+              ConstrainedBox(
+                constraints: const BoxConstraints(maxWidth: 92),
+                child: Text(
+                  _formatMoney(item.subtotal),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  textAlign: TextAlign.end,
+                  style: const TextStyle(fontWeight: FontWeight.w900),
+                ),
               ),
-              const SizedBox(width: 4),
               IconButton(
                 tooltip: 'Remover',
                 visualDensity: VisualDensity.compact,
@@ -600,59 +602,47 @@ class _CartItemTile extends StatelessWidget {
               ),
             ],
           ),
-          const SizedBox(height: 10),
+          const SizedBox(height: 8),
           Row(
             children: [
-              SizedBox(
-                width: 46,
-                height: 40,
-                child: OutlinedButton(
+              Expanded(
+                child: OutlinedButton.icon(
                   onPressed: () => sales.decreaseQuantity(product.id),
-                  style: OutlinedButton.styleFrom(
-                    padding: EdgeInsets.zero,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(14),
-                    ),
+                  icon: const Icon(Icons.remove_rounded, size: 18),
+                  label: const Text('Menos'),
+                ),
+              ),
+              const SizedBox(width: 8),
+              InkWell(
+                onTap: () => _openCartQuantityDialog(context, item),
+                borderRadius: BorderRadius.circular(14),
+                child: Container(
+                  constraints: const BoxConstraints(minWidth: 78),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 12,
+                    vertical: 10,
                   ),
-                  child: const Icon(Icons.remove_rounded, size: 20),
+                  decoration: BoxDecoration(
+                    color: isDark
+                        ? AppColors.beige100.withOpacity(0.08)
+                        : AppColors.wine700.withOpacity(0.08),
+                    borderRadius: BorderRadius.circular(14),
+                  ),
+                  child: Text(
+                    _formatNumber(quantity),
+                    textAlign: TextAlign.center,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(fontWeight: FontWeight.w900),
+                  ),
                 ),
               ),
               const SizedBox(width: 8),
               Expanded(
-                child: InkWell(
-                  onTap: () => _openCartQuantityDialog(context, item),
-                  borderRadius: BorderRadius.circular(14),
-                  child: Container(
-                    height: 40,
-                    alignment: Alignment.center,
-                    decoration: BoxDecoration(
-                      color: isDark
-                          ? AppColors.beige100.withOpacity(0.08)
-                          : AppColors.wine700.withOpacity(0.08),
-                      borderRadius: BorderRadius.circular(14),
-                    ),
-                    child: Text(
-                      _formatNumber(quantity),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(fontWeight: FontWeight.w900),
-                    ),
-                  ),
-                ),
-              ),
-              const SizedBox(width: 8),
-              SizedBox(
-                width: 46,
-                height: 40,
-                child: FilledButton(
+                child: FilledButton.icon(
                   onPressed: () => sales.increaseQuantity(product.id),
-                  style: FilledButton.styleFrom(
-                    padding: EdgeInsets.zero,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(14),
-                    ),
-                  ),
-                  child: const Icon(Icons.add_rounded, size: 20),
+                  icon: const Icon(Icons.add_rounded, size: 18),
+                  label: const Text('Mais'),
                 ),
               ),
             ],
