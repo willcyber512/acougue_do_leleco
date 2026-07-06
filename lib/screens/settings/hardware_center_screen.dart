@@ -4,6 +4,7 @@ import 'package:provider/provider.dart';
 import '../../models/product.dart';
 import '../../providers/inventory_provider.dart';
 import '../sales/quick_weight_sale_screen.dart';
+import 'usb_scanner_test_screen.dart';
 
 class HardwareCenterScreen extends StatelessWidget {
   const HardwareCenterScreen({
@@ -79,6 +80,21 @@ class HardwareCenterScreen extends StatelessWidget {
               Navigator.of(context).push(
                 MaterialPageRoute(
                   builder: (_) => const QuickWeightSaleScreen(),
+                ),
+              );
+            },
+          ),
+          const SizedBox(height: 16),
+          _MainActionCard(
+            icon: Icons.usb_rounded,
+            title: 'Teste do leitor USB',
+            subtitle:
+                'Use quando o leitor chegar para confirmar se ele está enviando os números da etiqueta para o sistema.',
+            buttonText: 'Testar leitor',
+            onTap: () {
+              Navigator.of(context).push(
+                MaterialPageRoute(
+                  builder: (_) => const UsbScannerTestScreen(),
                 ),
               );
             },
