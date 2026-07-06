@@ -147,7 +147,7 @@ class _DailyReportPdfDialogState extends State<DailyReportPdfDialog> {
                   ),
                   const SizedBox(height: 8),
                   const Text(
-                    'A parte da Ramuza não entra no PDF de fechamento. Ela continua disponível no histórico próprio da Ramuza.',
+                    'A parte da balança não entra no PDF de fechamento. Ela continua disponível no histórico próprio da balança.',
                     style: TextStyle(fontWeight: FontWeight.w700),
                   ),
                 ],

@@ -85,7 +85,7 @@ class _ProductsPanel extends StatelessWidget {
             Text(
               parsedBarcode == null
                   ? 'Enter adiciona 1 unidade/kg. Para peso exato, use o botão "Qtd".'
-                  : 'Etiqueta Ramuza detectada: PLU ${parsedBarcode.productCode}. Aperte Enter para adicionar.',
+                  : 'Etiqueta balança detectada: PLU ${parsedBarcode.productCode}. Aperte Enter para adicionar.',
               style: TextStyle(fontWeight: FontWeight.w700),
             ),
             const SizedBox(height: 10),

@@ -11,24 +11,24 @@ import '../services/local_text_file_saver.dart';
 import 'ramuza_barcode_config_dialog.dart';
 import 'ramuza_hardware_test_dialog.dart';
 
-Future<void> showRamuzaExportDialog(BuildContext context) async {
+Future<void> showbalançaExportDialog(BuildContext context) async {
   await showDialog<void>(
     context: context,
     builder: (dialogContext) {
-      return const RamuzaExportDialog();
+      return const balançaExportDialog();
     },
   );
 }
 
-class RamuzaExportDialog extends StatefulWidget {
-  const RamuzaExportDialog({super.key});
+class balançaExportDialog extends StatefulWidget {
+  const balançaExportDialog({super.key});
 
   @override
-  State<RamuzaExportDialog> createState() => _RamuzaExportDialogState();
+  State<balançaExportDialog> createState() => _balançaExportDialogState();
 }
 
-class _RamuzaExportDialogState extends State<RamuzaExportDialog> {
-  RamuzaExportFormat selectedFormat = RamuzaExportFormat.pluCsvHeader;
+class _balançaExportDialogState extends State<balançaExportDialog> {
+  balançaExportFormat selectedFormat = balançaExportFormat.pluCsvHeader;
 
   final Set<String> selectedIds = {};
 
@@ -58,11 +58,11 @@ class _RamuzaExportDialogState extends State<RamuzaExportDialog> {
           return selectedIds.contains(product.id);
         }).toList();
 
-        final validation = RamuzaExportService.validateProducts(
+        final validation = balançaExportService.validateProducts(
           selectedProducts,
         );
 
-        final file = RamuzaExportService.buildFile(
+        final file = balançaExportService.buildFile(
           products: selectedProducts,
           format: selectedFormat,
           validityDays: validityDays,
@@ -70,7 +70,7 @@ class _RamuzaExportDialogState extends State<RamuzaExportDialog> {
         );
 
         return AlertDialog(
-          title: const Text('Exportação Ramuza blindada'),
+          title: const Text('Exportação balança blindada'),
           content: SizedBox(
             width: 1100,
             height: 720,
@@ -146,14 +146,14 @@ class _RamuzaExportDialogState extends State<RamuzaExportDialog> {
           actions: [
             TextButton.icon(
               onPressed: () {
-                showRamuzaBarcodeConfigDialog(context);
+                showbalançaBarcodeConfigDialog(context);
               },
               icon: const Icon(Icons.qr_code_scanner_rounded),
               label: const Text('Configurar leitura'),
             ),
             TextButton.icon(
               onPressed: () {
-                showRamuzaHardwareTestDialog(context);
+                showbalançaHardwareTestDialog(context);
               },
               icon: const Icon(Icons.science_rounded),
               label: const Text('Teste leitor'),
@@ -340,21 +340,21 @@ class _RightPanel extends StatelessWidget {
     required this.onFormatChanged,
   });
 
-  final RamuzaExportFormat selectedFormat;
+  final balançaExportFormat selectedFormat;
   final List<Product> selectedProducts;
-  final RamuzaExportValidation validation;
-  final RamuzaExportFile file;
-  final ValueChanged<RamuzaExportFormat> onFormatChanged;
+  final balançaExportValidation validation;
+  final balançaExportFile file;
+  final ValueChanged<balançaExportFormat> onFormatChanged;
 
   @override
   Widget build(BuildContext context) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        DropdownButtonFormField<RamuzaExportFormat>(
+        DropdownButtonFormField<balançaExportFormat>(
           value: selectedFormat,
           decoration: const InputDecoration(labelText: 'Formato para testar'),
-          items: RamuzaExportFormat.values.map((format) {
+          items: balançaExportFormat.values.map((format) {
             return DropdownMenuItem(value: format, child: Text(format.label));
           }).toList(),
           onChanged: (value) {
@@ -440,7 +440,7 @@ class _ExportSummary extends StatelessWidget {
 class _FormatInfo extends StatelessWidget {
   const _FormatInfo({required this.format});
 
-  final RamuzaExportFormat format;
+  final balançaExportFormat format;
 
   @override
   Widget build(BuildContext context) {
@@ -460,7 +460,7 @@ class _FormatInfo extends StatelessWidget {
 class _ValidationBox extends StatelessWidget {
   const _ValidationBox({required this.validation});
 
-  final RamuzaExportValidation validation;
+  final balançaExportValidation validation;
 
   @override
   Widget build(BuildContext context) {
@@ -510,7 +510,7 @@ class _ValidationBox extends StatelessWidget {
   }
 }
 
-Future<void> _saveFile(BuildContext context, RamuzaExportFile file) async {
+Future<void> _saveFile(BuildContext context, balançaExportFile file) async {
   try {
     final saved = await saveTextFile(
       fileName: file.fileName,
@@ -538,7 +538,7 @@ Future<void> _saveAllFiles(
   required int validityDays,
   required bool removeAccents,
 }) async {
-  final exportFiles = RamuzaExportService.buildAllFiles(
+  final exportFiles = balançaExportService.buildAllFiles(
     products: products,
     validityDays: validityDays,
     removeAccents: removeAccents,
@@ -547,7 +547,7 @@ Future<void> _saveAllFiles(
   final files = <GeneratedTextFile>[
     GeneratedTextFile(
       fileName: 'LEIA-ME-RAMUZA.txt',
-      content: RamuzaExportService.buildInstructions(),
+      content: balançaExportService.buildInstructions(),
     ),
     ...exportFiles.map(
       (file) =>
@@ -567,7 +567,7 @@ Future<void> _saveAllFiles(
       '${saved.length} arquivo(s) salvos. Primeiro: $firstPath',
     );
   } catch (_) {
-    final content = RamuzaExportService.buildPackage(
+    final content = balançaExportService.buildPackage(
       products: products,
       validityDays: validityDays,
       removeAccents: removeAccents,
@@ -584,7 +584,7 @@ Future<void> _saveAllFiles(
   }
 }
 
-Future<void> _copyFile(BuildContext context, RamuzaExportFile file) async {
+Future<void> _copyFile(BuildContext context, balançaExportFile file) async {
   await Clipboard.setData(ClipboardData(text: file.content));
 
   _showMessage(context, 'Formato copiado: ${file.fileName}');
@@ -596,7 +596,7 @@ Future<void> _copyPackage(
   required int validityDays,
   required bool removeAccents,
 }) async {
-  final content = RamuzaExportService.buildPackage(
+  final content = balançaExportService.buildPackage(
     products: products,
     validityDays: validityDays,
     removeAccents: removeAccents,

@@ -1,7 +1,7 @@
 import '../models/product.dart';
 import '../models/product_unit.dart';
 
-enum RamuzaExportFormat {
+enum balançaExportFormat {
   pluCsvHeader,
   pluCsvNoHeader,
   pluTxtTab,
@@ -9,67 +9,67 @@ enum RamuzaExportFormat {
   priceOnlyCsv,
 }
 
-extension RamuzaExportFormatLabel on RamuzaExportFormat {
+extension balançaExportFormatLabel on balançaExportFormat {
   String get label {
     switch (this) {
-      case RamuzaExportFormat.pluCsvHeader:
+      case balançaExportFormat.pluCsvHeader:
         return 'PLU completo CSV com cabeçalho';
-      case RamuzaExportFormat.pluCsvNoHeader:
+      case balançaExportFormat.pluCsvNoHeader:
         return 'PLU completo CSV sem cabeçalho';
-      case RamuzaExportFormat.pluTxtTab:
+      case balançaExportFormat.pluTxtTab:
         return 'PLU completo TXT por TAB';
-      case RamuzaExportFormat.simpleCsv:
+      case balançaExportFormat.simpleCsv:
         return 'CSV simples código/nome/preço';
-      case RamuzaExportFormat.priceOnlyCsv:
+      case balançaExportFormat.priceOnlyCsv:
         return 'CSV mínimo PLU/preço';
     }
   }
 
   String get fileName {
     switch (this) {
-      case RamuzaExportFormat.pluCsvHeader:
+      case balançaExportFormat.pluCsvHeader:
         return 'ramuza_plu_completo_com_cabecalho.csv';
-      case RamuzaExportFormat.pluCsvNoHeader:
+      case balançaExportFormat.pluCsvNoHeader:
         return 'ramuza_plu_completo_sem_cabecalho.csv';
-      case RamuzaExportFormat.pluTxtTab:
+      case balançaExportFormat.pluTxtTab:
         return 'ramuza_plu_completo_tab.txt';
-      case RamuzaExportFormat.simpleCsv:
+      case balançaExportFormat.simpleCsv:
         return 'ramuza_simples_codigo_nome_preco.csv';
-      case RamuzaExportFormat.priceOnlyCsv:
+      case balançaExportFormat.priceOnlyCsv:
         return 'ramuza_minimo_plu_preco.csv';
     }
   }
 
   String get description {
     switch (this) {
-      case RamuzaExportFormat.pluCsvHeader:
-        return 'Formato principal para importar no software Ramuza via Excel/CSV, com campos de PLU, nome, tipo, preço, código, validade e setor.';
-      case RamuzaExportFormat.pluCsvNoHeader:
+      case balançaExportFormat.pluCsvHeader:
+        return 'Formato principal para importar no software da balança via Excel/CSV, com campos de PLU, nome, tipo, preço, código, validade e setor.';
+      case balançaExportFormat.pluCsvNoHeader:
         return 'Mesmo formato principal, mas sem cabeçalho. Use se o importador não aceitar a primeira linha.';
-      case RamuzaExportFormat.pluTxtTab:
+      case balançaExportFormat.pluTxtTab:
         return 'Mesmo formato principal separado por TAB para testar em Carregar TXT.';
-      case RamuzaExportFormat.simpleCsv:
+      case balançaExportFormat.simpleCsv:
         return 'Formato simples para teste manual: código, nome, unidade, preço e validade.';
-      case RamuzaExportFormat.priceOnlyCsv:
+      case balançaExportFormat.priceOnlyCsv:
         return 'Formato mínimo para importadores que pedem só PLU, descrição e preço.';
     }
   }
 }
 
-class RamuzaExportFile {
-  const RamuzaExportFile({
+class balançaExportFile {
+  const balançaExportFile({
     required this.format,
     required this.fileName,
     required this.content,
   });
 
-  final RamuzaExportFormat format;
+  final balançaExportFormat format;
   final String fileName;
   final String content;
 }
 
-class RamuzaExportValidation {
-  const RamuzaExportValidation({required this.errors, required this.warnings});
+class balançaExportValidation {
+  const balançaExportValidation({required this.errors, required this.warnings});
 
   final List<String> errors;
   final List<String> warnings;
@@ -78,10 +78,10 @@ class RamuzaExportValidation {
   bool get hasWarnings => warnings.isNotEmpty;
 }
 
-class RamuzaExportService {
-  RamuzaExportService._();
+class balançaExportService {
+  balançaExportService._();
 
-  static RamuzaExportValidation validateProducts(List<Product> products) {
+  static balançaExportValidation validateProducts(List<Product> products) {
     final errors = <String>[];
     final warnings = <String>[];
     final seenCodes = <String, String>{};
@@ -138,61 +138,61 @@ class RamuzaExportService {
       }
     }
 
-    return RamuzaExportValidation(errors: errors, warnings: warnings);
+    return balançaExportValidation(errors: errors, warnings: warnings);
   }
 
-  static RamuzaExportFile buildFile({
+  static balançaExportFile buildFile({
     required List<Product> products,
-    required RamuzaExportFormat format,
+    required balançaExportFormat format,
     required int validityDays,
     required bool removeAccents,
   }) {
     final content = switch (format) {
-      RamuzaExportFormat.pluCsvHeader => _buildPluFile(
+      balançaExportFormat.pluCsvHeader => _buildPluFile(
         products: products,
         validityDays: validityDays,
         removeAccents: removeAccents,
         includeHeader: true,
         separator: ';',
       ),
-      RamuzaExportFormat.pluCsvNoHeader => _buildPluFile(
+      balançaExportFormat.pluCsvNoHeader => _buildPluFile(
         products: products,
         validityDays: validityDays,
         removeAccents: removeAccents,
         includeHeader: false,
         separator: ';',
       ),
-      RamuzaExportFormat.pluTxtTab => _buildPluFile(
+      balançaExportFormat.pluTxtTab => _buildPluFile(
         products: products,
         validityDays: validityDays,
         removeAccents: removeAccents,
         includeHeader: false,
         separator: '\t',
       ),
-      RamuzaExportFormat.simpleCsv => _buildSimpleCsv(
+      balançaExportFormat.simpleCsv => _buildSimpleCsv(
         products: products,
         validityDays: validityDays,
         removeAccents: removeAccents,
       ),
-      RamuzaExportFormat.priceOnlyCsv => _buildPriceOnlyCsv(
+      balançaExportFormat.priceOnlyCsv => _buildPriceOnlyCsv(
         products: products,
         removeAccents: removeAccents,
       ),
     };
 
-    return RamuzaExportFile(
+    return balançaExportFile(
       format: format,
       fileName: format.fileName,
       content: content,
     );
   }
 
-  static List<RamuzaExportFile> buildAllFiles({
+  static List<balançaExportFile> buildAllFiles({
     required List<Product> products,
     required int validityDays,
     required bool removeAccents,
   }) {
-    return RamuzaExportFormat.values.map((format) {
+    return balançaExportFormat.values.map((format) {
       return buildFile(
         products: products,
         format: format,
@@ -239,13 +239,13 @@ class RamuzaExportService {
     return '''
 INSTRUÇÕES DE TESTE NO SOFTWARE RAMUZA
 
-1. Abra o software oficial da Ramuza no Windows.
+1. Abra o software da balança no Windows.
 2. Faça backup antes de importar qualquer arquivo.
 3. Use Arquivo > Importar/Exportar > Excel/CSV ou Carregar TXT.
 4. Teste primeiro: ramuza_plu_completo_com_cabecalho.csv.
 5. Se o software não aceitar cabeçalho, teste: ramuza_plu_completo_sem_cabecalho.csv.
 6. Se ainda não aceitar, teste: ramuza_plu_completo_tab.txt.
-7. Depois de importar os PLUs, envie para a balança pelo próprio software Ramuza.
+7. Depois de importar os PLUs, envie para a balança pelo próprio software da balança.
 8. Imprima uma etiqueta de teste.
 9. Leia a etiqueta no PDV do Açougue do Leleco.
 10. Se a etiqueta sair com outro padrão de código, ajuste em "Configurar leitura".
@@ -260,7 +260,7 @@ Separador CSV = ponto e vírgula.
 
 OBSERVAÇÃO
 
-O manual mostra que o software da Ramuza trabalha com importação/exportação por TMS, Excel/CSV e TXT.
+O manual mostra que o software da balança trabalha com importação/exportação por TMS, Excel/CSV e TXT.
 O formato TMS parece ser backup próprio do software, então o app gera CSV/TXT para importação segura.
 '''
         .trim();

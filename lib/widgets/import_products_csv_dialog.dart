@@ -88,7 +88,7 @@ class _ImportProductsCsvDialogState extends State<ImportProductsCsvDialog> {
     final invalidCount = preview.invalidRows.length;
 
     return AlertDialog(
-      title: const Text('Importar produtos por CSV'),
+      title: const Text('Importação avançada'),
       content: SizedBox(
         width: 920,
         height: 640,

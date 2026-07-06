@@ -9,24 +9,24 @@ import '../providers/inventory_provider.dart';
 import '../providers/ramuza_settings_provider.dart';
 import '../services/ramuza_barcode_parser.dart';
 
-Future<void> showRamuzaBarcodeConfigDialog(BuildContext context) async {
+Future<void> showbalançaBarcodeConfigDialog(BuildContext context) async {
   await showDialog<void>(
     context: context,
     builder: (dialogContext) {
-      return const RamuzaBarcodeConfigDialog();
+      return const balançaBarcodeConfigDialog();
     },
   );
 }
 
-class RamuzaBarcodeConfigDialog extends StatefulWidget {
-  const RamuzaBarcodeConfigDialog({super.key});
+class balançaBarcodeConfigDialog extends StatefulWidget {
+  const balançaBarcodeConfigDialog({super.key});
 
   @override
-  State<RamuzaBarcodeConfigDialog> createState() =>
-      _RamuzaBarcodeConfigDialogState();
+  State<balançaBarcodeConfigDialog> createState() =>
+      _balançaBarcodeConfigDialogState();
 }
 
-class _RamuzaBarcodeConfigDialogState extends State<RamuzaBarcodeConfigDialog> {
+class _balançaBarcodeConfigDialogState extends State<balançaBarcodeConfigDialog> {
   late final TextEditingController prefixController;
   late final TextEditingController productDigitsController;
   late final TextEditingController valueDigitsController;
@@ -113,7 +113,7 @@ class _RamuzaBarcodeConfigDialogState extends State<RamuzaBarcodeConfigDialog> {
                         onChanged: (value) {
                           setState(() => enabled = value);
                         },
-                        title: const Text('Ativar leitura Ramuza'),
+                        title: const Text('Ativar leitura balança'),
                         contentPadding: EdgeInsets.zero,
                       ),
                     ),
@@ -250,7 +250,7 @@ class _RamuzaBarcodeConfigDialogState extends State<RamuzaBarcodeConfigDialog> {
                   ..clearSnackBars()
                   ..showSnackBar(
                     const SnackBar(
-                      content: Text('Configuração da etiqueta Ramuza salva.'),
+                      content: Text('Configuração da etiqueta balança salva.'),
                     ),
                   );
               },
@@ -309,7 +309,7 @@ class _InfoHeader extends StatelessWidget {
             const SizedBox(width: 14),
             Expanded(
               child: Text(
-                'Configure o formato do código impresso pela Ramuza. '
+                'Configure o formato do código impresso pela balança. '
                 'O tamanho esperado agora é ${settings.expectedLength} dígitos. '
                 'Exemplo para teste: $example',
                 style: const TextStyle(fontWeight: FontWeight.w700),

@@ -5,17 +5,17 @@ import '../core/constants/app_colors.dart';
 import '../models/ramuza_barcode_event.dart';
 import '../providers/ramuza_barcode_log_provider.dart';
 
-Future<void> showRamuzaBarcodeHistoryDialog(BuildContext context) async {
+Future<void> showbalançaBarcodeHistoryDialog(BuildContext context) async {
   await showDialog<void>(
     context: context,
     builder: (dialogContext) {
-      return const RamuzaBarcodeHistoryDialog();
+      return const balançaBarcodeHistoryDialog();
     },
   );
 }
 
-class RamuzaBarcodeHistoryDialog extends StatelessWidget {
-  const RamuzaBarcodeHistoryDialog({super.key});
+class balançaBarcodeHistoryDialog extends StatelessWidget {
+  const balançaBarcodeHistoryDialog({super.key});
 
   @override
   Widget build(BuildContext context) {
@@ -24,7 +24,7 @@ class RamuzaBarcodeHistoryDialog extends StatelessWidget {
         final events = provider.events;
 
         return AlertDialog(
-          title: const Text('Leituras Ramuza'),
+          title: const Text('Leituras de etiqueta'),
           content: SizedBox(
             width: 920,
             height: 620,
@@ -254,7 +254,7 @@ Future<void> _confirmClear(
     builder: (dialogContext) {
       return AlertDialog(
         title: const Text('Limpar histórico?'),
-        content: const Text('Todas as leituras Ramuza registradas serão apagadas.'),
+        content: const Text('Todas as leituras balança registradas serão apagadas.'),
         actions: [
           TextButton(
             onPressed: () => Navigator.of(dialogContext).pop(false),

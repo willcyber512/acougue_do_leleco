@@ -10,22 +10,22 @@ import '../providers/inventory_provider.dart';
 import '../providers/ramuza_settings_provider.dart';
 import '../services/ramuza_barcode_parser.dart';
 
-Future<void> showRamuzaHardwareTestDialog(BuildContext context) async {
+Future<void> showbalançaHardwareTestDialog(BuildContext context) async {
   await showDialog<void>(
     context: context,
-    builder: (_) => const RamuzaHardwareTestDialog(),
+    builder: (_) => const balançaHardwareTestDialog(),
   );
 }
 
-class RamuzaHardwareTestDialog extends StatefulWidget {
-  const RamuzaHardwareTestDialog({super.key});
+class balançaHardwareTestDialog extends StatefulWidget {
+  const balançaHardwareTestDialog({super.key});
 
   @override
-  State<RamuzaHardwareTestDialog> createState() =>
-      _RamuzaHardwareTestDialogState();
+  State<balançaHardwareTestDialog> createState() =>
+      _balançaHardwareTestDialogState();
 }
 
-class _RamuzaHardwareTestDialogState extends State<RamuzaHardwareTestDialog> {
+class _balançaHardwareTestDialogState extends State<balançaHardwareTestDialog> {
   final TextEditingController valueController = TextEditingController(
     text: '0,750',
   );
@@ -79,7 +79,7 @@ class _RamuzaHardwareTestDialogState extends State<RamuzaHardwareTestDialog> {
         : _findProductByRamuzaCode(products, parsed.productCode);
 
     return AlertDialog(
-      title: const Text('Teste de leitor USB e etiqueta Ramuza'),
+      title: const Text('Teste de leitor USB e etiqueta balança'),
       content: SizedBox(
         width: 940,
         height: 660,

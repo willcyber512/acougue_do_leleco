@@ -54,7 +54,7 @@ Future<Directory> _exportFolder() async {
 
   final base = downloads.existsSync() ? downloads.path : Directory.current.path;
 
-  return Directory('$base${separator}Açougue do Leleco${separator}Ramuza');
+  return Directory('$base${separator}Açougue do Leleco${separator}balança');
 }
 
 String _safeFileName(String value) {

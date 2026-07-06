@@ -14,15 +14,15 @@ import 'ramuza_barcode_history_dialog.dart';
 import 'ramuza_export_dialog.dart';
 import 'ramuza_hardware_test_dialog.dart';
 
-Future<void> showRamuzaIntegrationCenterDialog(BuildContext context) async {
+Future<void> showbalançaIntegrationCenterDialog(BuildContext context) async {
   await showDialog<void>(
     context: context,
-    builder: (_) => const RamuzaIntegrationCenterDialog(),
+    builder: (_) => const balançaIntegrationCenterDialog(),
   );
 }
 
-class RamuzaIntegrationCenterDialog extends StatelessWidget {
-  const RamuzaIntegrationCenterDialog({super.key});
+class balançaIntegrationCenterDialog extends StatelessWidget {
+  const balançaIntegrationCenterDialog({super.key});
 
   @override
   Widget build(BuildContext context) {
@@ -34,7 +34,7 @@ class RamuzaIntegrationCenterDialog extends StatelessWidget {
       return !product.isDeleted;
     }).toList()..sort((a, b) => a.name.compareTo(b.name));
 
-    final validation = RamuzaExportService.validateProducts(products);
+    final validation = balançaExportService.validateProducts(products);
     final ready = products.isNotEmpty && !validation.hasErrors;
 
     return AlertDialog(
@@ -68,10 +68,10 @@ class RamuzaIntegrationCenterDialog extends StatelessWidget {
             ),
             const SizedBox(height: 16),
             _ActionGrid(
-              onExport: () => showRamuzaExportDialog(context),
-              onConfig: () => showRamuzaBarcodeConfigDialog(context),
-              onTest: () => showRamuzaHardwareTestDialog(context),
-              onHistory: () => showRamuzaBarcodeHistoryDialog(context),
+              onExport: () => showbalançaExportDialog(context),
+              onConfig: () => showbalançaBarcodeConfigDialog(context),
+              onTest: () => showbalançaHardwareTestDialog(context),
+              onHistory: () => showbalançaBarcodeHistoryDialog(context),
               onCopyChecklist: () => _copyChecklist(
                 context,
                 products: products,
@@ -105,7 +105,7 @@ class RamuzaIntegrationCenterDialog extends StatelessWidget {
           child: const Text('Fechar'),
         ),
         FilledButton.icon(
-          onPressed: () => showRamuzaExportDialog(context),
+          onPressed: () => showbalançaExportDialog(context),
           icon: const Icon(Icons.file_upload_rounded),
           label: const Text('Exportar produtos'),
         ),
@@ -126,7 +126,7 @@ class _HeroStatus extends StatelessWidget {
 
   final bool ready;
   final List<Product> products;
-  final RamuzaExportValidation validation;
+  final balançaExportValidation validation;
   final RamuzaBarcodeSettings settings;
   final int successReads;
   final int errorReads;
@@ -267,7 +267,7 @@ class _ActionGrid extends StatelessWidget {
         _ActionCard(
           icon: Icons.file_upload_rounded,
           title: 'Exportar arquivos',
-          subtitle: 'Gera CSV/TXT para importar no software oficial da Ramuza.',
+          subtitle: 'Gera CSV/TXT para importar no software da balança.',
           onTap: onExport,
           primary: true,
         ),
@@ -377,7 +377,7 @@ class _WorkflowPanel extends StatelessWidget {
   });
 
   final List<Product> products;
-  final RamuzaExportValidation validation;
+  final balançaExportValidation validation;
   final RamuzaBarcodeSettings settings;
 
   @override
@@ -393,11 +393,11 @@ class _WorkflowPanel extends StatelessWidget {
         ),
         _StepLine(
           done: !validation.hasErrors,
-          text: 'Exportar o pacote Ramuza e salvar os arquivos no Windows.',
+          text: 'Exportar o pacote balança e salvar os arquivos no Windows.',
         ),
         const _StepLine(
           done: true,
-          text: 'Importar no software Ramuza por Excel/CSV ou TXT.',
+          text: 'Importar no software da balança por Excel/CSV ou TXT.',
         ),
         const _StepLine(
           done: true,
@@ -431,7 +431,7 @@ class _ManualPanel extends StatelessWidget {
         const _InfoLine(
           title: 'Software oficial',
           text:
-              'O app gera CSV/TXT. O software Ramuza importa e envia para a balança.',
+              'O app gera CSV/TXT. O software da balança importa e envia para a balança.',
         ),
         const _InfoLine(
           title: 'Leitor USB',
@@ -456,7 +456,7 @@ class _ManualPanel extends StatelessWidget {
 class _RiskPanel extends StatelessWidget {
   const _RiskPanel({required this.validation});
 
-  final RamuzaExportValidation validation;
+  final balançaExportValidation validation;
 
   @override
   Widget build(BuildContext context) {
@@ -596,7 +596,7 @@ class _InfoLine extends StatelessWidget {
 Future<void> _copyChecklist(
   BuildContext context, {
   required List<Product> products,
-  required RamuzaExportValidation validation,
+  required balançaExportValidation validation,
   required RamuzaBarcodeSettings settings,
 }) async {
   final text =
@@ -607,12 +607,12 @@ CHECKLIST DE TESTE - AÇOUGUE DO LELECO + RAMUZA
 2. Abrir Leitor USB.
 3. Clicar em Exportar arquivos.
 4. Salvar todos os arquivos.
-5. Abrir o software oficial da Ramuza.
-6. Fazer backup no software da Ramuza antes de importar.
+5. Abrir o software da balança.
+6. Fazer backup no software da balança antes de importar.
 7. Importar primeiro: ramuza_plu_completo_com_cabecalho.csv.
 8. Se não aceitar, testar: ramuza_plu_completo_sem_cabecalho.csv.
 9. Se ainda não aceitar, testar: ramuza_plu_completo_tab.txt.
-10. Enviar PLU/produtos para a balança pelo software Ramuza.
+10. Enviar PLU/produtos para a balança pelo software da balança.
 11. Imprimir uma etiqueta de teste.
 12. Abrir Venda no app do Açougue.
 13. Ler a etiqueta com leitor USB.
@@ -636,5 +636,5 @@ O leitor USB funciona como teclado. Ele deve digitar o código no campo de venda
 
   ScaffoldMessenger.of(context)
     ..clearSnackBars()
-    ..showSnackBar(const SnackBar(content: Text('Checklist Ramuza copiado.')));
+    ..showSnackBar(const SnackBar(content: Text('Checklist balança copiado.')));
 }

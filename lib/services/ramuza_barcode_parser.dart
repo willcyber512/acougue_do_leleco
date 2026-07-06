@@ -135,7 +135,7 @@ class RamuzaBarcodeParser {
     }
 
     if (!settings.enabled) {
-      return 'Leitura de etiqueta Ramuza está desativada.';
+      return 'Leitura de etiqueta balança está desativada.';
     }
 
     if (digits.length != settings.expectedLength) {

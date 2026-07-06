@@ -58,7 +58,7 @@ class SystemDiagnosticsDialog extends StatelessWidget {
         const _DiagnosticIssue(
           level: _DiagnosticLevel.warning,
           title: 'Nenhum produto ativo',
-          description: 'Cadastre produtos antes de usar vendas e leitor USB.',
+          description: 'Cadastre produtos antes de usar venda e Ramuza.',
         ),
       if (noCodeProducts.isNotEmpty)
         _DiagnosticIssue(
@@ -91,14 +91,14 @@ class SystemDiagnosticsDialog extends StatelessWidget {
       if (!ramuzaSettings.enabled)
         const _DiagnosticIssue(
           level: _DiagnosticLevel.warning,
-          title: 'Leitura de etiqueta desativada',
-          description: 'A leitura de etiquetas está pronta para uso pelo leitor USB.',
+          title: 'Leitura Ramuza desativada',
+          description: 'A leitura de etiquetas Ramuza está desligada.',
         ),
       if (ramuzaLog.errorCount > ramuzaLog.successCount &&
           ramuzaLog.totalEvents > 0)
         _DiagnosticIssue(
           level: _DiagnosticLevel.warning,
-          title: 'Muitas falhas de leitura',
+          title: 'Muitas falhas Ramuza',
           description:
               '${ramuzaLog.errorCount} falha(s) contra ${ramuzaLog.successCount} sucesso(s).',
         ),
@@ -349,7 +349,7 @@ class _MetricsPanel extends StatelessWidget {
           ),
           _MetricTile(
             icon: Icons.qr_code_scanner_rounded,
-            label: 'Leitor ativo',
+            label: 'Ramuza ativa',
             value: ramuzaEnabled ? 'Sim' : 'Não',
           ),
           _MetricTile(
@@ -359,12 +359,12 @@ class _MetricsPanel extends StatelessWidget {
           ),
           _MetricTile(
             icon: Icons.check_circle_rounded,
-            label: 'Leituras de etiqueta OK',
+            label: 'Leituras Ramuza OK',
             value: ramuzaSuccess.toString(),
           ),
           _MetricTile(
             icon: Icons.error_rounded,
-            label: 'Leituras de etiqueta com falha',
+            label: 'Leituras Ramuza com falha',
             value: ramuzaErrors.toString(),
           ),
         ],

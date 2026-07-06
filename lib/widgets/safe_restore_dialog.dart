@@ -782,11 +782,11 @@ const List<_BackupKey> _backupKeys = [
   ),
   _BackupKey(
     key: 'leleco_ramuza_barcode_settings_v1',
-    label: 'Configurações da Ramuza',
+    label: 'Configurações da balança',
   ),
   _BackupKey(
     key: 'leleco_ramuza_barcode_events_v1',
-    label: 'Histórico de leituras Ramuza',
+    label: 'Histórico de leituras balança',
   ),
 ];
 

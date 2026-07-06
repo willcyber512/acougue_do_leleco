@@ -265,12 +265,12 @@ class _SummaryPanel extends StatelessWidget {
           ),
           _InfoTile(
             icon: Icons.qr_code_scanner_rounded,
-            label: 'Ramuza OK',
+            label: 'balança OK',
             value: ramuzaSuccess.toString(),
           ),
           _InfoTile(
             icon: Icons.error_rounded,
-            label: 'Ramuza falhas',
+            label: 'balança falhas',
             value: ramuzaErrors.toString(),
           ),
         ],
@@ -303,7 +303,7 @@ class _InstructionsPanel extends StatelessWidget {
             '4. Cole em um arquivo de texto.\n'
             '5. Salve com nome parecido com:\n'
             'backup-acougue-leleco-2026-06-30.json\n\n'
-            'Esse backup guarda os dados locais do sistema. Ele é importante antes de trocar de computador, limpar navegador ou testar importação da Ramuza.',
+            'Esse backup guarda os dados locais do sistema. Ele é importante antes de trocar de computador, limpar navegador ou testar importação da balança.',
             style: TextStyle(fontWeight: FontWeight.w700, height: 1.35),
           ),
         ],
@@ -419,8 +419,8 @@ String _buildSummaryText(BuildContext context) {
   buffer.writeln('Estoque baixo: $lowStockProducts');
   buffer.writeln('Estoque zerado: $emptyStockProducts');
   buffer.writeln('');
-  buffer.writeln('Ramuza OK: ${ramuzaLog.successCount}');
-  buffer.writeln('Ramuza falhas: ${ramuzaLog.errorCount}');
+  buffer.writeln('balança OK: ${ramuzaLog.successCount}');
+  buffer.writeln('balança falhas: ${ramuzaLog.errorCount}');
 
   return buffer.toString();
 }
