@@ -39,7 +39,7 @@ jobs:
         run: flutter pub get
 
       - name: Analyze without blocking release
-        run: flutter analyze || true
+        run: flutter analyze lib --no-fatal-infos --no-fatal-warnings || true
 
       - name: Build Windows release
         run: flutter build windows --release
