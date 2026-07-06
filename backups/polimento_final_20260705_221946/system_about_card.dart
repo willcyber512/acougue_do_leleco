@@ -114,21 +114,21 @@ Future<void> _openAboutDialog(BuildContext context) async {
               ),
               const SizedBox(height: 18),
               const Text(
-                'Aplicativo criado para uso interno do Açougue do Leleco. O sistema ajuda no controle de vendas, estoque, caixa, fiado, relatórios, fornecedores, backup e leitura de etiquetas por leitor USB.'
-                ''
-                '',
+                'Aplicativo criado para uso interno do Açougue do Leleco. '
+                'Os dados ficam salvos localmente no dispositivo/navegador durante esta fase do projeto. '
+                'Antes de usar com dados reais, faça backup pela tela Ajustes.',
                 textAlign: TextAlign.center,
               ),
               const SizedBox(height: 18),
               const _InfoLine(label: 'Uso', value: 'Interno'),
-              const _InfoLine(label: 'Dados', value: 'Dados locais do sistema'),
+              const _InfoLine(label: 'Dados', value: 'Armazenamento local'),
               const _InfoLine(
                 label: 'Backup',
-                value: 'Backup e restauração local',
+                value: 'Exportação e restauração local',
               ),
               const _InfoLine(
                 label: 'Plataforma',
-                value: 'Windows e Linux',
+                value: 'Linux, Windows e Web',
               ),
             ],
           ),

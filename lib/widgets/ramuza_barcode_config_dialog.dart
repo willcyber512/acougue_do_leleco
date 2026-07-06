@@ -97,7 +97,7 @@ class _RamuzaBarcodeConfigDialogState extends State<RamuzaBarcodeConfigDialog> {
             : _findProductByRamuzaCode(inventory.products, parsed.productCode);
 
         return AlertDialog(
-          title: const Text('Configurar etiqueta Ramuza'),
+          title: const Text('Teste de etiqueta'),
           content: SizedBox(
             width: 900,
             height: 650,

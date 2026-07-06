@@ -2,5 +2,5 @@ class AppConstants {
   AppConstants._();
 
   static const String appName = 'Açougue do Leleco';
-  static const String appVersion = '3.9.0';
+  static const String appVersion = '3.8.3';
 }

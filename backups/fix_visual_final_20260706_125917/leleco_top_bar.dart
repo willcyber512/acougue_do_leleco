@@ -70,7 +70,9 @@ class LelecoTopBar extends StatelessWidget {
           _TopActionButton(
             tooltip: isDark ? 'Modo claro' : 'Modo escuro',
             icon: isDark ? Icons.light_mode_rounded : Icons.dark_mode_rounded,
-            onPressed: themeProvider.toggleTheme,
+            onPressed: () {
+              themeProvider.toggleTheme();
+            },
           ),
         ],
       ),

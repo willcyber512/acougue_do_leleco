@@ -86,7 +86,7 @@ class _ProductsPanel extends StatelessWidget {
               parsedBarcode == null
                   ? 'Enter adiciona 1 unidade/kg. Para peso exato, use o botão "Qtd".'
                   : 'Etiqueta Ramuza detectada: PLU ${parsedBarcode.productCode}. Aperte Enter para adicionar.',
-              style: TextStyle(fontWeight: FontWeight.w700),
+              style: const TextStyle(fontWeight: FontWeight.w700),
             ),
             const SizedBox(height: 10),
             Expanded(
@@ -264,7 +264,7 @@ class _ProductSaleCard extends StatelessWidget {
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                         textAlign: TextAlign.right,
-                        style: TextStyle(
+                        style: const TextStyle(
                           fontWeight: FontWeight.w900,
                           fontSize: 13,
                         ),
@@ -297,10 +297,10 @@ class _ProductSaleCard extends StatelessWidget {
                   _formatMoney(product.salePrice),
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
-                  style: TextStyle(
+                  style: const TextStyle(
                     fontWeight: FontWeight.w900,
                     fontSize: 21,
-                    color: Theme.of(context).brightness == Brightness.dark ? AppColors.beige100 : AppColors.wine700,
+                    color: AppColors.wine700,
                   ),
                 ),
                 const SizedBox(height: 8),
@@ -382,7 +382,7 @@ class _CartPanel extends StatelessWidget {
                       '${sales.items.length} item(ns)',
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
-                      style: TextStyle(fontWeight: FontWeight.w700),
+                      style: const TextStyle(fontWeight: FontWeight.w700),
                     ),
                   ],
                 ),
@@ -562,7 +562,7 @@ class _CartItemTile extends StatelessWidget {
                       product.name,
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
-                      style: TextStyle(fontWeight: FontWeight.w900),
+                      style: const TextStyle(fontWeight: FontWeight.w900),
                     ),
                     const SizedBox(height: 3),
                     Text(
@@ -590,7 +590,7 @@ class _CartItemTile extends StatelessWidget {
               child: Text(
                 _formatNumber(quantity),
                 textAlign: TextAlign.center,
-                style: TextStyle(fontWeight: FontWeight.w900),
+                style: const TextStyle(fontWeight: FontWeight.w900),
               ),
             ),
           ),
@@ -604,7 +604,7 @@ class _CartItemTile extends StatelessWidget {
             child: Text(
               _formatMoney(item.subtotal),
               textAlign: TextAlign.end,
-              style: TextStyle(fontWeight: FontWeight.w900),
+              style: const TextStyle(fontWeight: FontWeight.w900),
             ),
           ),
           IconButton(
@@ -929,7 +929,7 @@ Future<void> _openQuantityDialog(BuildContext context, Product product) async {
             children: [
               Text(
                 'Estoque disponível: ${_formatQuantity(product.stockQuantity, product.unit)}',
-                style: TextStyle(fontWeight: FontWeight.w900),
+                style: const TextStyle(fontWeight: FontWeight.w900),
               ),
               const SizedBox(height: 12),
               TextField(
@@ -1031,7 +1031,7 @@ Future<void> _openCartQuantityDialog(
             children: [
               Text(
                 product.name,
-                style: TextStyle(fontWeight: FontWeight.w900),
+                style: const TextStyle(fontWeight: FontWeight.w900),
               ),
               const SizedBox(height: 8),
               Text(
@@ -1180,7 +1180,7 @@ Future<Customer?> _selectCustomerForFiado(BuildContext context) async {
                             ),
                             title: Text(
                               customer.name,
-                              style: TextStyle(
+                              style: const TextStyle(
                                 fontWeight: FontWeight.w900,
                               ),
                             ),
@@ -1191,7 +1191,7 @@ Future<Customer?> _selectCustomerForFiado(BuildContext context) async {
                             ),
                             trailing: Text(
                               _formatMoney(balance),
-                              style: TextStyle(
+                              style: const TextStyle(
                                 fontWeight: FontWeight.w900,
                               ),
                             ),

@@ -196,8 +196,8 @@ class _BarcodeSearchFieldState extends State<_BarcodeSearchField> {
           },
           decoration: InputDecoration(
             hintText: 'Digite ou leia o código do produto...',
-            prefixIcon: const Icon(Icons.qr_code_scanner_rounded),
-            suffixIcon: const Icon(Icons.keyboard_return_rounded),
+            prefixIcon: Icon(Icons.qr_code_scanner_rounded),
+            suffixIcon: Icon(Icons.keyboard_return_rounded),
             filled: true,
             border: OutlineInputBorder(
               borderRadius: BorderRadius.circular(22),
@@ -246,7 +246,7 @@ class _ProductSaleCard extends StatelessWidget {
                       width: 42,
                       height: 42,
                       decoration: BoxDecoration(
-                        color: AppColors.wine900,
+                        color: Theme.of(context).brightness == Brightness.dark ? AppColors.beige100 : AppColors.wine900,
                         borderRadius: BorderRadius.circular(15),
                       ),
                       child: Icon(
@@ -315,7 +315,7 @@ class _ProductSaleCard extends StatelessWidget {
                           style: OutlinedButton.styleFrom(
                             padding: EdgeInsets.zero,
                           ),
-                          child: const Text(
+                          child: Text(
                             'Qtd',
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
@@ -332,7 +332,7 @@ class _ProductSaleCard extends StatelessWidget {
                           style: FilledButton.styleFrom(
                             padding: EdgeInsets.zero,
                           ),
-                          child: const Text(
+                          child: Text(
                             '+1',
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
@@ -365,7 +365,7 @@ class _CartPanel extends StatelessWidget {
               children: [
                 Row(
                   children: [
-                    const Icon(Icons.shopping_cart_rounded),
+                    Icon(Icons.shopping_cart_rounded),
                     const SizedBox(width: 10),
                     Expanded(
                       child: Text(
@@ -412,8 +412,8 @@ class _CartPanel extends StatelessWidget {
                     Expanded(
                       child: OutlinedButton.icon(
                         onPressed: sales.hasItems ? sales.clearCart : null,
-                        icon: const Icon(Icons.delete_outline_rounded),
-                        label: const Text(
+                        icon: Icon(Icons.delete_outline_rounded),
+                        label: Text(
                           'Limpar',
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
@@ -496,8 +496,8 @@ class _CartPanel extends StatelessWidget {
                                 await showSaleReceiptDialog(context, sale);
                               }
                             : null,
-                        icon: const Icon(Icons.check_circle_rounded),
-                        label: const Text(
+                        icon: Icon(Icons.check_circle_rounded),
+                        label: Text(
                           'Finalizar',
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
@@ -540,10 +540,10 @@ class _CartItemTile extends StatelessWidget {
             width: 44,
             height: 44,
             decoration: BoxDecoration(
-              color: AppColors.wine900,
+              color: Theme.of(context).brightness == Brightness.dark ? AppColors.beige100 : AppColors.wine900,
               borderRadius: BorderRadius.circular(15),
             ),
-            child: const Icon(
+            child: Icon(
               Icons.shopping_basket_rounded,
               color: AppColors.beige100,
             ),
@@ -579,7 +579,7 @@ class _CartItemTile extends StatelessWidget {
           IconButton(
             tooltip: 'Diminuir',
             onPressed: () => sales.decreaseQuantity(product.id),
-            icon: const Icon(Icons.remove_circle_outline_rounded),
+            icon: Icon(Icons.remove_circle_outline_rounded),
           ),
           InkWell(
             onTap: () => _openCartQuantityDialog(context, item),
@@ -597,7 +597,7 @@ class _CartItemTile extends StatelessWidget {
           IconButton(
             tooltip: 'Aumentar',
             onPressed: () => sales.increaseQuantity(product.id),
-            icon: const Icon(Icons.add_circle_outline_rounded),
+            icon: Icon(Icons.add_circle_outline_rounded),
           ),
           SizedBox(
             width: 78,
@@ -610,7 +610,7 @@ class _CartItemTile extends StatelessWidget {
           IconButton(
             tooltip: 'Remover',
             onPressed: () => sales.removeItem(product.id),
-            icon: const Icon(Icons.close_rounded),
+            icon: Icon(Icons.close_rounded),
           ),
         ],
       ),
@@ -658,13 +658,13 @@ class _TotalBox extends StatelessWidget {
       width: double.infinity,
       padding: const EdgeInsets.all(18),
       decoration: BoxDecoration(
-        color: AppColors.wine900,
+        color: Theme.of(context).brightness == Brightness.dark ? AppColors.beige100 : AppColors.wine900,
         borderRadius: BorderRadius.circular(24),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text(
+          Text(
             'Total da venda',
             style: TextStyle(
               color: AppColors.beige100,
@@ -959,7 +959,7 @@ Future<void> _openQuantityDialog(BuildContext context, Product product) async {
         actions: [
           TextButton(
             onPressed: () => Navigator.of(dialogContext).pop(),
-            child: const Text('Cancelar'),
+            child: Text('Cancelar'),
           ),
           FilledButton.icon(
             onPressed: () {
@@ -971,8 +971,8 @@ Future<void> _openQuantityDialog(BuildContext context, Product product) async {
                 text: quantityController.text,
               );
             },
-            icon: const Icon(Icons.add_shopping_cart_rounded),
-            label: const Text('Adicionar'),
+            icon: Icon(Icons.add_shopping_cart_rounded),
+            label: Text('Adicionar'),
           ),
         ],
       );
@@ -1065,7 +1065,7 @@ Future<void> _openCartQuantityDialog(
         actions: [
           TextButton(
             onPressed: () => Navigator.of(dialogContext).pop(),
-            child: const Text('Cancelar'),
+            child: Text('Cancelar'),
           ),
           FilledButton.icon(
             onPressed: () {
@@ -1077,8 +1077,8 @@ Future<void> _openCartQuantityDialog(
                 text: quantityController.text,
               );
             },
-            icon: const Icon(Icons.save_rounded),
-            label: const Text(
+            icon: Icon(Icons.save_rounded),
+            label: Text(
               'Salvar',
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
@@ -1141,7 +1141,7 @@ Future<Customer?> _selectCustomerForFiado(BuildContext context) async {
           final customers = provider.customers;
 
           return AlertDialog(
-            title: const Text('Selecionar cliente para fiado'),
+            title: Text('Selecionar cliente para fiado'),
             content: SizedBox(
               width: 640,
               height: 430,
@@ -1170,10 +1170,10 @@ Future<Customer?> _selectCustomerForFiado(BuildContext context) async {
                               width: 44,
                               height: 44,
                               decoration: BoxDecoration(
-                                color: AppColors.wine900,
+                                color: Theme.of(context).brightness == Brightness.dark ? AppColors.beige100 : AppColors.wine900,
                                 borderRadius: BorderRadius.circular(15),
                               ),
-                              child: const Icon(
+                              child: Icon(
                                 Icons.person_rounded,
                                 color: AppColors.beige100,
                               ),
@@ -1203,7 +1203,7 @@ Future<Customer?> _selectCustomerForFiado(BuildContext context) async {
             actions: [
               TextButton(
                 onPressed: () => Navigator.of(dialogContext).pop(),
-                child: const Text('Cancelar'),
+                child: Text('Cancelar'),
               ),
             ],
           );

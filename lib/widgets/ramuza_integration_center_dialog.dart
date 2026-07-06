@@ -50,7 +50,7 @@ class RamuzaIntegrationCenterDialog extends StatelessWidget {
             child: const Icon(Icons.scale_rounded, color: Colors.white),
           ),
           const SizedBox(width: 12),
-          const Expanded(child: Text('Central Ramuza e leitor USB')),
+          const Expanded(child: Text('Central do leitor USB')),
         ],
       ),
       content: SizedBox(
@@ -107,7 +107,7 @@ class RamuzaIntegrationCenterDialog extends StatelessWidget {
         FilledButton.icon(
           onPressed: () => showRamuzaExportDialog(context),
           icon: const Icon(Icons.file_upload_rounded),
-          label: const Text('Exportar para Ramuza'),
+          label: const Text('Exportar produtos'),
         ),
       ],
     );
@@ -604,7 +604,7 @@ Future<void> _copyChecklist(
 CHECKLIST DE TESTE - AÇOUGUE DO LELECO + RAMUZA
 
 1. Abrir o app do Açougue do Leleco no Windows.
-2. Abrir Central Ramuza.
+2. Abrir Leitor USB.
 3. Clicar em Exportar arquivos.
 4. Salvar todos os arquivos.
 5. Abrir o software oficial da Ramuza.
