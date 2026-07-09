@@ -1,6 +1,9 @@
+import 'dart:io';
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
+import 'package:pdf/pdf.dart';
+import 'package:pdf/widgets.dart' as pw;
 import 'package:provider/provider.dart';
 
 import '../../core/constants/app_colors.dart';
@@ -84,6 +87,24 @@ class _ReportsScreenState extends State<ReportsScreen> {
                   onPeriodChanged: (period) {
                     setState(() => selectedPeriod = period);
                   },
+                ),
+                const SizedBox(height: 14),
+                _ReportsPdfActionPanel(
+                  onPressed: () => _showReportsPdfOptionsDialog(
+                    context: context,
+                    periodLabel: _periodLabel(selectedPeriod),
+                    sales: sales,
+                    revenue: revenue,
+                    averageTicket: averageTicket,
+                    openCredit: customers.totalOpenCredit,
+                    supplierPurchases: totalSupplierPurchases,
+                    lowStockCount: lowStock.length,
+                    paymentTotals: paymentTotals,
+                    productTotals: productTotals,
+                    categoryTotals: categoryTotals,
+                    purchases: purchases,
+                    lowStock: lowStock,
+                  ),
                 ),
                 const SizedBox(height: 14),
                 _KpiGrid(
@@ -389,7 +410,7 @@ class _KpiCard extends StatelessWidget {
             style: TextStyle(
               color: _titleColor(context),
               fontWeight: FontWeight.w900,
-              fontSize: 24,
+              fontSize: 17,
             ),
           ),
           const SizedBox(height: 3),
@@ -471,7 +492,11 @@ class _ReportMenu extends StatelessWidget {
       child: LayoutBuilder(
         builder: (context, constraints) {
           final width = constraints.maxWidth;
-          final columns = width >= 760 ? 4 : width >= 520 ? 2 : 1;
+          final columns = width >= 760
+              ? 4
+              : width >= 520
+              ? 2
+              : 1;
           const gap = 10.0;
           final buttonWidth = (width - gap * (columns - 1)) / columns;
 
@@ -514,10 +539,7 @@ class _ReportMenuButton extends StatelessWidget {
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 180),
         height: 48,
-        padding: const EdgeInsets.symmetric(
-          horizontal: 12,
-          vertical: 12,
-        ),
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
         decoration: BoxDecoration(
           color: active ? AppColors.wine900 : _chipBackground(context),
           borderRadius: BorderRadius.circular(18),
@@ -552,18 +574,6 @@ class _ReportMenuButton extends StatelessWidget {
     );
   }
 }
-
-
-
-
-
-
-
-
-
-
-
-
 
 class _ReportBody extends StatelessWidget {
   const _ReportBody({
@@ -2167,4 +2177,857 @@ class _SupplierTotal {
       total: total ?? this.total,
     );
   }
+}
+
+class _ReportsPdfActionPanel extends StatelessWidget {
+  const _ReportsPdfActionPanel({required this.onPressed});
+
+  final VoidCallback onPressed;
+
+  @override
+  Widget build(BuildContext context) {
+    return _LelecoPanel(
+      padding: const EdgeInsets.all(14),
+      child: Row(
+        children: [
+          const Icon(Icons.picture_as_pdf_rounded),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Text(
+              'Exportar relatório em PDF',
+              style: TextStyle(
+                color: _titleColor(context),
+                fontWeight: FontWeight.w900,
+              ),
+            ),
+          ),
+          FilledButton.icon(
+            onPressed: onPressed,
+            icon: const Icon(Icons.download_rounded),
+            label: const Text('Configurar PDF'),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+enum _PdfReportTemplate { professional, complete, simple }
+
+extension _PdfReportTemplateLabel on _PdfReportTemplate {
+  String get label {
+    switch (this) {
+      case _PdfReportTemplate.professional:
+        return 'Profissional';
+      case _PdfReportTemplate.complete:
+        return 'Completo';
+      case _PdfReportTemplate.simple:
+        return 'Simples';
+    }
+  }
+
+  String get description {
+    switch (this) {
+      case _PdfReportTemplate.professional:
+        return 'Resumo executivo bonito, feito para caber em 1 página.';
+      case _PdfReportTemplate.complete:
+        return 'Completo em 1 página: mostra todos os blocos com dados e compacta as tabelas.';
+      case _PdfReportTemplate.simple:
+        return 'Mais limpo, rápido e direto.';
+    }
+  }
+}
+
+class _PdfReportOptions {
+  const _PdfReportOptions({
+    required this.template,
+    required this.includeSummary,
+    required this.includePayments,
+    required this.includeProducts,
+    required this.includeCategories,
+    required this.includePurchases,
+    required this.includeLowStock,
+    required this.includeSalesDetails,
+    required this.compactTables,
+  });
+
+  final _PdfReportTemplate template;
+  final bool includeSummary;
+  final bool includePayments;
+  final bool includeProducts;
+  final bool includeCategories;
+  final bool includePurchases;
+  final bool includeLowStock;
+  final bool includeSalesDetails;
+  final bool compactTables;
+}
+
+Future<void> _showReportsPdfOptionsDialog({
+  required BuildContext context,
+  required String periodLabel,
+  required List sales,
+  required double revenue,
+  required double averageTicket,
+  required double openCredit,
+  required double supplierPurchases,
+  required int lowStockCount,
+  required Map paymentTotals,
+  required List productTotals,
+  required List categoryTotals,
+  required List purchases,
+  required List lowStock,
+}) async {
+  var template = _PdfReportTemplate.professional;
+
+  var includeSummary = true;
+  var includePayments = true;
+  var includeProducts = true;
+  var includeCategories = true;
+  var includePurchases = false;
+  var includeLowStock = false;
+  var includeSalesDetails = false;
+  var compactTables = true;
+
+  void applyPreset(_PdfReportTemplate selected) {
+    template = selected;
+
+    switch (selected) {
+      case _PdfReportTemplate.professional:
+        includeSummary = true;
+        includePayments = true;
+        includeProducts = true;
+        includeCategories = true;
+        includePurchases = false;
+        includeLowStock = false;
+        includeSalesDetails = false;
+        compactTables = true;
+        break;
+      case _PdfReportTemplate.complete:
+        includeSummary = true;
+        includePayments = true;
+        includeProducts = true;
+        includeCategories = true;
+        includePurchases = true;
+        includeLowStock = true;
+        includeSalesDetails = true;
+        compactTables = true;
+        break;
+      case _PdfReportTemplate.simple:
+        includeSummary = true;
+        includePayments = true;
+        includeProducts = true;
+        includeCategories = false;
+        includePurchases = false;
+        includeLowStock = false;
+        includeSalesDetails = false;
+        compactTables = true;
+        break;
+    }
+  }
+
+  final options = await showDialog<_PdfReportOptions>(
+    context: context,
+    builder: (dialogContext) {
+      return StatefulBuilder(
+        builder: (dialogContext, setDialogState) {
+          return AlertDialog(
+            title: const Text('Personalizar PDF'),
+            content: SizedBox(
+              width: 520,
+              child: SingleChildScrollView(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    DropdownButtonFormField<_PdfReportTemplate>(
+                      initialValue: template,
+                      decoration: const InputDecoration(
+                        labelText: 'Modelo do relatório',
+                        border: OutlineInputBorder(),
+                      ),
+                      items: _PdfReportTemplate.values.map((item) {
+                        return DropdownMenuItem(
+                          value: item,
+                          child: Text(item.label),
+                        );
+                      }).toList(),
+                      onChanged: (value) {
+                        if (value == null) return;
+                        setDialogState(() => applyPreset(value));
+                      },
+                    ),
+                    const SizedBox(height: 8),
+                    Align(
+                      alignment: Alignment.centerLeft,
+                      child: Text(
+                        template.description,
+                        style: Theme.of(dialogContext).textTheme.bodySmall,
+                      ),
+                    ),
+                    const Divider(height: 28),
+                    CheckboxListTile(
+                      value: includeSummary,
+                      onChanged: (value) {
+                        setDialogState(() => includeSummary = value ?? true);
+                      },
+                      title: const Text('Resumo geral'),
+                      subtitle: const Text(
+                        'Vendas, faturamento, ticket médio e estoque baixo',
+                      ),
+                    ),
+                    CheckboxListTile(
+                      value: includePayments,
+                      onChanged: (value) {
+                        setDialogState(() => includePayments = value ?? true);
+                      },
+                      title: const Text('Formas de pagamento'),
+                    ),
+                    CheckboxListTile(
+                      value: includeProducts,
+                      onChanged: (value) {
+                        setDialogState(() => includeProducts = value ?? true);
+                      },
+                      title: const Text('Top produtos'),
+                    ),
+                    CheckboxListTile(
+                      value: includeCategories,
+                      onChanged: (value) {
+                        setDialogState(() => includeCategories = value ?? true);
+                      },
+                      title: const Text('Categorias'),
+                    ),
+                    CheckboxListTile(
+                      value: includePurchases,
+                      onChanged: (value) {
+                        setDialogState(() => includePurchases = value ?? true);
+                      },
+                      title: const Text('Compras de fornecedores'),
+                    ),
+                    CheckboxListTile(
+                      value: includeLowStock,
+                      onChanged: (value) {
+                        setDialogState(() => includeLowStock = value ?? true);
+                      },
+                      title: const Text('Estoque baixo'),
+                    ),
+                    CheckboxListTile(
+                      value: includeSalesDetails,
+                      onChanged: (value) {
+                        setDialogState(
+                          () => includeSalesDetails = value ?? false,
+                        );
+                      },
+                      title: const Text('Vendas detalhadas'),
+                      subtitle: const Text('Pode deixar o PDF maior'),
+                    ),
+                    CheckboxListTile(
+                      value: compactTables,
+                      onChanged: (value) {
+                        setDialogState(() => compactTables = value ?? false);
+                      },
+                      title: const Text('Tabelas compactas'),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.of(dialogContext).pop(),
+                child: const Text('Cancelar'),
+              ),
+              FilledButton.icon(
+                onPressed: () {
+                  Navigator.of(dialogContext).pop(
+                    _PdfReportOptions(
+                      template: template,
+                      includeSummary: includeSummary,
+                      includePayments: includePayments,
+                      includeProducts: includeProducts,
+                      includeCategories: includeCategories,
+                      includePurchases: includePurchases,
+                      includeLowStock: includeLowStock,
+                      includeSalesDetails: includeSalesDetails,
+                      compactTables: compactTables,
+                    ),
+                  );
+                },
+                icon: const Icon(Icons.picture_as_pdf_rounded),
+                label: const Text('Gerar PDF'),
+              ),
+            ],
+          );
+        },
+      );
+    },
+  );
+
+  if (options == null || !context.mounted) return;
+
+  await _exportReportsPdf(
+    context: context,
+    periodLabel: periodLabel,
+    sales: sales,
+    revenue: revenue,
+    averageTicket: averageTicket,
+    openCredit: openCredit,
+    supplierPurchases: supplierPurchases,
+    lowStockCount: lowStockCount,
+    paymentTotals: paymentTotals,
+    productTotals: productTotals,
+    categoryTotals: categoryTotals,
+    purchases: purchases,
+    lowStock: lowStock,
+    options: options,
+  );
+}
+
+Future<void> _exportReportsPdf({
+  required BuildContext context,
+  required String periodLabel,
+  required List sales,
+  required double revenue,
+  required double averageTicket,
+  required double openCredit,
+  required double supplierPurchases,
+  required int lowStockCount,
+  required Map paymentTotals,
+  required List productTotals,
+  required List categoryTotals,
+  required List purchases,
+  required List lowStock,
+  required _PdfReportOptions options,
+}) async {
+  try {
+    String safeText(Object? Function() read, [String fallback = '-']) {
+      try {
+        final value = read();
+        if (value == null) return fallback;
+        final txt = value.toString().trim();
+        return txt.isEmpty ? fallback : txt;
+      } catch (_) {
+        return fallback;
+      }
+    }
+
+    double safeDouble(Object? Function() read) {
+      try {
+        final value = read();
+        if (value is num) return value.toDouble();
+        return double.tryParse(value.toString().replaceAll(',', '.')) ?? 0;
+      } catch (_) {
+        return 0;
+      }
+    }
+
+    final primary = options.template == _PdfReportTemplate.simple
+        ? const PdfColor.fromInt(0xFF2B2B2B)
+        : const PdfColor.fromInt(0xFF561C24);
+
+    final secondary = options.template == _PdfReportTemplate.simple
+        ? const PdfColor.fromInt(0xFFF1F1F1)
+        : const PdfColor.fromInt(0xFFE8D8C4);
+
+    final softSurface = options.template == _PdfReportTemplate.simple
+        ? const PdfColor.fromInt(0xFFFAFAFA)
+        : const PdfColor.fromInt(0xFFFFF8EF);
+
+    final textMuted = const PdfColor.fromInt(0xFF6F625F);
+    final white = const PdfColor.fromInt(0xFFFFFFFF);
+
+    final document = pw.Document();
+
+    final paymentRows = <List<String>>[];
+    for (final method in PaymentMethod.values) {
+      final value = ((paymentTotals[method] ?? 0) as num).toDouble();
+      paymentRows.add([method.label, _formatMoney(value)]);
+    }
+
+    final productRows = <List<String>>[];
+    for (final item in productTotals.take(options.compactTables ? 5 : 20)) {
+      final dynamic p = item;
+      productRows.add([
+        safeText(() => p.name),
+        _formatNumber(safeDouble(() => p.quantity)),
+        _formatMoney(safeDouble(() => p.total)),
+      ]);
+    }
+
+    final categoryRows = <List<String>>[];
+    for (final item in categoryTotals.take(options.compactTables ? 5 : 20)) {
+      final dynamic c = item;
+      categoryRows.add([
+        safeText(() => c.category),
+        _formatNumber(safeDouble(() => c.quantity)),
+        _formatMoney(safeDouble(() => c.total)),
+      ]);
+    }
+
+    final purchaseRows = <List<String>>[];
+    for (final item in purchases.take(options.compactTables ? 5 : 40)) {
+      final dynamic p = item;
+      purchaseRows.add([
+        safeText(() {
+          final date = p.purchaseDate;
+          if (date is DateTime) return _formatDate(date);
+          return date;
+        }),
+        safeText(() => p.supplierName),
+        safeText(() => p.itemName),
+        _formatNumber(safeDouble(() => p.quantity)),
+        _formatMoney(safeDouble(() => p.totalCost)),
+        safeText(() => p.paid == true ? 'Pago' : 'Em aberto'),
+      ]);
+    }
+
+    final lowStockRows = <List<String>>[];
+    for (final item in lowStock.take(options.compactTables ? 6 : 50)) {
+      final dynamic p = item;
+      lowStockRows.add([
+        safeText(() => p.code),
+        safeText(() => p.name),
+        _formatNumber(safeDouble(() => p.stockQuantity)),
+        _formatNumber(safeDouble(() => p.minStock)),
+      ]);
+    }
+
+    final saleRows = <List<String>>[];
+    for (final item in sales.take(options.compactTables ? 8 : 120)) {
+      final dynamic sale = item;
+      saleRows.add([
+        safeText(() => sale.shortId, 'Venda'),
+        safeText(() {
+          final date = sale.createdAt;
+          if (date is DateTime) {
+            return '${_formatDate(date)} ${_formatTime(date)}';
+          }
+          return date;
+        }),
+        safeText(() => sale.paymentMethod.label),
+        safeText(() => sale.totalItems),
+        _formatMoney(safeDouble(() => sale.total)),
+      ]);
+    }
+
+    pw.Widget metricCard(String title, String value, String subtitle) {
+      return pw.Container(
+        width: options.compactTables ? 103 : 150,
+        padding: const pw.EdgeInsets.all(7),
+        decoration: pw.BoxDecoration(
+          color: softSurface,
+          border: pw.Border.all(color: secondary, width: 1),
+          borderRadius: pw.BorderRadius.circular(10),
+        ),
+        child: pw.Column(
+          crossAxisAlignment: pw.CrossAxisAlignment.start,
+          children: [
+            pw.Text(
+              title,
+              style: pw.TextStyle(
+                color: textMuted,
+                fontSize: 8,
+                fontWeight: pw.FontWeight.bold,
+              ),
+            ),
+            pw.SizedBox(height: 5),
+            pw.Text(
+              value,
+              style: pw.TextStyle(
+                color: primary,
+                fontSize: 15,
+                fontWeight: pw.FontWeight.bold,
+              ),
+            ),
+            pw.SizedBox(height: 3),
+            pw.Text(
+              subtitle,
+              style: pw.TextStyle(color: textMuted, fontSize: 7),
+            ),
+          ],
+        ),
+      );
+    }
+
+    pw.Widget sectionTitle(String title, String subtitle) {
+      return pw.Container(
+        margin: pw.EdgeInsets.only(
+          top: options.compactTables ? 4 : 10,
+          bottom: options.compactTables ? 2 : 5,
+        ),
+        padding: const pw.EdgeInsets.only(left: 8),
+        decoration: pw.BoxDecoration(
+          border: pw.Border(left: pw.BorderSide(color: primary, width: 4)),
+        ),
+        child: pw.Column(
+          crossAxisAlignment: pw.CrossAxisAlignment.start,
+          children: [
+            pw.Text(
+              title,
+              style: pw.TextStyle(
+                fontSize: 14,
+                color: primary,
+                fontWeight: pw.FontWeight.bold,
+              ),
+            ),
+            pw.SizedBox(height: 2),
+            pw.Text(
+              subtitle,
+              style: pw.TextStyle(fontSize: 8, color: textMuted),
+            ),
+          ],
+        ),
+      );
+    }
+
+    pw.Widget dataTable({
+      required List<String> headers,
+      required List<List<String>> rows,
+      required String emptyText,
+    }) {
+      if (rows.isEmpty) {
+        return pw.Container(
+          padding: options.compactTables
+              ? const pw.EdgeInsets.all(5)
+              : const pw.EdgeInsets.all(8),
+          decoration: pw.BoxDecoration(
+            color: softSurface,
+            borderRadius: pw.BorderRadius.circular(8),
+          ),
+          child: pw.Text(
+            emptyText,
+            style: pw.TextStyle(color: textMuted, fontSize: 9),
+          ),
+        );
+      }
+
+      return pw.TableHelper.fromTextArray(
+        headers: headers,
+        data: rows,
+        border: pw.TableBorder.all(
+          color: const PdfColor.fromInt(0xFFE6DED7),
+          width: 0.5,
+        ),
+        headerStyle: pw.TextStyle(
+          fontWeight: pw.FontWeight.bold,
+          color: white,
+          fontSize: options.compactTables ? 6 : 8,
+        ),
+        headerDecoration: pw.BoxDecoration(color: primary),
+        cellStyle: pw.TextStyle(
+          fontSize: options.compactTables ? 6 : 8,
+          color: const PdfColor.fromInt(0xFF241A1C),
+        ),
+        oddRowDecoration: pw.BoxDecoration(color: softSurface),
+        cellAlignment: pw.Alignment.centerLeft,
+        headerAlignment: pw.Alignment.centerLeft,
+        cellPadding: options.compactTables
+            ? const pw.EdgeInsets.symmetric(horizontal: 3, vertical: 2)
+            : const pw.EdgeInsets.all(6),
+      );
+    }
+
+    document.addPage(
+      pw.MultiPage(
+        pageFormat: PdfPageFormat.a4.landscape,
+        margin: const pw.EdgeInsets.fromLTRB(14, 12, 14, 14),
+        footer: (pdfContext) {
+          return pw.Container(
+            padding: const pw.EdgeInsets.only(top: 8),
+            decoration: const pw.BoxDecoration(
+              border: pw.Border(
+                top: pw.BorderSide(
+                  color: PdfColor.fromInt(0xFFE6DED7),
+                  width: 0.7,
+                ),
+              ),
+            ),
+            child: pw.Row(
+              mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+              children: [
+                pw.Text(
+                  'Açougue do Leleco • Relatório ${options.template.label}',
+                  style: pw.TextStyle(fontSize: 7, color: textMuted),
+                ),
+                pw.Text(
+                  'Página ${pdfContext.pageNumber} de ${pdfContext.pagesCount}',
+                  style: pw.TextStyle(fontSize: 7, color: textMuted),
+                ),
+              ],
+            ),
+          );
+        },
+        build: (_) {
+          final widgets = <pw.Widget>[
+            pw.Container(
+              padding: const pw.EdgeInsets.all(9),
+              decoration: pw.BoxDecoration(
+                color: primary,
+                borderRadius: pw.BorderRadius.circular(14),
+              ),
+              child: pw.Column(
+                crossAxisAlignment: pw.CrossAxisAlignment.start,
+                children: [
+                  pw.Text(
+                    'AÇOUGUE DO LELECO',
+                    style: pw.TextStyle(
+                      color: white,
+                      fontSize: 10,
+                      letterSpacing: 1.5,
+                      fontWeight: pw.FontWeight.bold,
+                    ),
+                  ),
+                  pw.SizedBox(height: 8),
+                  pw.Text(
+                    'Relatório Gerencial',
+                    style: pw.TextStyle(
+                      color: white,
+                      fontSize: 17,
+                      fontWeight: pw.FontWeight.bold,
+                    ),
+                  ),
+                  pw.SizedBox(height: 6),
+                  pw.Text(
+                    'Período: $periodLabel',
+                    style: pw.TextStyle(color: secondary, fontSize: 11),
+                  ),
+                  pw.Text(
+                    'Gerado em: ${_formatDate(DateTime.now())} às ${_formatTime(DateTime.now())}',
+                    style: pw.TextStyle(color: secondary, fontSize: 9),
+                  ),
+                ],
+              ),
+            ),
+            pw.SizedBox(height: 8),
+          ];
+
+          if (options.includeSummary) {
+            widgets.addAll([
+              sectionTitle(
+                'Resumo geral',
+                'Visão rápida dos principais números do período.',
+              ),
+              pw.Wrap(
+                spacing: 8,
+                runSpacing: 8,
+                children: [
+                  metricCard(
+                    'Vendas',
+                    sales.length.toString(),
+                    'Quantidade no período',
+                  ),
+                  metricCard(
+                    'Faturamento',
+                    _formatMoney(revenue),
+                    'Total vendido',
+                  ),
+                  metricCard(
+                    'Ticket médio',
+                    _formatMoney(averageTicket),
+                    'Média por venda',
+                  ),
+                  metricCard(
+                    'Fiado aberto',
+                    _formatMoney(openCredit),
+                    'Clientes em aberto',
+                  ),
+                  metricCard(
+                    'Fornecedores',
+                    _formatMoney(supplierPurchases),
+                    'Compras no período',
+                  ),
+                  metricCard(
+                    'Estoque baixo',
+                    lowStockCount.toString(),
+                    'Itens para atenção',
+                  ),
+                ],
+              ),
+            ]);
+          }
+
+          if (options.includePayments) {
+            widgets.addAll([
+              sectionTitle(
+                'Formas de pagamento',
+                'Distribuição do faturamento por tipo de pagamento.',
+              ),
+              dataTable(
+                headers: const ['Forma', 'Total'],
+                rows: paymentRows,
+                emptyText: 'Nenhum pagamento registrado no período.',
+              ),
+            ]);
+          }
+
+          if (options.includeProducts &&
+              (options.template != _PdfReportTemplate.complete ||
+                  productRows.isNotEmpty)) {
+            widgets.addAll([
+              sectionTitle(
+                'Top produtos',
+                'Produtos com melhor desempenho no período.',
+              ),
+              dataTable(
+                headers: const ['Produto', 'Quantidade', 'Total'],
+                rows: productRows,
+                emptyText: 'Nenhum produto vendido no período.',
+              ),
+            ]);
+          }
+
+          if (options.includeCategories &&
+              (options.template != _PdfReportTemplate.complete ||
+                  categoryRows.isNotEmpty)) {
+            widgets.addAll([
+              sectionTitle('Categorias', 'Resultado separado por categoria.'),
+              dataTable(
+                headers: const ['Categoria', 'Quantidade', 'Total'],
+                rows: categoryRows,
+                emptyText: 'Nenhuma categoria registrada no período.',
+              ),
+            ]);
+          }
+
+          if (options.includePurchases &&
+              (options.template != _PdfReportTemplate.complete ||
+                  purchaseRows.isNotEmpty)) {
+            widgets.addAll([
+              sectionTitle(
+                'Compras de fornecedores',
+                'Entradas e compras registradas no período.',
+              ),
+              dataTable(
+                headers: const [
+                  'Data',
+                  'Fornecedor',
+                  'Item',
+                  'Qtd',
+                  'Total',
+                  'Status',
+                ],
+                rows: purchaseRows,
+                emptyText: 'Nenhuma compra registrada no período.',
+              ),
+            ]);
+          }
+
+          if (options.includeLowStock &&
+              (options.template != _PdfReportTemplate.complete ||
+                  lowStockRows.isNotEmpty)) {
+            widgets.addAll([
+              sectionTitle(
+                'Estoque baixo',
+                'Produtos que precisam de atenção para reposição.',
+              ),
+              dataTable(
+                headers: const ['Código', 'Produto', 'Estoque', 'Mínimo'],
+                rows: lowStockRows,
+                emptyText: 'Nenhum produto em estoque baixo.',
+              ),
+            ]);
+          }
+
+          if (options.includeSalesDetails &&
+              (options.template != _PdfReportTemplate.complete ||
+                  saleRows.isNotEmpty)) {
+            widgets.addAll([
+              sectionTitle(
+                'Vendas detalhadas',
+                'Lista das vendas incluídas no período selecionado.',
+              ),
+              dataTable(
+                headers: const [
+                  'Venda',
+                  'Data/Hora',
+                  'Pagamento',
+                  'Itens',
+                  'Total',
+                ],
+                rows: saleRows,
+                emptyText: 'Nenhuma venda registrada no período.',
+              ),
+            ]);
+          }
+
+          return widgets;
+        },
+      ),
+    );
+
+    final bytes = await document.save();
+    final outputDir = await _reportsOutputDirectory();
+    final fileName =
+        'relatorio_${options.template.label.toLowerCase()}_${_reportsFileTimestamp(DateTime.now())}.pdf'
+            .replaceAll(' ', '_');
+    final file = File('${outputDir.path}${Platform.pathSeparator}$fileName');
+
+    await file.writeAsBytes(bytes, flush: true);
+
+    if (context.mounted) {
+      await showDialog<void>(
+        context: context,
+        builder: (dialogContext) {
+          return AlertDialog(
+            title: const Text('PDF gerado com sucesso'),
+            content: SelectableText(
+              'Modelo: ${options.template.label}\n\nArquivo salvo em:\n${file.path}',
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.of(dialogContext).pop(),
+                child: const Text('OK'),
+              ),
+            ],
+          );
+        },
+      );
+    }
+  } catch (error, stackTrace) {
+    debugPrint('ERRO AO GERAR PDF: $error');
+    debugPrintStack(stackTrace: stackTrace);
+
+    if (context.mounted) {
+      await showDialog<void>(
+        context: context,
+        builder: (dialogContext) {
+          return AlertDialog(
+            title: const Text('Erro ao gerar PDF'),
+            content: SelectableText(error.toString()),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.of(dialogContext).pop(),
+                child: const Text('OK'),
+              ),
+            ],
+          );
+        },
+      );
+    }
+  }
+}
+
+Future<Directory> _reportsOutputDirectory() async {
+  final home =
+      Platform.environment['USERPROFILE'] ??
+      Platform.environment['HOME'] ??
+      Directory.current.path;
+
+  final downloads = Directory('$home${Platform.pathSeparator}Downloads');
+  final baseDir = await downloads.exists() ? downloads : Directory.current;
+
+  final outputDir = Directory(
+    '${baseDir.path}${Platform.pathSeparator}Relatorios_Acougue_Do_Leleco',
+  );
+
+  if (!await outputDir.exists()) {
+    await outputDir.create(recursive: true);
+  }
+
+  return outputDir;
+}
+
+String _reportsFileTimestamp(DateTime date) {
+  String two(int value) => value.toString().padLeft(2, '0');
+
+  return '${date.year}-${two(date.month)}-${two(date.day)}_'
+      '${two(date.hour)}-${two(date.minute)}-${two(date.second)}';
 }
