@@ -1,0 +1,964 @@
+===== main.dart INTEIRO =====
+import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
+
+import 'app.dart';
+import 'providers/cash_closure_provider.dart';
+import 'providers/customers_provider.dart';
+import 'providers/inventory_provider.dart';
+import 'providers/notes_provider.dart';
+import 'providers/ramuza_barcode_log_provider.dart';
+import 'providers/ramuza_settings_provider.dart';
+import 'providers/sales_provider.dart';
+import 'providers/shortcuts_provider.dart';
+import 'providers/suppliers_provider.dart';
+import 'providers/theme_provider.dart';
+
+void main() {
+  runApp(
+    MultiProvider(
+      providers: [
+        ChangeNotifierProvider(create: (_) => ThemeProvider()),
+        ChangeNotifierProvider(create: (_) => InventoryProvider()),
+        ChangeNotifierProvider(create: (_) => SalesProvider()),
+        ChangeNotifierProvider(create: (_) => CustomersProvider()),
+        ChangeNotifierProvider(create: (_) => SuppliersProvider()),
+        ChangeNotifierProvider(create: (_) => CashClosureProvider()),
+        ChangeNotifierProvider(create: (_) => NotesProvider()),
+        ChangeNotifierProvider(create: (_) => ShortcutsProvider()),
+        ChangeNotifierProvider(create: (_) => RamuzaSettingsProvider()),
+        ChangeNotifierProvider(create: (_) => RamuzaBarcodeLogProvider()),
+      ],
+      child: const LelecoApp(),
+    ),
+  );
+}
+
+===== cash_screen 1-220 =====
+import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
+
+import '../../core/constants/app_colors.dart';
+import '../../models/payment_method.dart';
+import '../../models/sale.dart';
+import '../../providers/inventory_provider.dart';
+import '../../providers/sales_provider.dart';
+import '../../widgets/leleco_metric_card.dart';
+import '../../widgets/sale_receipt_dialog.dart';
+
+class CashScreen extends StatefulWidget {
+  const CashScreen({super.key});
+
+  @override
+  State<CashScreen> createState() => _CashScreenState();
+}
+
+class _CashScreenState extends State<CashScreen> {
+  bool showOnlyToday = true;
+
+  @override
+  Widget build(BuildContext context) {
+    return Consumer<SalesProvider>(
+      builder: (context, sales, _) {
+        final visibleSales = showOnlyToday ? sales.todaySales : sales.sales;
+        final validSales = visibleSales
+            .where((sale) => !sale.isCanceled)
+            .toList();
+
+        final totalVisible = validSales.fold<double>(
+          0,
+          (total, sale) => total + sale.total,
+        );
+
+        final canceledCount = visibleSales
+            .where((sale) => sale.isCanceled)
+            .length;
+
+        return LayoutBuilder(
+          builder: (context, constraints) {
+            final width = constraints.maxWidth;
+            final columns = width >= 980
+                ? 4
+                : width >= 640
+                ? 2
+                : 1;
+
+            const gap = 16.0;
+            final metricWidth = (width - gap * (columns - 1)) / columns;
+
+            return SingleChildScrollView(
+              padding: const EdgeInsets.only(bottom: 24),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Wrap(
+                    spacing: gap,
+                    runSpacing: gap,
+                    children: [
+                      SizedBox(
+                        width: metricWidth,
+                        child: LelecoMetricCard(
+                          icon: Icons.payments_rounded,
+                          title: showOnlyToday
+                              ? 'Faturamento hoje'
+                              : 'Faturamento total',
+                          value: _formatMoney(totalVisible),
+                        ),
+                      ),
+                      SizedBox(
+                        width: metricWidth,
+                        child: LelecoMetricCard(
+                          icon: Icons.receipt_long_rounded,
+                          title: showOnlyToday
+                              ? 'Vendas válidas hoje'
+                              : 'Vendas válidas',
+                          value: validSales.length.toString(),
+                        ),
+                      ),
+                      SizedBox(
+                        width: metricWidth,
+                        child: LelecoMetricCard(
+                          icon: Icons.cancel_rounded,
+                          title: 'Canceladas',
+                          value: canceledCount.toString(),
+                        ),
+                      ),
+                      SizedBox(
+                        width: metricWidth,
+                        child: LelecoMetricCard(
+                          icon: Icons.pix_rounded,
+                          title: 'Pix',
+                          value: _formatMoney(
+                            _sumByMethod(validSales, PaymentMethod.pix),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 20),
+                  _CashToolbar(
+                    showOnlyToday: showOnlyToday,
+                    onChanged: (value) {
+                      setState(() => showOnlyToday = value);
+                    },
+                  ),
+                  const SizedBox(height: 16),
+                  _PaymentSummary(sales: validSales),
+                  const SizedBox(height: 16),
+                  if (visibleSales.isEmpty)
+                    const SizedBox(height: 260, child: _EmptyCash())
+                  else
+                    ListView.separated(
+                      shrinkWrap: true,
+                      physics: const NeverScrollableScrollPhysics(),
+                      itemCount: visibleSales.length,
+                      separatorBuilder: (_, __) => const SizedBox(height: 12),
+                      itemBuilder: (context, index) {
+                        return _SaleCard(sale: visibleSales[index]);
+                      },
+                    ),
+                ],
+              ),
+            );
+          },
+        );
+      },
+    );
+  }
+}
+
+class _CashToolbar extends StatelessWidget {
+  const _CashToolbar({required this.showOnlyToday, required this.onChanged});
+
+  final bool showOnlyToday;
+  final ValueChanged<bool> onChanged;
+
+  @override
+  Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
+    return Wrap(
+      spacing: 12,
+      runSpacing: 12,
+      crossAxisAlignment: WrapCrossAlignment.center,
+      children: [
+        SegmentedButton<bool>(
+          segments: const [
+            ButtonSegment(
+              value: true,
+              icon: Icon(Icons.today_rounded),
+              label: Text('Hoje'),
+            ),
+            ButtonSegment(
+              value: false,
+              icon: Icon(Icons.list_alt_rounded),
+              label: Text('Todas'),
+            ),
+          ],
+          selected: {showOnlyToday},
+          onSelectionChanged: (values) {
+            onChanged(values.first);
+          },
+        ),
+        Container(
+          constraints: const BoxConstraints(maxWidth: 520),
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+          decoration: BoxDecoration(
+            color: isDark
+                ? AppColors.beige100.withOpacity(0.08)
+                : AppColors.wine900.withOpacity(0.10),
+            borderRadius: BorderRadius.circular(999),
+            border: Border.all(
+              color: isDark
+                  ? AppColors.beige100.withOpacity(0.10)
+                  : AppColors.wine900.withOpacity(0.08),
+            ),
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(
+                Icons.inventory_2_rounded,
+                size: 18,
+                color: isDark ? AppColors.beige100 : AppColors.wine700,
+              ),
+              const SizedBox(width: 8),
+              Flexible(
+                child: Text(
+                  'Cancelamento devolve o estoque automaticamente',
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    fontWeight: FontWeight.w800,
+                    color: isDark ? AppColors.beige100 : AppColors.wine900,
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _PaymentSummary extends StatelessWidget {
+  const _PaymentSummary({required this.sales});
+
+  final List<SaleRecord> sales;
+
+  @override
+  Widget build(BuildContext context) {
+    return Wrap(
+      spacing: 10,
+      runSpacing: 10,
+      children: PaymentMethod.values.map((method) {
+        return _PaymentChip(
+          label: method.label,
+
+===== cash_screen 220-460 =====
+          label: method.label,
+          value: _formatMoney(_sumByMethod(sales, method)),
+        );
+      }).toList(),
+    );
+  }
+}
+
+class _PaymentChip extends StatelessWidget {
+  const _PaymentChip({required this.label, required this.value});
+
+  final String label;
+  final String value;
+
+  @override
+  Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+      decoration: BoxDecoration(
+        color: isDark ? AppColors.darkSurfaceAlt : AppColors.white,
+        borderRadius: BorderRadius.circular(999),
+      ),
+      child: Text(
+        '$label: $value',
+        style: const TextStyle(fontWeight: FontWeight.w800),
+      ),
+    );
+  }
+}
+
+class _SaleCard extends StatelessWidget {
+  const _SaleCard({required this.sale});
+
+  final SaleRecord sale;
+
+  @override
+  Widget build(BuildContext context) {
+    final statusColor = sale.isCanceled ? AppColors.danger : AppColors.success;
+    final statusText = sale.isCanceled ? 'Cancelada' : 'Finalizada';
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
+    return Card(
+      child: InkWell(
+        borderRadius: BorderRadius.circular(24),
+        onTap: () => _openSaleDetails(context, sale),
+        child: Padding(
+          padding: const EdgeInsets.all(18),
+          child: LayoutBuilder(
+            builder: (context, constraints) {
+              final compact = constraints.maxWidth < 620;
+
+              final icon = Container(
+                width: 58,
+                height: 58,
+                decoration: BoxDecoration(
+                  color: sale.isCanceled ? AppColors.danger : AppColors.wine900,
+                  borderRadius: BorderRadius.circular(20),
+                ),
+                child: Icon(
+                  sale.isCanceled
+                      ? Icons.cancel_rounded
+                      : Icons.receipt_long_rounded,
+                  color: AppColors.beige100,
+                ),
+              );
+
+              final info = Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Venda #${sale.shortId}',
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                      fontWeight: FontWeight.w900,
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    '${_formatDateTime(sale.createdAt)} • ${sale.paymentMethod.label}${sale.customerName == null ? '' : ' • ${sale.customerName}'}',
+                    maxLines: compact ? 2 : 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ],
+              );
+
+              final status = Container(
+                width: 108,
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 10,
+                  vertical: 8,
+                ),
+                decoration: BoxDecoration(
+                  color: statusColor.withOpacity(0.14),
+                  borderRadius: BorderRadius.circular(999),
+                  border: Border.all(color: statusColor.withOpacity(0.18)),
+                ),
+                child: Text(
+                  statusText,
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                    color: statusColor,
+                    fontWeight: FontWeight.w900,
+                  ),
+                ),
+              );
+
+              final total = Text(
+                _formatMoney(sale.total),
+                textAlign: TextAlign.end,
+                style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                  fontWeight: FontWeight.w900,
+                  color: sale.isCanceled
+                      ? AppColors.danger
+                      : isDark
+                      ? AppColors.beige100
+                      : AppColors.wine700,
+                  decoration: sale.isCanceled
+                      ? TextDecoration.lineThrough
+                      : null,
+                ),
+              );
+
+              final actions = Wrap(
+                spacing: 4,
+                runSpacing: 4,
+                crossAxisAlignment: WrapCrossAlignment.center,
+                children: [
+                  if (!sale.isCanceled)
+                    IconButton(
+                      tooltip: 'Cancelar venda',
+                      onPressed: () => _cancelSaleFlow(context, sale),
+                      icon: const Icon(Icons.cancel_outlined),
+                    ),
+                  const Icon(Icons.chevron_right_rounded),
+                ],
+              );
+
+              if (compact) {
+                return Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        icon,
+                        const SizedBox(width: 14),
+                        Expanded(child: info),
+                      ],
+                    ),
+                    const SizedBox(height: 14),
+                    Wrap(
+                      spacing: 12,
+                      runSpacing: 10,
+                      crossAxisAlignment: WrapCrossAlignment.center,
+                      children: [status, total, actions],
+                    ),
+                  ],
+                );
+              }
+
+              return Row(
+                children: [
+                  icon,
+                  const SizedBox(width: 16),
+                  Expanded(child: info),
+                  const SizedBox(width: 12),
+                  status,
+                  const SizedBox(width: 12),
+                  SizedBox(width: 125, child: total),
+                  const SizedBox(width: 8),
+                  actions,
+                ],
+              );
+            },
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _EmptyCash extends StatelessWidget {
+  const _EmptyCash();
+
+  @override
+  Widget build(BuildContext context) {
+    return const Center(child: Text('Nenhuma venda encontrada.'));
+  }
+}
+
+Future<void> _openSaleDetails(BuildContext context, SaleRecord sale) async {
+  await showDialog<void>(
+    context: context,
+    builder: (dialogContext) {
+      return AlertDialog(
+        title: Text('Detalhes da venda #${sale.shortId}'),
+        content: SizedBox(
+          width: 760,
+          height: 500,
+          child: Column(
+            children: [
+              Row(
+                children: [
+                  _DetailBox(
+                    title: 'Data',
+                    value: _formatDateTime(sale.createdAt),
+                  ),
+                  const SizedBox(width: 12),
+                  _DetailBox(
+                    title: 'Pagamento',
+                    value: sale.paymentMethod.label,
+                  ),
+                  const SizedBox(width: 12),
+                  _DetailBox(title: 'Total', value: _formatMoney(sale.total)),
+                ],
+              ),
+              if (sale.isCanceled) ...[
+                const SizedBox(height: 12),
+                Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.all(14),
+                  decoration: BoxDecoration(
+                    color: AppColors.danger.withOpacity(0.12),
+                    borderRadius: BorderRadius.circular(18),
+                  ),
+                  child: Text(
+                    'Venda cancelada em ${_formatDateTime(sale.canceledAt!)}.\nMotivo: ${sale.cancelReason ?? '-'}',
+                    style: const TextStyle(fontWeight: FontWeight.w800),
+                  ),
+                ),
+              ],
+              const SizedBox(height: 18),
+              Expanded(
+                child: ListView.separated(
+                  itemCount: sale.items.length,
+                  separatorBuilder: (_, __) => const SizedBox(height: 10),
+                  itemBuilder: (context, index) {
+                    final item = sale.items[index];
+
+
+===== customers_provider 160-215 =====
+
+  void registerPurchase(SaleRecord sale, Customer customer) {
+    if (sale.paymentMethod != PaymentMethod.fiado) return;
+    if (sale.total <= 0) return;
+
+    final entry = CreditEntry(
+      id: DateTime.now().microsecondsSinceEpoch.toString(),
+      customerId: customer.id,
+      customerName: customer.name,
+      type: CreditEntryType.purchase,
+      amount: sale.total,
+      description: 'Compra fiado da venda #${sale.shortId}',
+      createdAt: sale.createdAt,
+      saleId: sale.id,
+    );
+
+    _entries.insert(0, entry);
+    _saveAllAndNotify();
+  }
+
+  void registerPayment({
+    required String customerId,
+    required double amount,
+    String? description,
+  }) {
+    if (amount <= 0) return;
+
+    final customer = findCustomerById(customerId);
+
+    if (customer == null) return;
+
+    final balance = balanceForCustomer(customerId);
+    final safeAmount = amount > balance ? balance : amount;
+
+    if (safeAmount <= 0) return;
+
+    final now = DateTime.now();
+
+    final entry = CreditEntry(
+      id: now.microsecondsSinceEpoch.toString(),
+      customerId: customer.id,
+      customerName: customer.name,
+      type: CreditEntryType.payment,
+      amount: safeAmount,
+      description: _emptyToNull(description) ?? 'Pagamento recebido',
+      createdAt: now,
+    );
+
+    _entries.insert(0, entry);
+    _saveAllAndNotify();
+  }
+
+  Future<void> _loadData() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+
+
+===== suppliers_provider 130-170 =====
+
+    _suppliers[index] = supplier.copyWith(
+      active: !supplier.active,
+      updatedAt: DateTime.now(),
+    );
+
+    _saveAllAndNotify();
+  }
+
+  void deleteSupplier(String supplierId) {
+    _suppliers.removeWhere((supplier) => supplier.id == supplierId);
+
+    _saveAllAndNotify();
+  }
+
+  void addPurchase(SupplierPurchase purchase) {
+    _ensureSupplierFromPurchase(purchase);
+    _purchases.insert(0, purchase);
+
+    _saveAllAndNotify();
+  }
+
+  void updatePurchase(SupplierPurchase purchase) {
+    final index = _purchases.indexWhere((item) => item.id == purchase.id);
+
+    if (index == -1) return;
+
+    _ensureSupplierFromPurchase(purchase);
+    _purchases[index] = purchase.copyWith(updatedAt: DateTime.now());
+
+    _saveAllAndNotify();
+  }
+
+  void deletePurchase(String purchaseId) {
+    _purchases.removeWhere((purchase) => purchase.id == purchaseId);
+
+    _saveAllAndNotify();
+  }
+
+  Future<void> reloadFromStorage() async {
+    _isLoading = true;
+
+===== reports_screen 1-150 =====
+import 'dart:io';
+import 'dart:math' as math;
+
+import 'package:flutter/material.dart';
+import 'package:pdf/pdf.dart';
+import 'package:pdf/widgets.dart' as pw;
+import 'package:provider/provider.dart';
+
+import '../../core/constants/app_colors.dart';
+import '../../models/payment_method.dart';
+import '../../models/product.dart';
+import '../../models/product_category.dart';
+import '../../models/product_unit.dart';
+import '../../models/supplier_purchase.dart';
+import '../../providers/customers_provider.dart';
+import '../../providers/inventory_provider.dart';
+import '../../providers/sales_provider.dart';
+import '../../providers/suppliers_provider.dart';
+
+enum _ReportSection {
+  overview,
+  products,
+  categories,
+  payments,
+  suppliers,
+  lowStock,
+  credit,
+  detailed,
+}
+
+enum _ReportPeriod { today, sevenDays, thirtyDays, all }
+
+class ReportsScreen extends StatefulWidget {
+  const ReportsScreen({super.key});
+
+  @override
+  State<ReportsScreen> createState() => _ReportsScreenState();
+}
+
+class _ReportsScreenState extends State<ReportsScreen> {
+  _ReportSection selectedSection = _ReportSection.overview;
+  _ReportPeriod selectedPeriod = _ReportPeriod.today;
+
+  @override
+  Widget build(BuildContext context) {
+    return Consumer4<
+      SalesProvider,
+      InventoryProvider,
+      CustomersProvider,
+      SuppliersProvider
+    >(
+      builder: (context, salesProvider, inventory, customers, suppliers, _) {
+        final sales = _filterSalesByPeriod(salesProvider.sales, selectedPeriod);
+
+        final purchases = _filterPurchasesByPeriod(
+          suppliers.purchases,
+          selectedPeriod,
+        );
+
+        final revenue = _salesRevenue(sales);
+        final averageTicket = sales.isEmpty ? 0.0 : revenue / sales.length;
+
+        final paymentTotals = _paymentTotals(sales);
+        final productTotals = _productTotals(sales);
+        final categoryTotals = _categoryTotals(sales, inventory.products);
+        final supplierTotals = _supplierTotals(purchases);
+
+        final totalSupplierPurchases = purchases.fold<double>(
+          0,
+          (total, purchase) => total + purchase.totalCost,
+        );
+
+        final lowStock = inventory.products.where((product) {
+          return !product.isDeleted && product.isLowStock;
+        }).toList();
+
+        return Container(
+          color: _pageBackground(context),
+          child: SingleChildScrollView(
+            padding: const EdgeInsets.only(bottom: 24),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                _ReportsHeader(
+                  selectedPeriod: selectedPeriod,
+                  periodLabel: _periodLabel(selectedPeriod),
+                  onPeriodChanged: (period) {
+                    setState(() => selectedPeriod = period);
+                  },
+                ),
+                const SizedBox(height: 14),
+                _ReportsPdfActionPanel(
+                  onPressed: () => _showReportsPdfOptionsDialog(
+                    context: context,
+                    periodLabel: _periodLabel(selectedPeriod),
+                    sales: sales,
+                    revenue: revenue,
+                    averageTicket: averageTicket,
+                    openCredit: customers.totalOpenCredit,
+                    supplierPurchases: totalSupplierPurchases,
+                    lowStockCount: lowStock.length,
+                    paymentTotals: paymentTotals,
+                    productTotals: productTotals,
+                    categoryTotals: categoryTotals,
+                    purchases: purchases,
+                    lowStock: lowStock,
+                  ),
+                ),
+                const SizedBox(height: 14),
+                _KpiGrid(
+                  salesCount: sales.length,
+                  revenue: revenue,
+                  averageTicket: averageTicket,
+                  openCredit: customers.totalOpenCredit,
+                  supplierPurchases: totalSupplierPurchases,
+                  lowStockCount: lowStock.length,
+                ),
+                const SizedBox(height: 14),
+                _ReportMenu(
+                  selected: selectedSection,
+                  onChanged: (section) {
+                    setState(() => selectedSection = section);
+                  },
+                ),
+                const SizedBox(height: 14),
+                _ReportBody(
+                  section: selectedSection,
+                  periodLabel: _periodLabel(selectedPeriod),
+                  sales: sales,
+                  revenue: revenue,
+                  averageTicket: averageTicket,
+                  paymentTotals: paymentTotals,
+                  productTotals: productTotals,
+                  categoryTotals: categoryTotals,
+                  purchases: purchases,
+                  supplierTotals: supplierTotals,
+                  totalSupplierPurchases: totalSupplierPurchases,
+                  lowStock: lowStock,
+                  openCredit: customers.totalOpenCredit,
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+}
+
+class _ReportsHeader extends StatelessWidget {
+
+===== reports_screen 600-740 =====
+  final Map<PaymentMethod, double> paymentTotals;
+  final List<_ProductTotal> productTotals;
+  final List<_CategoryTotal> categoryTotals;
+  final List<SupplierPurchase> purchases;
+  final List<_SupplierTotal> supplierTotals;
+  final double totalSupplierPurchases;
+  final List<Product> lowStock;
+  final double openCredit;
+
+  @override
+  Widget build(BuildContext context) {
+    switch (section) {
+      case _ReportSection.overview:
+        return _OverviewDashboard(
+          periodLabel: periodLabel,
+          revenue: revenue,
+          productTotals: productTotals,
+          categoryTotals: categoryTotals,
+          paymentTotals: paymentTotals,
+          supplierTotals: supplierTotals,
+          totalSupplierPurchases: totalSupplierPurchases,
+          salesCount: sales.length,
+        );
+
+      case _ReportSection.products:
+        return _PanelWithTable(
+          title: 'Vendas por produto',
+          subtitle: 'Período: $periodLabel',
+          totalLabel: 'Produtos vendidos',
+          totalValue: productTotals.length.toString(),
+          headers: const ['Produto', 'Qtd vendida', 'Total vendido'],
+          rows: productTotals.map((item) {
+            return [
+              item.name,
+              _formatNumber(item.quantity),
+              _formatMoney(item.total),
+            ];
+          }).toList(),
+          emptyText: 'Nenhum produto vendido nesse período.',
+        );
+
+      case _ReportSection.categories:
+        return _PanelWithTable(
+          title: 'Vendas por categoria',
+          subtitle: 'Período: $periodLabel',
+          totalLabel: 'Categorias',
+          totalValue: categoryTotals.length.toString(),
+          headers: const ['Categoria', 'Qtd vendida', 'Total vendido'],
+          rows: categoryTotals.map((item) {
+            return [
+              item.category,
+              _formatNumber(item.quantity),
+              _formatMoney(item.total),
+            ];
+          }).toList(),
+          emptyText: 'Nenhuma categoria vendida nesse período.',
+        );
+
+      case _ReportSection.payments:
+        final total = paymentTotals.values.fold<double>(0, (s, v) => s + v);
+
+        return _PanelWithTable(
+          title: 'Formas de pagamento',
+          subtitle: 'Período: $periodLabel',
+          totalLabel: 'Total recebido',
+          totalValue: _formatMoney(total),
+          headers: const ['Forma', 'Total'],
+          rows: PaymentMethod.values.map((method) {
+            return [method.label, _formatMoney(paymentTotals[method] ?? 0)];
+          }).toList(),
+          emptyText: 'Sem pagamentos nesse período.',
+        );
+
+      case _ReportSection.suppliers:
+        return _PanelWithTable(
+          title: 'Compras de fornecedores',
+          subtitle: 'Período: $periodLabel',
+          totalLabel: 'Total comprado',
+          totalValue: _formatMoney(totalSupplierPurchases),
+          headers: const [
+            'Data',
+            'Fornecedor',
+            'Item',
+            'Qtd',
+            'Total',
+            'Status',
+          ],
+          rows: purchases.map((purchase) {
+            return [
+              _formatDate(purchase.purchaseDate),
+              purchase.supplierName,
+              purchase.itemName,
+              '${_formatNumber(purchase.quantity)} ${purchase.unit.label}',
+              _formatMoney(purchase.totalCost),
+              purchase.paid ? 'Pago' : 'Em aberto',
+            ];
+          }).toList(),
+          emptyText: 'Nenhuma compra de fornecedor nesse período.',
+        );
+
+      case _ReportSection.lowStock:
+        return _PanelWithTable(
+          title: 'Estoque baixo',
+          subtitle: 'Situação atual do estoque',
+          totalLabel: 'Itens em alerta',
+          totalValue: lowStock.length.toString(),
+          headers: const ['Código', 'Produto', 'Estoque', 'Mínimo'],
+          rows: lowStock.map((product) {
+            return [
+              product.code,
+              product.name,
+              '${_formatNumber(product.stockQuantity)} ${product.unit.label}',
+              '${_formatNumber(product.minStock)} ${product.unit.label}',
+            ];
+          }).toList(),
+          emptyText: 'Nenhum produto em estoque baixo.',
+        );
+
+      case _ReportSection.credit:
+        return _PanelWithTable(
+          title: 'Fiado',
+          subtitle: 'Resumo atual',
+          totalLabel: 'Fiado aberto',
+          totalValue: _formatMoney(openCredit),
+          headers: const ['Resumo', 'Valor'],
+          rows: [
+            ['Total em aberto no fiado', _formatMoney(openCredit)],
+            ['Detalhamento', 'Abra a aba Fiado para ver cliente por cliente'],
+          ],
+          emptyText: 'Nenhum fiado em aberto.',
+        );
+
+      case _ReportSection.detailed:
+        return _PanelWithTable(
+          title: 'Vendas detalhadas',
+          subtitle: 'Período: $periodLabel',
+          totalLabel: 'Vendas',
+          totalValue: sales.length.toString(),
+          headers: const [
+            'Venda',
+            'Data',
+
+===== reports_screen 2460-2525 =====
+      );
+    },
+  );
+
+  if (options == null || !context.mounted) return;
+
+  await _exportReportsPdf(
+    context: context,
+    periodLabel: periodLabel,
+    sales: sales,
+    revenue: revenue,
+    averageTicket: averageTicket,
+    openCredit: openCredit,
+    supplierPurchases: supplierPurchases,
+    lowStockCount: lowStockCount,
+    paymentTotals: paymentTotals,
+    productTotals: productTotals,
+    categoryTotals: categoryTotals,
+    purchases: purchases,
+    lowStock: lowStock,
+    options: options,
+  );
+}
+
+Future<void> _exportReportsPdf({
+  required BuildContext context,
+  required String periodLabel,
+  required List sales,
+  required double revenue,
+  required double averageTicket,
+  required double openCredit,
+  required double supplierPurchases,
+  required int lowStockCount,
+  required Map paymentTotals,
+  required List productTotals,
+  required List categoryTotals,
+  required List purchases,
+  required List lowStock,
+  required _PdfReportOptions options,
+}) async {
+  try {
+    String safeText(Object? Function() read, [String fallback = '-']) {
+      try {
+        final value = read();
+        if (value == null) return fallback;
+        final txt = value.toString().trim();
+        return txt.isEmpty ? fallback : txt;
+      } catch (_) {
+        return fallback;
+      }
+    }
+
+    double safeDouble(Object? Function() read) {
+      try {
+        final value = read();
+        if (value is num) return value.toDouble();
+        return double.tryParse(value.toString().replaceAll(',', '.')) ?? 0;
+      } catch (_) {
+        return 0;
+      }
+    }
+
+    final primary = options.template == _PdfReportTemplate.simple
+        ? const PdfColor.fromInt(0xFF2B2B2B)
+        : const PdfColor.fromInt(0xFF561C24);
+

@@ -1,0 +1,171 @@
+===== main.dart =====
+18:    MultiProvider(
+19:      providers: [
+20:        ChangeNotifierProvider(create: (_) => ThemeProvider()),
+21:        ChangeNotifierProvider(create: (_) => InventoryProvider()),
+22:        ChangeNotifierProvider(create: (_) => SalesProvider()),
+23:        ChangeNotifierProvider(create: (_) => CustomersProvider()),
+24:        ChangeNotifierProvider(create: (_) => SuppliersProvider()),
+25:        ChangeNotifierProvider(create: (_) => CashClosureProvider()),
+26:        ChangeNotifierProvider(create: (_) => NotesProvider()),
+27:        ChangeNotifierProvider(create: (_) => ShortcutsProvider()),
+28:        ChangeNotifierProvider(create: (_) => RamuzaSettingsProvider()),
+29:        ChangeNotifierProvider(create: (_) => RamuzaBarcodeLogProvider()),
+===== cash_screen =====
+12:class CashScreen extends StatefulWidget {
+19:class _CashScreenState extends State<CashScreen> {
+24:    return Consumer<SalesProvider>(
+133:class _CashToolbar extends StatelessWidget {
+208:class _PaymentSummary extends StatelessWidget {
+228:class _PaymentChip extends StatelessWidget {
+252:class _SaleCard extends StatelessWidget {
+403:class _EmptyCash extends StatelessWidget {
+412:Future<void> _openSaleDetails(BuildContext context, SaleRecord sale) async {
+537:class _DetailBox extends StatelessWidget {
+567:Future<void> _cancelSaleFlow(BuildContext context, SaleRecord sale) async {
+568:  final sales = context.read<SalesProvider>();
+569:  final inventory = context.read<InventoryProvider>();
+607:Future<String?> _askCancelReason(BuildContext context) async {
+653:void _showMessage(BuildContext context, String message) {
+===== suppliers_provider =====
+7:import '../models/supplier_purchase.dart';
+9:class SuppliersProvider extends ChangeNotifier {
+14:  static const String purchasesStorageKey = 'leleco_supplier_purchases_v1';
+18:  static const String storageKey = purchasesStorageKey;
+20:  final List<SupplierPurchase> _purchases = [];
+27:  List<SupplierPurchase> get purchases {
+28:    final result = [..._purchases];
+29:    result.sort((a, b) => b.purchaseDate.compareTo(a.purchaseDate));
+46:    return _purchases.fold<double>(
+48:      (total, purchase) => total + purchase.totalCost,
+53:    return _purchases.where((purchase) => !purchase.paid).fold<double>(
+55:          (total, purchase) => total + purchase.totalCost,
+73:  List<SupplierPurchase> purchasesForSupplier(String supplierName) {
+76:    return purchases.where((purchase) {
+77:      return _normalize(purchase.supplierName) == normalized;
+81:  List<SupplierPurchase> purchasesForPeriod({
+85:    return purchases.where((purchase) {
+86:      final date = purchase.purchaseDate;
+95:  void addSupplier(SupplierProfile supplier) {
+111:  void updateSupplier(SupplierProfile supplier) {
+115:      addSupplier(supplier);
+124:  void toggleSupplierActive(String supplierId) {
+139:  void deleteSupplier(String supplierId) {
+145:  void addPurchase(SupplierPurchase purchase) {
+146:    _ensureSupplierFromPurchase(purchase);
+147:    _purchases.insert(0, purchase);
+152:  void updatePurchase(SupplierPurchase purchase) {
+153:    final index = _purchases.indexWhere((item) => item.id == purchase.id);
+157:    _ensureSupplierFromPurchase(purchase);
+158:    _purchases[index] = purchase.copyWith(updatedAt: DateTime.now());
+163:  void deletePurchase(String purchaseId) {
+164:    _purchases.removeWhere((purchase) => purchase.id == purchaseId);
+169:  Future<void> reloadFromStorage() async {
+171:    notifyListeners();
+173:    _purchases.clear();
+179:  Future<void> _loadData() async {
+182:    final rawPurchases = prefs.getString(purchasesStorageKey);
+189:        _purchases
+191:          ..addAll(
+209:          ..addAll(
+228:    notifyListeners();
+234:    for (final purchase in _purchases) {
+235:      final name = purchase.supplierName.trim();
+245:      _suppliers.add(
+252:          address: '',
+255:          createdAt: purchase.createdAt,
+256:          updatedAt: purchase.updatedAt,
+266:  void _ensureSupplierFromPurchase(SupplierPurchase purchase) {
+267:    final name = purchase.supplierName.trim();
+279:    _suppliers.add(
+286:        address: '',
+295:  Future<void> _saveAllAndNotify() async {
+298:    notifyListeners();
+301:  Future<void> _saveData() async {
+305:      purchasesStorageKey,
+306:      jsonEncode(_purchases.map((purchase) => purchase.toMap()).toList()),
+===== customers_provider =====
+6:import '../models/credit_entry.dart';
+8:import '../models/payment_method.dart';
+11:class CustomersProvider extends ChangeNotifier {
+17:  static const String _entriesStorageKey = 'leleco_credit_entries_v1';
+79:  double get paymentsReceivedToday {
+82:    return _entries.where((entry) {
+83:      return entry.type == CreditEntryType.payment &&
+84:          entry.createdAt.year == now.year &&
+85:          entry.createdAt.month == now.month &&
+86:          entry.createdAt.day == now.day;
+87:    }).fold(0.0, (total, entry) => total + entry.amount);
+90:  Future<void> reloadFromStorage() async {
+92:    notifyListeners();
+100:  void setSearchTerm(String value) {
+102:    notifyListeners();
+114:    return _entries.where((entry) => entry.customerId == customerId).fold(
+116:      (total, entry) {
+117:        if (entry.type == CreditEntryType.purchase) {
+118:          return total + entry.amount;
+121:        return total - entry.amount;
+127:    final result = _entries.where((entry) => entry.customerId == customerId).toList();
+132:  void addCustomer({
+152:  void updateCustomer(Customer customer) {
+161:  void registerPurchase(SaleRecord sale, Customer customer) {
+162:    if (sale.paymentMethod != PaymentMethod.fiado) return;
+165:    final entry = CreditEntry(
+176:    _entries.insert(0, entry);
+180:  void registerPayment({
+198:    final entry = CreditEntry(
+202:      type: CreditEntryType.payment,
+208:    _entries.insert(0, entry);
+212:  Future<void> _loadData() async {
+220:      notifyListeners();
+224:  Future<void> _loadCustomers(SharedPreferences prefs) async {
+234:        ..addAll(
+244:  Future<void> _loadEntries(SharedPreferences prefs) async {
+254:        ..addAll(
+264:  Future<void> _saveCustomers() async {
+274:  Future<void> _saveEntries() async {
+278:      _entries.map((entry) => entry.toMap()).toList(),
+284:  void _saveAllAndNotify() {
+285:    notifyListeners();
+===== reports_screen =====
+63:        final paymentTotals = _paymentTotals(sales);
+68:        final totalSupplierPurchases = purchases.fold<double>(
+100:                    supplierPurchases: totalSupplierPurchases,
+102:                    paymentTotals: paymentTotals,
+115:                  supplierPurchases: totalSupplierPurchases,
+132:                  paymentTotals: paymentTotals,
+137:                  totalSupplierPurchases: totalSupplierPurchases,
+312:        title: 'Fiado aberto',
+477:      _ReportOption(_ReportSection.credit, 'Fiado', Icons.person_rounded),
+585:    required this.paymentTotals,
+590:    required this.totalSupplierPurchases,
+600:  final Map<PaymentMethod, double> paymentTotals;
+605:  final double totalSupplierPurchases;
+618:          paymentTotals: paymentTotals,
+620:          totalSupplierPurchases: totalSupplierPurchases,
+659:        final total = paymentTotals.values.fold<double>(0, (s, v) => s + v);
+668:            return [method.label, _formatMoney(paymentTotals[method] ?? 0)];
+675:          title: 'Compras de fornecedores',
+678:          totalValue: _formatMoney(totalSupplierPurchases),
+720:          title: 'Fiado',
+722:          totalLabel: 'Fiado aberto',
+727:            ['Detalhamento', 'Abra a aba Fiado para ver cliente por cliente'],
+770:    required this.paymentTotals,
+772:    required this.totalSupplierPurchases,
+780:  final Map<PaymentMethod, double> paymentTotals;
+782:  final double totalSupplierPurchases;
+787:    final totalPayments = paymentTotals.values.fold<double>(0, (s, v) => s + v);
+856:                  value: _formatMoney(totalSupplierPurchases),
+880:        return _MiniRow(method.label, _formatMoney(paymentTotals[method] ?? 0));
+1899:Map<PaymentMethod, double> _paymentTotals(List<dynamic> sales) {
+2274:  required Map paymentTotals,
+2372:                      title: const Text('Resumo geral'),
+2403:                      title: const Text('Compras de fornecedores'),
+2466:  await _exportReportsPdf(
+2475:    paymentTotals: paymentTotals,
+2484:Future<void> _exportReportsPdf({
+2493:  required Map paymentTotals,
+2541:      final value = ((paymentTotals[method] ?? 0) as num).toDouble();
+2805:                'Resumo geral',
+2828:                    'Fiado aberto',
+2895:                'Compras de fornecedores',

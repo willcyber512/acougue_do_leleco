@@ -4,8 +4,10 @@ import 'package:provider/provider.dart';
 import '../../core/constants/app_colors.dart';
 import '../../models/payment_method.dart';
 import '../../models/sale.dart';
+import '../../models/cash_movement.dart';
 import '../../providers/inventory_provider.dart';
 import '../../providers/sales_provider.dart';
+import '../../providers/cash_movement_provider.dart';
 import '../../widgets/leleco_metric_card.dart';
 import '../../widgets/sale_receipt_dialog.dart';
 
@@ -106,6 +108,8 @@ class _CashScreenState extends State<CashScreen> {
                     },
                   ),
                   const SizedBox(height: 16),
+                  const _CashMovementsPanel(),
+                  const SizedBox(height: 14),
                   _PaymentSummary(sales: validSales),
                   const SizedBox(height: 16),
                   if (visibleSales.isEmpty)
@@ -681,4 +685,633 @@ String _formatDateTime(DateTime value) {
 
 String _two(int value) {
   return value.toString().padLeft(2, '0');
+}
+
+class _CashMovementsPanel extends StatelessWidget {
+  const _CashMovementsPanel();
+
+  @override
+  Widget build(BuildContext context) {
+    final cash = context.watch<CashMovementProvider>();
+    final movements = cash.todayMovements.take(10).toList();
+
+    return Card(
+      elevation: 0,
+      clipBehavior: Clip.antiAlias,
+      child: Container(
+        decoration: BoxDecoration(
+          border: Border.all(
+            color: Theme.of(context).colorScheme.outlineVariant,
+          ),
+          borderRadius: BorderRadius.circular(16),
+        ),
+        child: Padding(
+          padding: const EdgeInsets.all(18),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  CircleAvatar(
+                    backgroundColor: Theme.of(
+                      context,
+                    ).colorScheme.primaryContainer,
+                    child: Icon(
+                      Icons.account_balance_wallet_rounded,
+                      color: Theme.of(context).colorScheme.onPrimaryContainer,
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'Controle manual do caixa',
+                          style: Theme.of(context).textTheme.titleLarge
+                              ?.copyWith(fontWeight: FontWeight.w900),
+                        ),
+                        const SizedBox(height: 2),
+                        Text(
+                          'Registre dinheiro que entrou ou saiu fora das vendas.',
+                          style: Theme.of(context).textTheme.bodyMedium
+                              ?.copyWith(
+                                color: Theme.of(
+                                  context,
+                                ).colorScheme.onSurfaceVariant,
+                              ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 16),
+              Wrap(
+                spacing: 12,
+                runSpacing: 12,
+                children: [
+                  _CashMovementSummaryCard(
+                    title: 'Entradas manuais',
+                    value: cash.todayInputs,
+                    icon: Icons.south_west_rounded,
+                    color: Colors.green.shade700,
+                    subtitle: 'Reforços e recebimentos extras',
+                  ),
+                  _CashMovementSummaryCard(
+                    title: 'Saídas manuais',
+                    value: cash.todayOutputs,
+                    icon: Icons.north_east_rounded,
+                    color: Colors.red.shade700,
+                    subtitle: 'Compras, retiradas e despesas',
+                  ),
+                  _CashMovementSummaryCard(
+                    title: 'Saldo manual',
+                    value: cash.todayBalance,
+                    icon: Icons.calculate_rounded,
+                    color: cash.todayBalance >= 0
+                        ? Colors.green.shade700
+                        : Colors.red.shade700,
+                    subtitle: 'Entradas menos saídas',
+                  ),
+                ],
+              ),
+              const SizedBox(height: 16),
+              Wrap(
+                spacing: 10,
+                runSpacing: 10,
+                children: [
+                  FilledButton.icon(
+                    onPressed: () => _showCashMovementDialog(
+                      context,
+                      initialType: CashMovementType.output,
+                    ),
+                    icon: const Icon(Icons.remove_circle_outline_rounded),
+                    label: const Text('Registrar saída'),
+                  ),
+                  OutlinedButton.icon(
+                    onPressed: () => _showCashMovementDialog(
+                      context,
+                      initialType: CashMovementType.input,
+                    ),
+                    icon: const Icon(Icons.add_circle_outline_rounded),
+                    label: const Text('Registrar entrada'),
+                  ),
+                ],
+              ),
+              const Divider(height: 28),
+              Row(
+                children: [
+                  Expanded(
+                    child: Text(
+                      'Histórico de hoje',
+                      style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                        fontWeight: FontWeight.w900,
+                      ),
+                    ),
+                  ),
+                  Text(
+                    '${movements.length} registro(s)',
+                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                      color: Theme.of(context).colorScheme.onSurfaceVariant,
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 8),
+              if (movements.isEmpty)
+                Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.all(14),
+                  decoration: BoxDecoration(
+                    color: Theme.of(
+                      context,
+                    ).colorScheme.surfaceContainerHighest,
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Text(
+                    'Nenhuma entrada ou saída manual registrada hoje.',
+                    style: Theme.of(context).textTheme.bodyMedium,
+                  ),
+                )
+              else
+                ...movements.map(
+                  (movement) => _CashMovementTile(movement: movement),
+                ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _CashMovementSummaryCard extends StatelessWidget {
+  const _CashMovementSummaryCard({
+    required this.title,
+    required this.value,
+    required this.icon,
+    required this.color,
+    required this.subtitle,
+  });
+
+  final String title;
+  final double value;
+  final IconData icon;
+  final Color color;
+  final String subtitle;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: 230,
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: color.withOpacity(0.08),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: color.withOpacity(0.20)),
+      ),
+      child: Row(
+        children: [
+          CircleAvatar(
+            backgroundColor: color.withOpacity(0.12),
+            child: Icon(icon, color: color),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  title,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: Theme.of(
+                    context,
+                  ).textTheme.bodySmall?.copyWith(fontWeight: FontWeight.w700),
+                ),
+                const SizedBox(height: 3),
+                Text(
+                  _formatMoney(value),
+                  style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                    fontWeight: FontWeight.w900,
+                    color: color,
+                  ),
+                ),
+                Text(
+                  subtitle,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                    color: Theme.of(context).colorScheme.onSurfaceVariant,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _CashMovementTile extends StatelessWidget {
+  const _CashMovementTile({required this.movement});
+
+  final CashMovement movement;
+
+  @override
+  Widget build(BuildContext context) {
+    final isInput = movement.type == CashMovementType.input;
+    final color = isInput ? Colors.green.shade700 : Colors.red.shade700;
+    final sign = isInput ? '+' : '-';
+
+    return Container(
+      margin: const EdgeInsets.only(bottom: 8),
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: Theme.of(context).colorScheme.surface,
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: Theme.of(context).colorScheme.outlineVariant),
+      ),
+      child: Row(
+        children: [
+          CircleAvatar(
+            backgroundColor: color.withOpacity(0.10),
+            child: Icon(
+              isInput ? Icons.south_west_rounded : Icons.north_east_rounded,
+              color: color,
+            ),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  movement.reason.isEmpty
+                      ? movement.category.label
+                      : movement.reason,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: Theme.of(
+                    context,
+                  ).textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w900),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  '${movement.type.label} • ${movement.category.label} • ${movement.paymentMethod.label}',
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                    color: Theme.of(context).colorScheme.onSurfaceVariant,
+                  ),
+                ),
+                if (movement.description.trim().isNotEmpty) ...[
+                  const SizedBox(height: 2),
+                  Text(
+                    movement.description,
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                    style: Theme.of(context).textTheme.bodySmall,
+                  ),
+                ],
+              ],
+            ),
+          ),
+          const SizedBox(width: 12),
+          Text(
+            '$sign ${_formatMoney(movement.amount)}',
+            style: Theme.of(context).textTheme.titleSmall?.copyWith(
+              color: color,
+              fontWeight: FontWeight.w900,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+Future<void> _showCashMovementDialog(
+  BuildContext context, {
+  required CashMovementType initialType,
+}) async {
+  final formKey = GlobalKey<FormState>();
+  final amountController = TextEditingController();
+  final reasonController = TextEditingController();
+  final descriptionController = TextEditingController();
+
+  var type = initialType;
+  var category = initialType == CashMovementType.output
+      ? CashMovementCategory.expense
+      : CashMovementCategory.cashIn;
+  var paymentMethod = PaymentMethod.dinheiro;
+
+  List<CashMovementCategory> categoriesForType(CashMovementType selectedType) {
+    if (selectedType == CashMovementType.output) {
+      return const [
+        CashMovementCategory.stock,
+        CashMovementCategory.market,
+        CashMovementCategory.supplier,
+        CashMovementCategory.employee,
+        CashMovementCategory.ownerWithdrawal,
+        CashMovementCategory.expense,
+        CashMovementCategory.cashOut,
+        CashMovementCategory.other,
+      ];
+    }
+
+    return const [
+      CashMovementCategory.cashIn,
+      CashMovementCategory.creditPayment,
+      CashMovementCategory.adjustment,
+      CashMovementCategory.other,
+    ];
+  }
+
+  List<PaymentMethod> availablePaymentMethods() {
+    return PaymentMethod.values
+        .where((method) => method != PaymentMethod.fiado)
+        .toList();
+  }
+
+  IconData iconForCategory(CashMovementCategory item) {
+    switch (item) {
+      case CashMovementCategory.stock:
+        return Icons.inventory_2_rounded;
+      case CashMovementCategory.market:
+        return Icons.storefront_rounded;
+      case CashMovementCategory.supplier:
+        return Icons.local_shipping_rounded;
+      case CashMovementCategory.employee:
+        return Icons.badge_rounded;
+      case CashMovementCategory.ownerWithdrawal:
+        return Icons.person_rounded;
+      case CashMovementCategory.expense:
+        return Icons.receipt_long_rounded;
+      case CashMovementCategory.cashOut:
+        return Icons.savings_rounded;
+      case CashMovementCategory.cashIn:
+        return Icons.add_card_rounded;
+      case CashMovementCategory.creditPayment:
+        return Icons.people_alt_rounded;
+      case CashMovementCategory.adjustment:
+        return Icons.tune_rounded;
+      case CashMovementCategory.other:
+        return Icons.more_horiz_rounded;
+      case CashMovementCategory.sale:
+        return Icons.point_of_sale_rounded;
+    }
+  }
+
+  await showDialog<void>(
+    context: context,
+    builder: (dialogContext) {
+      return StatefulBuilder(
+        builder: (dialogContext, setDialogState) {
+          final isOutput = type == CashMovementType.output;
+          final color = isOutput ? Colors.red.shade700 : Colors.green.shade700;
+          final categories = categoriesForType(type);
+
+          if (!categories.contains(category)) {
+            category = categories.first;
+          }
+
+          return AlertDialog(
+            titlePadding: EdgeInsets.zero,
+            contentPadding: EdgeInsets.zero,
+            actionsPadding: const EdgeInsets.fromLTRB(20, 0, 20, 16),
+            title: Container(
+              padding: const EdgeInsets.all(20),
+              decoration: BoxDecoration(
+                color: color.withOpacity(0.08),
+                borderRadius: const BorderRadius.only(
+                  topLeft: Radius.circular(28),
+                  topRight: Radius.circular(28),
+                ),
+              ),
+              child: Row(
+                children: [
+                  CircleAvatar(
+                    backgroundColor: color.withOpacity(0.12),
+                    child: Icon(
+                      isOutput
+                          ? Icons.remove_circle_outline_rounded
+                          : Icons.add_circle_outline_rounded,
+                      color: color,
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Text(
+                      isOutput
+                          ? 'Registrar saída do caixa'
+                          : 'Registrar entrada no caixa',
+                      style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                        fontWeight: FontWeight.w900,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            content: SizedBox(
+              width: 560,
+              child: Form(
+                key: formKey,
+                child: SingleChildScrollView(
+                  padding: const EdgeInsets.fromLTRB(20, 18, 20, 10),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      SegmentedButton<CashMovementType>(
+                        segments: const [
+                          ButtonSegment(
+                            value: CashMovementType.output,
+                            icon: Icon(Icons.north_east_rounded),
+                            label: Text('Saída'),
+                          ),
+                          ButtonSegment(
+                            value: CashMovementType.input,
+                            icon: Icon(Icons.south_west_rounded),
+                            label: Text('Entrada'),
+                          ),
+                        ],
+                        selected: {type},
+                        onSelectionChanged: (value) {
+                          setDialogState(() {
+                            type = value.first;
+                            category = categoriesForType(type).first;
+                          });
+                        },
+                      ),
+                      const SizedBox(height: 14),
+                      Container(
+                        width: double.infinity,
+                        padding: const EdgeInsets.all(12),
+                        decoration: BoxDecoration(
+                          color: Theme.of(
+                            context,
+                          ).colorScheme.surfaceContainerHighest,
+                          borderRadius: BorderRadius.circular(14),
+                        ),
+                        child: Text(
+                          isOutput
+                              ? 'Use para tudo que saiu do caixa: sal grosso, carvão, fornecedor, funcionário, retirada da dona ou qualquer despesa.'
+                              : 'Use para dinheiro extra que entrou no caixa sem ser uma venda normal.',
+                          style: Theme.of(context).textTheme.bodyMedium,
+                        ),
+                      ),
+                      const SizedBox(height: 14),
+                      TextFormField(
+                        controller: amountController,
+                        keyboardType: const TextInputType.numberWithOptions(
+                          decimal: true,
+                        ),
+                        decoration: InputDecoration(
+                          labelText: 'Valor',
+                          prefixText: 'R\$ ',
+                          border: const OutlineInputBorder(),
+                          filled: true,
+                          suffixIcon: Icon(
+                            isOutput
+                                ? Icons.payments_outlined
+                                : Icons.attach_money_rounded,
+                          ),
+                        ),
+                        validator: (value) {
+                          final parsed = _parseMoneyInput(value ?? '');
+                          if (parsed <= 0) return 'Informe um valor válido';
+                          return null;
+                        },
+                      ),
+                      const SizedBox(height: 12),
+                      DropdownButtonFormField<CashMovementCategory>(
+                        initialValue: category,
+                        decoration: const InputDecoration(
+                          labelText: 'Motivo rápido',
+                          border: OutlineInputBorder(),
+                          filled: true,
+                        ),
+                        items: categories.map((item) {
+                          return DropdownMenuItem(
+                            value: item,
+                            child: Row(
+                              children: [
+                                Icon(iconForCategory(item), size: 18),
+                                const SizedBox(width: 8),
+                                Text(item.label),
+                              ],
+                            ),
+                          );
+                        }).toList(),
+                        onChanged: (value) {
+                          if (value == null) return;
+                          setDialogState(() => category = value);
+                        },
+                      ),
+                      const SizedBox(height: 12),
+                      DropdownButtonFormField<PaymentMethod>(
+                        initialValue: paymentMethod,
+                        decoration: const InputDecoration(
+                          labelText: 'Forma real do dinheiro',
+                          helperText:
+                              'Fiado não aparece aqui porque não é dinheiro entrando ou saindo do caixa.',
+                          border: OutlineInputBorder(),
+                          filled: true,
+                        ),
+                        items: availablePaymentMethods().map((item) {
+                          return DropdownMenuItem(
+                            value: item,
+                            child: Text(item.label),
+                          );
+                        }).toList(),
+                        onChanged: (value) {
+                          if (value == null) return;
+                          setDialogState(() => paymentMethod = value);
+                        },
+                      ),
+                      const SizedBox(height: 12),
+                      TextFormField(
+                        controller: reasonController,
+                        decoration: const InputDecoration(
+                          labelText: 'Explique o que aconteceu',
+                          hintText: 'Ex: comprei 4 sal grosso',
+                          border: OutlineInputBorder(),
+                          filled: true,
+                        ),
+                        validator: (value) {
+                          if ((value ?? '').trim().isEmpty) {
+                            return 'Explique por que esse dinheiro entrou ou saiu';
+                          }
+                          return null;
+                        },
+                      ),
+                      const SizedBox(height: 12),
+                      TextFormField(
+                        controller: descriptionController,
+                        maxLines: 3,
+                        decoration: const InputDecoration(
+                          labelText: 'Observação opcional',
+                          hintText: 'Ex: comprado no mercado da esquina',
+                          border: OutlineInputBorder(),
+                          filled: true,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.of(dialogContext).pop(),
+                child: const Text('Cancelar'),
+              ),
+              FilledButton.icon(
+                onPressed: () {
+                  if (!(formKey.currentState?.validate() ?? false)) return;
+
+                  context.read<CashMovementProvider>().addMovement(
+                    type: type,
+                    category: category,
+                    amount: _parseMoneyInput(amountController.text),
+                    paymentMethod: paymentMethod,
+                    reason: reasonController.text,
+                    description: descriptionController.text,
+                  );
+
+                  Navigator.of(dialogContext).pop();
+
+                  _showMessage(
+                    context,
+                    isOutput
+                        ? 'Saída registrada no caixa.'
+                        : 'Entrada registrada no caixa.',
+                  );
+                },
+                icon: const Icon(Icons.save_rounded),
+                label: const Text('Salvar registro'),
+              ),
+            ],
+          );
+        },
+      );
+    },
+  );
+
+  amountController.dispose();
+  reasonController.dispose();
+  descriptionController.dispose();
+}
+
+double _parseMoneyInput(String value) {
+  final cleaned = value
+      .replaceAll('R\$', '')
+      .replaceAll('.', '')
+      .replaceAll(',', '.')
+      .trim();
+
+  return double.tryParse(cleaned) ?? 0;
 }

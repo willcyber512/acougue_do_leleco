@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 
 import 'app.dart';
 import 'providers/cash_closure_provider.dart';
+import 'providers/cash_movement_provider.dart';
 import 'providers/customers_provider.dart';
 import 'providers/inventory_provider.dart';
 import 'providers/notes_provider.dart';
@@ -23,6 +24,7 @@ void main() {
         ChangeNotifierProvider(create: (_) => CustomersProvider()),
         ChangeNotifierProvider(create: (_) => SuppliersProvider()),
         ChangeNotifierProvider(create: (_) => CashClosureProvider()),
+        ChangeNotifierProvider(create: (_) => CashMovementProvider()),
         ChangeNotifierProvider(create: (_) => NotesProvider()),
         ChangeNotifierProvider(create: (_) => ShortcutsProvider()),
         ChangeNotifierProvider(create: (_) => RamuzaSettingsProvider()),
