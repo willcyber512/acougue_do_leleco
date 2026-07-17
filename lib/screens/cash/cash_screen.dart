@@ -849,7 +849,12 @@ class _CashMovementsPanelState extends State<_CashMovementsPanel> {
                 )
               else
                 ...movements.map(
-                  (movement) => _CashMovementTile(movement: movement),
+                  (movement) => _CashMovementTile(
+                    movement: movement,
+                    onChanged: () {
+                      if (mounted) setState(() {});
+                    },
+                  ),
                 ),
             ],
           ),
@@ -929,9 +934,10 @@ class _CashMovementSummaryCard extends StatelessWidget {
 }
 
 class _CashMovementTile extends StatelessWidget {
-  const _CashMovementTile({required this.movement});
+  const _CashMovementTile({required this.movement, required this.onChanged});
 
   final CashMovement movement;
+  final VoidCallback onChanged;
 
   @override
   Widget build(BuildContext context) {
@@ -940,7 +946,7 @@ class _CashMovementTile extends StatelessWidget {
     final sign = isInput ? '+' : '-';
 
     return Container(
-      margin: const EdgeInsets.only(bottom: 8),
+      margin: const EdgeInsets.only(bottom: 10),
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
         color: Theme.of(context).colorScheme.surface,
@@ -992,13 +998,67 @@ class _CashMovementTile extends StatelessWidget {
               ],
             ),
           ),
-          const SizedBox(width: 12),
-          Text(
-            '$sign ${_formatMoney(movement.amount)}',
-            style: Theme.of(context).textTheme.titleSmall?.copyWith(
-              color: color,
-              fontWeight: FontWeight.w900,
-            ),
+          const SizedBox(width: 10),
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.end,
+            children: [
+              Text(
+                '$sign ${_formatMoney(movement.amount)}',
+                style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                  color: color,
+                  fontWeight: FontWeight.w900,
+                ),
+              ),
+              const SizedBox(height: 4),
+              FilledButton.tonalIcon(
+                style: FilledButton.styleFrom(
+                  foregroundColor: Colors.red.shade700,
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 10,
+                    vertical: 8,
+                  ),
+                  minimumSize: const Size(0, 36),
+                ),
+                onPressed: () async {
+                  final confirmed = await showDialog<bool>(
+                    context: context,
+                    builder: (dialogContext) {
+                      return AlertDialog(
+                        title: const Text('Excluir lançamento?'),
+                        content: Text(
+                          'Remover este registro do caixa?\n\n'
+                          '${movement.reason.isEmpty ? movement.category.label : movement.reason}\n'
+                          '${_formatMoney(movement.amount)}',
+                        ),
+                        actions: [
+                          TextButton(
+                            onPressed: () =>
+                                Navigator.of(dialogContext).pop(false),
+                            child: const Text('Cancelar'),
+                          ),
+                          FilledButton.icon(
+                            onPressed: () =>
+                                Navigator.of(dialogContext).pop(true),
+                            icon: const Icon(Icons.delete_outline_rounded),
+                            label: const Text('Excluir'),
+                          ),
+                        ],
+                      );
+                    },
+                  );
+
+                  if (confirmed != true) return;
+
+                  context.read<CashMovementProvider>().deleteMovement(
+                    movement.id,
+                  );
+
+                  onChanged();
+                },
+                icon: const Icon(Icons.delete_outline_rounded, size: 18),
+                label: const Text('Excluir'),
+              ),
+            ],
           ),
         ],
       ),
