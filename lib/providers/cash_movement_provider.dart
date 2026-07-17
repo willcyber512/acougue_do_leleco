@@ -106,17 +106,27 @@ class CashMovementProvider extends ChangeNotifier {
     );
 
     _movements.insert(0, movement);
-    _saveAllAndNotify();
+    _saveData();
+    _safeNotifySoon();
   }
 
   void deleteMovement(String movementId) {
     _movements.removeWhere((movement) => movement.id == movementId);
-    _saveAllAndNotify();
+    _saveData();
+    _safeNotifySoon();
   }
 
   Future<void> reloadFromStorage() async {
     await _loadData();
     notifyListeners();
+  }
+
+  void _safeNotifySoon() {
+    Future<void>.delayed(const Duration(milliseconds: 450), () {
+      if (hasListeners) {
+        notifyListeners();
+      }
+    });
   }
 
   Future<void> _loadData() async {

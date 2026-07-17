@@ -8,11 +8,13 @@ import 'package:provider/provider.dart';
 
 import '../../core/constants/app_colors.dart';
 import '../../models/payment_method.dart';
+import '../../models/cash_movement.dart';
 import '../../models/product.dart';
 import '../../models/product_category.dart';
 import '../../models/product_unit.dart';
 import '../../models/supplier_purchase.dart';
 import '../../providers/customers_provider.dart';
+import '../../providers/cash_movement_provider.dart';
 import '../../providers/inventory_provider.dart';
 import '../../providers/sales_provider.dart';
 import '../../providers/suppliers_provider.dart';
@@ -24,6 +26,7 @@ enum _ReportSection {
   payments,
   suppliers,
   lowStock,
+  cash,
   credit,
   detailed,
 }
@@ -43,106 +46,147 @@ class _ReportsScreenState extends State<ReportsScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return Consumer4<
+    return Consumer5<
       SalesProvider,
       InventoryProvider,
       CustomersProvider,
-      SuppliersProvider
+      SuppliersProvider,
+      CashMovementProvider
     >(
-      builder: (context, salesProvider, inventory, customers, suppliers, _) {
-        final sales = _filterSalesByPeriod(salesProvider.sales, selectedPeriod);
+      builder:
+          (
+            context,
+            salesProvider,
+            inventory,
+            customers,
+            suppliers,
+            cashMovementsProvider,
+            _,
+          ) {
+            final sales = _filterSalesByPeriod(
+              salesProvider.sales,
+              selectedPeriod,
+            );
 
-        final purchases = _filterPurchasesByPeriod(
-          suppliers.purchases,
-          selectedPeriod,
-        );
+            final purchases = _filterPurchasesByPeriod(
+              suppliers.purchases,
+              selectedPeriod,
+            );
 
-        final revenue = _salesRevenue(sales);
-        final averageTicket = sales.isEmpty ? 0.0 : revenue / sales.length;
+            final revenue = _salesRevenue(sales);
+            final averageTicket = sales.isEmpty ? 0.0 : revenue / sales.length;
 
-        final paymentTotals = _paymentTotals(sales);
-        final productTotals = _productTotals(sales);
-        final categoryTotals = _categoryTotals(sales, inventory.products);
-        final supplierTotals = _supplierTotals(purchases);
+            final paymentTotals = _paymentTotals(sales);
+            final productTotals = _productTotals(sales);
+            final categoryTotals = _categoryTotals(sales, inventory.products);
+            final supplierTotals = _supplierTotals(purchases);
 
-        final totalSupplierPurchases = purchases.fold<double>(
-          0,
-          (total, purchase) => total + purchase.totalCost,
-        );
+            final totalSupplierPurchases = purchases.fold<double>(
+              0,
+              (total, purchase) => total + purchase.totalCost,
+            );
 
-        final lowStock = inventory.products.where((product) {
-          return !product.isDeleted && product.isLowStock;
-        }).toList();
+            final cashMovements = _filterCashMovementsByPeriod(
+              cashMovementsProvider.movements,
+              selectedPeriod,
+            );
+            final manualCashInputs = _cashMovementTotal(
+              cashMovements,
+              CashMovementType.input,
+            );
+            final manualCashOutputs = _cashMovementTotal(
+              cashMovements,
+              CashMovementType.output,
+            );
+            final manualCashBalance = manualCashInputs - manualCashOutputs;
+            final cashOutputCategoryTotals = _cashOutputTotalsByCategory(
+              cashMovements,
+            );
 
-        return Container(
-          color: _pageBackground(context),
-          child: SingleChildScrollView(
-            padding: const EdgeInsets.only(bottom: 24),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                _ReportsHeader(
-                  selectedPeriod: selectedPeriod,
-                  periodLabel: _periodLabel(selectedPeriod),
-                  onPeriodChanged: (period) {
-                    setState(() => selectedPeriod = period);
-                  },
+            final lowStock = inventory.products.where((product) {
+              return !product.isDeleted && product.isLowStock;
+            }).toList();
+
+            return Container(
+              color: _pageBackground(context),
+              child: SingleChildScrollView(
+                padding: const EdgeInsets.only(bottom: 24),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    _ReportsHeader(
+                      selectedPeriod: selectedPeriod,
+                      periodLabel: _periodLabel(selectedPeriod),
+                      onPeriodChanged: (period) {
+                        setState(() => selectedPeriod = period);
+                      },
+                    ),
+                    const SizedBox(height: 14),
+                    _ReportsPdfActionPanel(
+                      onPressed: () => _showReportsPdfOptionsDialog(
+                        context: context,
+                        periodLabel: _periodLabel(selectedPeriod),
+                        sales: sales,
+                        revenue: revenue,
+                        averageTicket: averageTicket,
+                        openCredit: customers.totalOpenCredit,
+                        supplierPurchases: totalSupplierPurchases,
+                        lowStockCount: lowStock.length,
+                        paymentTotals: paymentTotals,
+                        productTotals: productTotals,
+                        categoryTotals: categoryTotals,
+                        purchases: purchases,
+                        lowStock: lowStock,
+                      ),
+                    ),
+                    const SizedBox(height: 14),
+                    _KpiGrid(
+                      salesCount: sales.length,
+                      revenue: revenue,
+                      averageTicket: averageTicket,
+                      openCredit: customers.totalOpenCredit,
+                      supplierPurchases: totalSupplierPurchases,
+                      lowStockCount: lowStock.length,
+                    ),
+                    const SizedBox(height: 14),
+                    _CashFlowSummaryPanel(
+                      inputs: manualCashInputs,
+                      outputs: manualCashOutputs,
+                      balance: manualCashBalance,
+                    ),
+                    const SizedBox(height: 14),
+                    _ReportMenu(
+                      selected: selectedSection,
+                      onChanged: (section) {
+                        setState(() => selectedSection = section);
+                      },
+                    ),
+                    const SizedBox(height: 14),
+                    _ReportBody(
+                      section: selectedSection,
+                      periodLabel: _periodLabel(selectedPeriod),
+                      sales: sales,
+                      revenue: revenue,
+                      averageTicket: averageTicket,
+                      paymentTotals: paymentTotals,
+                      productTotals: productTotals,
+                      categoryTotals: categoryTotals,
+                      purchases: purchases,
+                      supplierTotals: supplierTotals,
+                      totalSupplierPurchases: totalSupplierPurchases,
+                      lowStock: lowStock,
+                      openCredit: customers.totalOpenCredit,
+                      cashMovements: cashMovements,
+                      manualCashInputs: manualCashInputs,
+                      manualCashOutputs: manualCashOutputs,
+                      manualCashBalance: manualCashBalance,
+                      cashOutputCategoryTotals: cashOutputCategoryTotals,
+                    ),
+                  ],
                 ),
-                const SizedBox(height: 14),
-                _ReportsPdfActionPanel(
-                  onPressed: () => _showReportsPdfOptionsDialog(
-                    context: context,
-                    periodLabel: _periodLabel(selectedPeriod),
-                    sales: sales,
-                    revenue: revenue,
-                    averageTicket: averageTicket,
-                    openCredit: customers.totalOpenCredit,
-                    supplierPurchases: totalSupplierPurchases,
-                    lowStockCount: lowStock.length,
-                    paymentTotals: paymentTotals,
-                    productTotals: productTotals,
-                    categoryTotals: categoryTotals,
-                    purchases: purchases,
-                    lowStock: lowStock,
-                  ),
-                ),
-                const SizedBox(height: 14),
-                _KpiGrid(
-                  salesCount: sales.length,
-                  revenue: revenue,
-                  averageTicket: averageTicket,
-                  openCredit: customers.totalOpenCredit,
-                  supplierPurchases: totalSupplierPurchases,
-                  lowStockCount: lowStock.length,
-                ),
-                const SizedBox(height: 14),
-                _ReportMenu(
-                  selected: selectedSection,
-                  onChanged: (section) {
-                    setState(() => selectedSection = section);
-                  },
-                ),
-                const SizedBox(height: 14),
-                _ReportBody(
-                  section: selectedSection,
-                  periodLabel: _periodLabel(selectedPeriod),
-                  sales: sales,
-                  revenue: revenue,
-                  averageTicket: averageTicket,
-                  paymentTotals: paymentTotals,
-                  productTotals: productTotals,
-                  categoryTotals: categoryTotals,
-                  purchases: purchases,
-                  supplierTotals: supplierTotals,
-                  totalSupplierPurchases: totalSupplierPurchases,
-                  lowStock: lowStock,
-                  openCredit: customers.totalOpenCredit,
-                ),
-              ],
-            ),
-          ),
-        );
-      },
+              ),
+            );
+          },
     );
   }
 }
@@ -474,6 +518,11 @@ class _ReportMenu extends StatelessWidget {
         Icons.local_shipping_rounded,
       ),
       _ReportOption(_ReportSection.lowStock, 'Estoque', Icons.warning_rounded),
+      _ReportOption(
+        _ReportSection.cash,
+        'Caixa',
+        Icons.account_balance_wallet_rounded,
+      ),
       _ReportOption(_ReportSection.credit, 'Fiado', Icons.person_rounded),
       _ReportOption(
         _ReportSection.detailed,
@@ -590,6 +639,11 @@ class _ReportBody extends StatelessWidget {
     required this.totalSupplierPurchases,
     required this.lowStock,
     required this.openCredit,
+    required this.cashMovements,
+    required this.manualCashInputs,
+    required this.manualCashOutputs,
+    required this.manualCashBalance,
+    required this.cashOutputCategoryTotals,
   });
 
   final _ReportSection section;
@@ -605,6 +659,11 @@ class _ReportBody extends StatelessWidget {
   final double totalSupplierPurchases;
   final List<Product> lowStock;
   final double openCredit;
+  final List<CashMovement> cashMovements;
+  final double manualCashInputs;
+  final double manualCashOutputs;
+  final double manualCashBalance;
+  final Map<CashMovementCategory, double> cashOutputCategoryTotals;
 
   @override
   Widget build(BuildContext context) {
@@ -715,6 +774,15 @@ class _ReportBody extends StatelessWidget {
           emptyText: 'Nenhum produto em estoque baixo.',
         );
 
+      case _ReportSection.cash:
+        return _CashMovementsReportPanel(
+          periodLabel: periodLabel,
+          movements: cashMovements,
+          inputs: manualCashInputs,
+          outputs: manualCashOutputs,
+          balance: manualCashBalance,
+          outputCategoryTotals: cashOutputCategoryTotals,
+        );
       case _ReportSection.credit:
         return _PanelWithTable(
           title: 'Fiado',
@@ -3030,4 +3098,354 @@ String _reportsFileTimestamp(DateTime date) {
 
   return '${date.year}-${two(date.month)}-${two(date.day)}_'
       '${two(date.hour)}-${two(date.minute)}-${two(date.second)}';
+}
+
+class _CashFlowSummaryPanel extends StatelessWidget {
+  const _CashFlowSummaryPanel({
+    required this.inputs,
+    required this.outputs,
+    required this.balance,
+  });
+
+  final double inputs;
+  final double outputs;
+  final double balance;
+
+  @override
+  Widget build(BuildContext context) {
+    return _LelecoPanel(
+      padding: const EdgeInsets.all(16),
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          final compact = constraints.maxWidth < 760;
+
+          final cards = [
+            _CashReportMiniCard(
+              title: 'Entradas manuais',
+              value: _formatMoney(inputs),
+              icon: Icons.south_west_rounded,
+              color: Colors.green.shade700,
+              detail: 'Dinheiro que entrou fora das vendas',
+            ),
+            _CashReportMiniCard(
+              title: 'Saídas do caixa',
+              value: _formatMoney(outputs),
+              icon: Icons.north_east_rounded,
+              color: Colors.red.shade700,
+              detail: 'Compras, retiradas e despesas',
+            ),
+            _CashReportMiniCard(
+              title: 'Saldo manual',
+              value: _formatMoney(balance),
+              icon: Icons.account_balance_wallet_rounded,
+              color: balance >= 0 ? Colors.green.shade700 : Colors.red.shade700,
+              detail: 'Entradas menos saídas manuais',
+            ),
+          ];
+
+          if (compact) {
+            return Column(
+              children: cards
+                  .map(
+                    (card) => Padding(
+                      padding: const EdgeInsets.only(bottom: 10),
+                      child: card,
+                    ),
+                  )
+                  .toList(),
+            );
+          }
+
+          return Row(
+            children: cards
+                .map(
+                  (card) => Expanded(
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 5),
+                      child: card,
+                    ),
+                  ),
+                )
+                .toList(),
+          );
+        },
+      ),
+    );
+  }
+}
+
+class _CashReportMiniCard extends StatelessWidget {
+  const _CashReportMiniCard({
+    required this.title,
+    required this.value,
+    required this.icon,
+    required this.color,
+    required this.detail,
+  });
+
+  final String title;
+  final String value;
+  final IconData icon;
+  final Color color;
+  final String detail;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      constraints: const BoxConstraints(minHeight: 96),
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: color.withOpacity(0.08),
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(color: color.withOpacity(0.20)),
+      ),
+      child: Row(
+        children: [
+          CircleAvatar(
+            backgroundColor: color.withOpacity(0.12),
+            child: Icon(icon, color: color),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  title,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    color: _mutedColor(context),
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  value,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    color: color,
+                    fontWeight: FontWeight.w900,
+                    fontSize: 18,
+                  ),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  detail,
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    color: _mutedColor(context),
+                    fontWeight: FontWeight.w600,
+                    fontSize: 12,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _CashMovementsReportPanel extends StatelessWidget {
+  const _CashMovementsReportPanel({
+    required this.periodLabel,
+    required this.movements,
+    required this.inputs,
+    required this.outputs,
+    required this.balance,
+    required this.outputCategoryTotals,
+  });
+
+  final String periodLabel;
+  final List<CashMovement> movements;
+  final double inputs;
+  final double outputs;
+  final double balance;
+  final Map<CashMovementCategory, double> outputCategoryTotals;
+
+  @override
+  Widget build(BuildContext context) {
+    final categoryRows = outputCategoryTotals.entries.toList()
+      ..sort((a, b) => b.value.compareTo(a.value));
+
+    final movementRows = movements.map((movement) {
+      final sign = movement.type == CashMovementType.input ? '+' : '-';
+
+      return [
+        _formatDate(movement.createdAt),
+        _formatTime(movement.createdAt),
+        movement.type.label,
+        movement.category.label,
+        movement.paymentMethod.label,
+        movement.reason.isEmpty ? movement.category.label : movement.reason,
+        '$sign ${_formatMoney(movement.amount)}',
+      ];
+    }).toList();
+
+    return Column(
+      children: [
+        _LelecoPanel(
+          padding: const EdgeInsets.all(18),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              _PanelHeader(
+                title: 'Controle do caixa',
+                subtitle: 'Entradas e saídas manuais • $periodLabel',
+                totalLabel: 'Saldo manual',
+                totalValue: _formatMoney(balance),
+              ),
+              const SizedBox(height: 16),
+              LayoutBuilder(
+                builder: (context, constraints) {
+                  final compact = constraints.maxWidth < 720;
+
+                  final cards = [
+                    _OverviewMetricData(
+                      icon: Icons.south_west_rounded,
+                      label: 'Entradas manuais',
+                      value: _formatMoney(inputs),
+                    ),
+                    _OverviewMetricData(
+                      icon: Icons.north_east_rounded,
+                      label: 'Saídas manuais',
+                      value: _formatMoney(outputs),
+                    ),
+                    _OverviewMetricData(
+                      icon: Icons.account_balance_wallet_rounded,
+                      label: 'Saldo manual',
+                      value: _formatMoney(balance),
+                    ),
+                  ];
+
+                  if (compact) {
+                    return Column(
+                      children: cards
+                          .map(
+                            (card) => Padding(
+                              padding: const EdgeInsets.only(bottom: 10),
+                              child: _OverviewMetricTile(data: card),
+                            ),
+                          )
+                          .toList(),
+                    );
+                  }
+
+                  return Row(
+                    children: cards
+                        .map(
+                          (card) => Expanded(
+                            child: Padding(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 5,
+                              ),
+                              child: _OverviewMetricTile(data: card),
+                            ),
+                          ),
+                        )
+                        .toList(),
+                  );
+                },
+              ),
+            ],
+          ),
+        ),
+        const SizedBox(height: 14),
+        _PanelWithTable(
+          title: 'Saídas por motivo',
+          subtitle: 'Categorias de dinheiro que saiu do caixa',
+          totalLabel: 'Total de saídas',
+          totalValue: _formatMoney(outputs),
+          headers: const ['Motivo', 'Total'],
+          rows: categoryRows
+              .map((entry) => [entry.key.label, _formatMoney(entry.value)])
+              .toList(),
+          emptyText: 'Nenhuma saída registrada nesse período.',
+        ),
+        const SizedBox(height: 14),
+        _PanelWithTable(
+          title: 'Histórico do caixa',
+          subtitle: 'Tudo que entrou ou saiu manualmente',
+          totalLabel: 'Registros',
+          totalValue: movements.length.toString(),
+          headers: const [
+            'Data',
+            'Hora',
+            'Tipo',
+            'Categoria',
+            'Forma',
+            'Motivo',
+            'Valor',
+          ],
+          rows: movementRows,
+          emptyText: 'Nenhuma movimentação manual nesse período.',
+        ),
+      ],
+    );
+  }
+}
+
+List<CashMovement> _filterCashMovementsByPeriod(
+  List<CashMovement> movements,
+  _ReportPeriod period,
+) {
+  final now = DateTime.now();
+
+  DateTime? start;
+
+  switch (period) {
+    case _ReportPeriod.today:
+      start = DateTime(now.year, now.month, now.day);
+      break;
+    case _ReportPeriod.sevenDays:
+      start = DateTime(
+        now.year,
+        now.month,
+        now.day,
+      ).subtract(const Duration(days: 6));
+      break;
+    case _ReportPeriod.thirtyDays:
+      start = DateTime(
+        now.year,
+        now.month,
+        now.day,
+      ).subtract(const Duration(days: 29));
+      break;
+    case _ReportPeriod.all:
+      start = null;
+      break;
+  }
+
+  final result = movements.where((movement) {
+    if (start == null) return true;
+    return !movement.createdAt.isBefore(start);
+  }).toList();
+
+  result.sort((a, b) => b.createdAt.compareTo(a.createdAt));
+  return result;
+}
+
+double _cashMovementTotal(List<CashMovement> movements, CashMovementType type) {
+  return movements
+      .where((movement) => movement.type == type)
+      .fold(0.0, (total, movement) => total + movement.amount);
+}
+
+Map<CashMovementCategory, double> _cashOutputTotalsByCategory(
+  List<CashMovement> movements,
+) {
+  final result = <CashMovementCategory, double>{};
+
+  for (final movement in movements) {
+    if (movement.type != CashMovementType.output) continue;
+
+    result[movement.category] =
+        (result[movement.category] ?? 0) + movement.amount;
+  }
+
+  return result;
 }
