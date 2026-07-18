@@ -1,0 +1,1495 @@
+
+============================================================
+STATUS GIT
+============================================================
+ M lib/screens/reports/reports_screen.dart
+?? diagnostico_pdf.py
+
+
+============================================================
+BUSCA GERAL NO PROJETO
+============================================================
+lib/screens/reports/reports_screen.dart:721:          title: 'Formas de pagamento',
+lib/screens/reports/reports_screen.dart:2275:            label: const Text('Configurar PDF'),
+lib/screens/reports/reports_screen.dart:2456:                      title: const Text('Formas de pagamento'),
+lib/screens/reports/reports_screen.dart:2503:                      title: const Text('Resumo do caixa'),
+lib/screens/reports/reports_screen.dart:2553:  await _exportReportsPdf(
+lib/screens/reports/reports_screen.dart:2571:Future<void> _exportReportsPdf({
+lib/screens/reports/reports_screen.dart:2867:                    'Relatório Gerencial',
+lib/screens/reports/reports_screen.dart:2937:                'Formas de pagamento',
+lib/screens/reports/reports_screen.dart:2938:                'Distribuição do faturamento por tipo de pagamento.',
+lib/screens/reports/reports_screen.dart:3316:                title: 'Controle do caixa',
+
+
+============================================================
+MAPA DO reports_screen.dart
+============================================================
+
+--- Procurando: class _PdfReportOptions ---
+2309: class _PdfReportOptions {
+
+--- Procurando: Future<void> _showReportsPdfOptionsDialog ---
+2335: Future<void> _showReportsPdfOptionsDialog({
+
+--- Procurando: var includeCashMovements ---
+2359:   var includeCashMovements = true;
+
+--- Procurando: includeCashMovements: ---
+2536:                       includeCashMovements: includeCashMovements,
+
+--- Procurando: title: const Text('Resumo do caixa') ---
+2503:                       title: const Text('Resumo do caixa'),
+
+--- Procurando: Future<void> _exportReportsPdf ---
+2571: Future<void> _exportReportsPdf({
+
+--- Procurando: final paymentRows ---
+2626:     final paymentRows = <List<String>>[];
+
+--- Procurando: paymentRows.add ---
+2629:       paymentRows.add([method.label, _formatMoney(value)]);
+
+--- Procurando: cashSummaryProvider ---
+NÃO ENCONTRADO
+
+--- Procurando: cashSummaryRows ---
+NÃO ENCONTRADO
+
+--- Procurando: cashSummaryCategoryTableRows ---
+NÃO ENCONTRADO
+
+--- Procurando: pw.Widget metricCard ---
+2698:     pw.Widget metricCard(String title, String value, String subtitle) {
+
+--- Procurando: pw.Widget sectionTitle ---
+2737:     pw.Widget sectionTitle(String title, String subtitle) {
+
+--- Procurando: pw.Widget dataTable ---
+2768:     pw.Widget dataTable({
+
+--- Procurando: final widgets = ---
+2846:           final widgets = <pw.Widget>[
+
+--- Procurando: widgets.addAll ---
+2890:             widgets.addAll([
+2935:             widgets.addAll([
+2951:             widgets.addAll([
+2967:             widgets.addAll([
+2980:             widgets.addAll([
+3003:             widgets.addAll([
+3019:             widgets.addAll([
+
+--- Procurando: if (options.includePayments) ---
+2934:           if (options.includePayments) {
+
+--- Procurando: if (options.includeCashMovements) ---
+NÃO ENCONTRADO
+
+--- Procurando: if (options.includeProducts) ---
+NÃO ENCONTRADO
+
+--- Procurando: Top produtos ---
+953:       title: 'Top produtos',
+2463:                       title: const Text('Top produtos'),
+2953:                 'Top produtos',
+
+--- Procurando: document.addPage ---
+2815:     document.addPage(
+
+--- Procurando: pw.MultiPage ---
+2816:       pw.MultiPage(
+
+============================================================
+OPÇÕES DO PDF
+============================================================
+2304:         return 'Mais limpo, rápido e direto.';
+2305:     }
+2306:   }
+2307: }
+2308: 
+2309: class _PdfReportOptions {
+2310:   const _PdfReportOptions({
+2311:     required this.template,
+2312:     required this.includeSummary,
+2313:     required this.includePayments,
+2314:     required this.includeProducts,
+2315:     required this.includeCategories,
+2316:     required this.includePurchases,
+2317:     required this.includeLowStock,
+2318:     required this.includeSalesDetails,
+2319:     required this.includeCashMovements,
+2320:     required this.compactTables,
+2321:   });
+2322: 
+2323:   final _PdfReportTemplate template;
+2324:   final bool includeSummary;
+2325:   final bool includePayments;
+2326:   final bool includeProducts;
+2327:   final bool includeCategories;
+2328:   final bool includePurchases;
+2329:   final bool includeLowStock;
+2330:   final bool includeSalesDetails;
+2331:   final bool includeCashMovements;
+2332:   final bool compactTables;
+2333: }
+2334: 
+2335: Future<void> _showReportsPdfOptionsDialog({
+2336:   required BuildContext context,
+2337:   required String periodLabel,
+2338:   required List sales,
+2339:   required double revenue,
+2340:   required double averageTicket,
+2341:   required double openCredit,
+2342:   required double supplierPurchases,
+2343:   required int lowStockCount,
+2344:   required Map paymentTotals,
+2345:   required List productTotals,
+2346:   required List categoryTotals,
+2347:   required List purchases,
+2348:   required List lowStock,
+2349: }) async {
+2350:   var template = _PdfReportTemplate.professional;
+2351: 
+2352:   var includeSummary = true;
+2353:   var includePayments = true;
+2354:   var includeProducts = true;
+2355:   var includeCategories = true;
+2356:   var includePurchases = false;
+2357:   var includeLowStock = false;
+2358:   var includeSalesDetails = false;
+2359:   var includeCashMovements = true;
+2360:   var compactTables = true;
+2361: 
+2362:   void applyPreset(_PdfReportTemplate selected) {
+2363:     template = selected;
+2364: 
+2365:     switch (selected) {
+2366:       case _PdfReportTemplate.professional:
+2367:         includeSummary = true;
+2368:         includePayments = true;
+2369:         includeProducts = true;
+2370:         includeCategories = true;
+2371:         includePurchases = false;
+2372:         includeLowStock = false;
+2373:         includeSalesDetails = false;
+2374:         includeCashMovements = true;
+2375:         compactTables = true;
+2376:         break;
+2377:       case _PdfReportTemplate.complete:
+2378:         includeSummary = true;
+2379:         includePayments = true;
+2380:         includeProducts = true;
+2381:         includeCategories = true;
+2382:         includePurchases = true;
+2383:         includeLowStock = true;
+2384:         includeSalesDetails = true;
+2385:         includeCashMovements = true;
+2386:         compactTables = true;
+2387:         break;
+2388:       case _PdfReportTemplate.simple:
+2389:         includeSummary = true;
+2390:         includePayments = true;
+2391:         includeProducts = true;
+2392:         includeCategories = false;
+2393:         includePurchases = false;
+2394:         includeLowStock = false;
+2395:         includeSalesDetails = false;
+2396:         includeCashMovements = false;
+2397:         compactTables = true;
+2398:         break;
+2399:     }
+
+============================================================
+DIÁLOGO CONFIGURAR PDF
+============================================================
+2330:   final bool includeSalesDetails;
+2331:   final bool includeCashMovements;
+2332:   final bool compactTables;
+2333: }
+2334: 
+2335: Future<void> _showReportsPdfOptionsDialog({
+2336:   required BuildContext context,
+2337:   required String periodLabel,
+2338:   required List sales,
+2339:   required double revenue,
+2340:   required double averageTicket,
+2341:   required double openCredit,
+2342:   required double supplierPurchases,
+2343:   required int lowStockCount,
+2344:   required Map paymentTotals,
+2345:   required List productTotals,
+2346:   required List categoryTotals,
+2347:   required List purchases,
+2348:   required List lowStock,
+2349: }) async {
+2350:   var template = _PdfReportTemplate.professional;
+2351: 
+2352:   var includeSummary = true;
+2353:   var includePayments = true;
+2354:   var includeProducts = true;
+2355:   var includeCategories = true;
+2356:   var includePurchases = false;
+2357:   var includeLowStock = false;
+2358:   var includeSalesDetails = false;
+2359:   var includeCashMovements = true;
+2360:   var compactTables = true;
+2361: 
+2362:   void applyPreset(_PdfReportTemplate selected) {
+2363:     template = selected;
+2364: 
+2365:     switch (selected) {
+2366:       case _PdfReportTemplate.professional:
+2367:         includeSummary = true;
+2368:         includePayments = true;
+2369:         includeProducts = true;
+2370:         includeCategories = true;
+2371:         includePurchases = false;
+2372:         includeLowStock = false;
+2373:         includeSalesDetails = false;
+2374:         includeCashMovements = true;
+2375:         compactTables = true;
+2376:         break;
+2377:       case _PdfReportTemplate.complete:
+2378:         includeSummary = true;
+2379:         includePayments = true;
+2380:         includeProducts = true;
+2381:         includeCategories = true;
+2382:         includePurchases = true;
+2383:         includeLowStock = true;
+2384:         includeSalesDetails = true;
+2385:         includeCashMovements = true;
+2386:         compactTables = true;
+2387:         break;
+2388:       case _PdfReportTemplate.simple:
+2389:         includeSummary = true;
+2390:         includePayments = true;
+2391:         includeProducts = true;
+2392:         includeCategories = false;
+2393:         includePurchases = false;
+2394:         includeLowStock = false;
+2395:         includeSalesDetails = false;
+2396:         includeCashMovements = false;
+2397:         compactTables = true;
+2398:         break;
+2399:     }
+2400:   }
+2401: 
+2402:   final options = await showDialog<_PdfReportOptions>(
+2403:     context: context,
+2404:     builder: (dialogContext) {
+2405:       return StatefulBuilder(
+2406:         builder: (dialogContext, setDialogState) {
+2407:           return AlertDialog(
+2408:             title: const Text('Personalizar PDF'),
+2409:             content: SizedBox(
+2410:               width: 520,
+2411:               child: SingleChildScrollView(
+2412:                 child: Column(
+2413:                   mainAxisSize: MainAxisSize.min,
+2414:                   children: [
+2415:                     DropdownButtonFormField<_PdfReportTemplate>(
+2416:                       initialValue: template,
+2417:                       decoration: const InputDecoration(
+2418:                         labelText: 'Modelo do relatório',
+2419:                         border: OutlineInputBorder(),
+2420:                       ),
+2421:                       items: _PdfReportTemplate.values.map((item) {
+2422:                         return DropdownMenuItem(
+2423:                           value: item,
+2424:                           child: Text(item.label),
+2425:                         );
+2426:                       }).toList(),
+2427:                       onChanged: (value) {
+2428:                         if (value == null) return;
+2429:                         setDialogState(() => applyPreset(value));
+2430:                       },
+2431:                     ),
+2432:                     const SizedBox(height: 8),
+2433:                     Align(
+2434:                       alignment: Alignment.centerLeft,
+2435:                       child: Text(
+2436:                         template.description,
+2437:                         style: Theme.of(dialogContext).textTheme.bodySmall,
+2438:                       ),
+2439:                     ),
+2440:                     const Divider(height: 28),
+2441:                     CheckboxListTile(
+2442:                       value: includeSummary,
+2443:                       onChanged: (value) {
+2444:                         setDialogState(() => includeSummary = value ?? true);
+2445:                       },
+2446:                       title: const Text('Resumo geral'),
+2447:                       subtitle: const Text(
+2448:                         'Vendas, faturamento, ticket médio e estoque baixo',
+2449:                       ),
+2450:                     ),
+2451:                     CheckboxListTile(
+2452:                       value: includePayments,
+2453:                       onChanged: (value) {
+2454:                         setDialogState(() => includePayments = value ?? true);
+2455:                       },
+2456:                       title: const Text('Formas de pagamento'),
+2457:                     ),
+2458:                     CheckboxListTile(
+2459:                       value: includeProducts,
+2460:                       onChanged: (value) {
+2461:                         setDialogState(() => includeProducts = value ?? true);
+2462:                       },
+2463:                       title: const Text('Top produtos'),
+2464:                     ),
+2465:                     CheckboxListTile(
+2466:                       value: includeCategories,
+2467:                       onChanged: (value) {
+2468:                         setDialogState(() => includeCategories = value ?? true);
+2469:                       },
+2470:                       title: const Text('Categorias'),
+2471:                     ),
+2472:                     CheckboxListTile(
+2473:                       value: includePurchases,
+2474:                       onChanged: (value) {
+2475:                         setDialogState(() => includePurchases = value ?? true);
+2476:                       },
+2477:                       title: const Text('Compras de fornecedores'),
+2478:                     ),
+2479:                     CheckboxListTile(
+2480:                       value: includeLowStock,
+2481:                       onChanged: (value) {
+2482:                         setDialogState(() => includeLowStock = value ?? true);
+2483:                       },
+2484:                       title: const Text('Estoque baixo'),
+2485:                     ),
+2486:                     CheckboxListTile(
+2487:                       value: includeSalesDetails,
+2488:                       onChanged: (value) {
+2489:                         setDialogState(
+2490:                           () => includeSalesDetails = value ?? false,
+2491:                         );
+2492:                       },
+2493:                       title: const Text('Vendas detalhadas'),
+2494:                       subtitle: const Text('Pode deixar o PDF maior'),
+2495:                     ),
+2496:                     CheckboxListTile(
+2497:                       value: includeCashMovements,
+2498:                       onChanged: (value) {
+2499:                         setDialogState(
+2500:                           () => includeCashMovements = value ?? true,
+2501:                         );
+2502:                       },
+2503:                       title: const Text('Resumo do caixa'),
+2504:                       subtitle: const Text(
+2505:                         'Totais e saídas por motivo, sem listar tudo',
+2506:                       ),
+2507:                     ),
+2508:                     CheckboxListTile(
+2509:                       value: compactTables,
+2510:                       onChanged: (value) {
+2511:                         setDialogState(() => compactTables = value ?? false);
+2512:                       },
+2513:                       title: const Text('Tabelas compactas'),
+2514:                     ),
+2515:                   ],
+2516:                 ),
+2517:               ),
+2518:             ),
+2519:             actions: [
+2520:               TextButton(
+2521:                 onPressed: () => Navigator.of(dialogContext).pop(),
+2522:                 child: const Text('Cancelar'),
+2523:               ),
+2524:               FilledButton.icon(
+2525:                 onPressed: () {
+2526:                   Navigator.of(dialogContext).pop(
+2527:                     _PdfReportOptions(
+2528:                       template: template,
+2529:                       includeSummary: includeSummary,
+2530:                       includePayments: includePayments,
+2531:                       includeProducts: includeProducts,
+2532:                       includeCategories: includeCategories,
+2533:                       includePurchases: includePurchases,
+2534:                       includeLowStock: includeLowStock,
+2535:                       includeSalesDetails: includeSalesDetails,
+2536:                       includeCashMovements: includeCashMovements,
+2537:                       compactTables: compactTables,
+2538:                     ),
+2539:                   );
+2540:                 },
+2541:                 icon: const Icon(Icons.picture_as_pdf_rounded),
+2542:                 label: const Text('Gerar PDF'),
+2543:               ),
+2544:             ],
+2545:           );
+2546:         },
+2547:       );
+2548:     },
+2549:   );
+2550: 
+2551:   if (options == null || !context.mounted) return;
+2552: 
+2553:   await _exportReportsPdf(
+2554:     context: context,
+2555:     periodLabel: periodLabel,
+2556:     sales: sales,
+2557:     revenue: revenue,
+2558:     averageTicket: averageTicket,
+2559:     openCredit: openCredit,
+2560:     supplierPurchases: supplierPurchases,
+2561:     lowStockCount: lowStockCount,
+2562:     paymentTotals: paymentTotals,
+2563:     productTotals: productTotals,
+2564:     categoryTotals: categoryTotals,
+2565:     purchases: purchases,
+2566:     lowStock: lowStock,
+2567:     options: options,
+2568:   );
+2569: }
+2570: 
+2571: Future<void> _exportReportsPdf({
+2572:   required BuildContext context,
+2573:   required String periodLabel,
+2574:   required List sales,
+2575:   required double revenue,
+2576:   required double averageTicket,
+2577:   required double openCredit,
+2578:   required double supplierPurchases,
+2579:   required int lowStockCount,
+2580:   required Map paymentTotals,
+2581:   required List productTotals,
+2582:   required List categoryTotals,
+2583:   required List purchases,
+2584:   required List lowStock,
+2585:   required _PdfReportOptions options,
+2586: }) async {
+2587:   try {
+2588:     String safeText(Object? Function() read, [String fallback = '-']) {
+2589:       try {
+2590:         final value = read();
+2591:         if (value == null) return fallback;
+2592:         final txt = value.toString().trim();
+2593:         return txt.isEmpty ? fallback : txt;
+2594:       } catch (_) {
+2595:         return fallback;
+
+============================================================
+INÍCIO DO EXPORT PDF
+============================================================
+2566:     lowStock: lowStock,
+2567:     options: options,
+2568:   );
+2569: }
+2570: 
+2571: Future<void> _exportReportsPdf({
+2572:   required BuildContext context,
+2573:   required String periodLabel,
+2574:   required List sales,
+2575:   required double revenue,
+2576:   required double averageTicket,
+2577:   required double openCredit,
+2578:   required double supplierPurchases,
+2579:   required int lowStockCount,
+2580:   required Map paymentTotals,
+2581:   required List productTotals,
+2582:   required List categoryTotals,
+2583:   required List purchases,
+2584:   required List lowStock,
+2585:   required _PdfReportOptions options,
+2586: }) async {
+2587:   try {
+2588:     String safeText(Object? Function() read, [String fallback = '-']) {
+2589:       try {
+2590:         final value = read();
+2591:         if (value == null) return fallback;
+2592:         final txt = value.toString().trim();
+2593:         return txt.isEmpty ? fallback : txt;
+2594:       } catch (_) {
+2595:         return fallback;
+2596:       }
+2597:     }
+2598: 
+2599:     double safeDouble(Object? Function() read) {
+2600:       try {
+2601:         final value = read();
+2602:         if (value is num) return value.toDouble();
+2603:         return double.tryParse(value.toString().replaceAll(',', '.')) ?? 0;
+2604:       } catch (_) {
+2605:         return 0;
+2606:       }
+2607:     }
+2608: 
+2609:     final primary = options.template == _PdfReportTemplate.simple
+2610:         ? const PdfColor.fromInt(0xFF2B2B2B)
+2611:         : const PdfColor.fromInt(0xFF561C24);
+2612: 
+2613:     final secondary = options.template == _PdfReportTemplate.simple
+2614:         ? const PdfColor.fromInt(0xFFF1F1F1)
+2615:         : const PdfColor.fromInt(0xFFE8D8C4);
+2616: 
+2617:     final softSurface = options.template == _PdfReportTemplate.simple
+2618:         ? const PdfColor.fromInt(0xFFFAFAFA)
+2619:         : const PdfColor.fromInt(0xFFFFF8EF);
+2620: 
+2621:     final textMuted = const PdfColor.fromInt(0xFF6F625F);
+2622:     final white = const PdfColor.fromInt(0xFFFFFFFF);
+2623: 
+2624:     final document = pw.Document();
+2625: 
+2626:     final paymentRows = <List<String>>[];
+2627:     for (final method in PaymentMethod.values) {
+2628:       final value = ((paymentTotals[method] ?? 0) as num).toDouble();
+2629:       paymentRows.add([method.label, _formatMoney(value)]);
+2630:     }
+2631: 
+2632:     final productRows = <List<String>>[];
+2633:     for (final item in productTotals.take(options.compactTables ? 5 : 20)) {
+2634:       final dynamic p = item;
+2635:       productRows.add([
+2636:         safeText(() => p.name),
+2637:         _formatNumber(safeDouble(() => p.quantity)),
+2638:         _formatMoney(safeDouble(() => p.total)),
+2639:       ]);
+2640:     }
+2641: 
+2642:     final categoryRows = <List<String>>[];
+2643:     for (final item in categoryTotals.take(options.compactTables ? 5 : 20)) {
+2644:       final dynamic c = item;
+2645:       categoryRows.add([
+2646:         safeText(() => c.category),
+2647:         _formatNumber(safeDouble(() => c.quantity)),
+2648:         _formatMoney(safeDouble(() => c.total)),
+2649:       ]);
+2650:     }
+2651: 
+2652:     final purchaseRows = <List<String>>[];
+2653:     for (final item in purchases.take(options.compactTables ? 5 : 40)) {
+2654:       final dynamic p = item;
+2655:       purchaseRows.add([
+2656:         safeText(() {
+2657:           final date = p.purchaseDate;
+2658:           if (date is DateTime) return _formatDate(date);
+2659:           return date;
+2660:         }),
+2661:         safeText(() => p.supplierName),
+2662:         safeText(() => p.itemName),
+2663:         _formatNumber(safeDouble(() => p.quantity)),
+2664:         _formatMoney(safeDouble(() => p.totalCost)),
+2665:         safeText(() => p.paid == true ? 'Pago' : 'Em aberto'),
+2666:       ]);
+2667:     }
+2668: 
+2669:     final lowStockRows = <List<String>>[];
+2670:     for (final item in lowStock.take(options.compactTables ? 6 : 50)) {
+2671:       final dynamic p = item;
+2672:       lowStockRows.add([
+2673:         safeText(() => p.code),
+2674:         safeText(() => p.name),
+2675:         _formatNumber(safeDouble(() => p.stockQuantity)),
+2676:         _formatNumber(safeDouble(() => p.minStock)),
+2677:       ]);
+2678:     }
+2679: 
+2680:     final saleRows = <List<String>>[];
+2681:     for (final item in sales.take(options.compactTables ? 8 : 120)) {
+2682:       final dynamic sale = item;
+2683:       saleRows.add([
+2684:         safeText(() => sale.shortId, 'Venda'),
+2685:         safeText(() {
+2686:           final date = sale.createdAt;
+2687:           if (date is DateTime) {
+2688:             return '${_formatDate(date)} ${_formatTime(date)}';
+2689:           }
+2690:           return date;
+2691:         }),
+2692:         safeText(() => sale.paymentMethod.label),
+2693:         safeText(() => sale.totalItems),
+2694:         _formatMoney(safeDouble(() => sale.total)),
+2695:       ]);
+2696:     }
+2697: 
+2698:     pw.Widget metricCard(String title, String value, String subtitle) {
+2699:       return pw.Container(
+2700:         width: options.compactTables ? 103 : 150,
+2701:         padding: const pw.EdgeInsets.all(7),
+2702:         decoration: pw.BoxDecoration(
+2703:           color: softSurface,
+2704:           border: pw.Border.all(color: secondary, width: 1),
+2705:           borderRadius: pw.BorderRadius.circular(10),
+2706:         ),
+2707:         child: pw.Column(
+2708:           crossAxisAlignment: pw.CrossAxisAlignment.start,
+2709:           children: [
+2710:             pw.Text(
+2711:               title,
+2712:               style: pw.TextStyle(
+2713:                 color: textMuted,
+2714:                 fontSize: 8,
+2715:                 fontWeight: pw.FontWeight.bold,
+2716:               ),
+2717:             ),
+2718:             pw.SizedBox(height: 5),
+2719:             pw.Text(
+2720:               value,
+2721:               style: pw.TextStyle(
+2722:                 color: primary,
+2723:                 fontSize: 15,
+2724:                 fontWeight: pw.FontWeight.bold,
+2725:               ),
+2726:             ),
+2727:             pw.SizedBox(height: 3),
+2728:             pw.Text(
+2729:               subtitle,
+2730:               style: pw.TextStyle(color: textMuted, fontSize: 7),
+2731:             ),
+2732:           ],
+2733:         ),
+2734:       );
+2735:     }
+2736: 
+2737:     pw.Widget sectionTitle(String title, String subtitle) {
+2738:       return pw.Container(
+2739:         margin: pw.EdgeInsets.only(
+2740:           top: options.compactTables ? 4 : 10,
+2741:           bottom: options.compactTables ? 2 : 5,
+2742:         ),
+2743:         padding: const pw.EdgeInsets.only(left: 8),
+2744:         decoration: pw.BoxDecoration(
+2745:           border: pw.Border(left: pw.BorderSide(color: primary, width: 4)),
+2746:         ),
+2747:         child: pw.Column(
+2748:           crossAxisAlignment: pw.CrossAxisAlignment.start,
+2749:           children: [
+2750:             pw.Text(
+2751:               title,
+2752:               style: pw.TextStyle(
+2753:                 fontSize: 14,
+2754:                 color: primary,
+2755:                 fontWeight: pw.FontWeight.bold,
+2756:               ),
+2757:             ),
+2758:             pw.SizedBox(height: 2),
+2759:             pw.Text(
+2760:               subtitle,
+2761:               style: pw.TextStyle(fontSize: 8, color: textMuted),
+2762:             ),
+2763:           ],
+2764:         ),
+2765:       );
+2766:     }
+2767: 
+2768:     pw.Widget dataTable({
+2769:       required List<String> headers,
+2770:       required List<List<String>> rows,
+2771:       required String emptyText,
+2772:     }) {
+2773:       if (rows.isEmpty) {
+2774:         return pw.Container(
+2775:           padding: options.compactTables
+2776:               ? const pw.EdgeInsets.all(5)
+2777:               : const pw.EdgeInsets.all(8),
+2778:           decoration: pw.BoxDecoration(
+2779:             color: softSurface,
+2780:             borderRadius: pw.BorderRadius.circular(8),
+2781:           ),
+2782:           child: pw.Text(
+2783:             emptyText,
+2784:             style: pw.TextStyle(color: textMuted, fontSize: 9),
+2785:           ),
+2786:         );
+2787:       }
+2788: 
+2789:       return pw.TableHelper.fromTextArray(
+2790:         headers: headers,
+2791:         data: rows,
+
+============================================================
+HELPERS DO PDF / metricCard
+============================================================
+2668: 
+2669:     final lowStockRows = <List<String>>[];
+2670:     for (final item in lowStock.take(options.compactTables ? 6 : 50)) {
+2671:       final dynamic p = item;
+2672:       lowStockRows.add([
+2673:         safeText(() => p.code),
+2674:         safeText(() => p.name),
+2675:         _formatNumber(safeDouble(() => p.stockQuantity)),
+2676:         _formatNumber(safeDouble(() => p.minStock)),
+2677:       ]);
+2678:     }
+2679: 
+2680:     final saleRows = <List<String>>[];
+2681:     for (final item in sales.take(options.compactTables ? 8 : 120)) {
+2682:       final dynamic sale = item;
+2683:       saleRows.add([
+2684:         safeText(() => sale.shortId, 'Venda'),
+2685:         safeText(() {
+2686:           final date = sale.createdAt;
+2687:           if (date is DateTime) {
+2688:             return '${_formatDate(date)} ${_formatTime(date)}';
+2689:           }
+2690:           return date;
+2691:         }),
+2692:         safeText(() => sale.paymentMethod.label),
+2693:         safeText(() => sale.totalItems),
+2694:         _formatMoney(safeDouble(() => sale.total)),
+2695:       ]);
+2696:     }
+2697: 
+2698:     pw.Widget metricCard(String title, String value, String subtitle) {
+2699:       return pw.Container(
+2700:         width: options.compactTables ? 103 : 150,
+2701:         padding: const pw.EdgeInsets.all(7),
+2702:         decoration: pw.BoxDecoration(
+2703:           color: softSurface,
+2704:           border: pw.Border.all(color: secondary, width: 1),
+2705:           borderRadius: pw.BorderRadius.circular(10),
+2706:         ),
+2707:         child: pw.Column(
+2708:           crossAxisAlignment: pw.CrossAxisAlignment.start,
+2709:           children: [
+2710:             pw.Text(
+2711:               title,
+2712:               style: pw.TextStyle(
+2713:                 color: textMuted,
+2714:                 fontSize: 8,
+2715:                 fontWeight: pw.FontWeight.bold,
+2716:               ),
+2717:             ),
+2718:             pw.SizedBox(height: 5),
+2719:             pw.Text(
+2720:               value,
+2721:               style: pw.TextStyle(
+2722:                 color: primary,
+2723:                 fontSize: 15,
+2724:                 fontWeight: pw.FontWeight.bold,
+2725:               ),
+2726:             ),
+2727:             pw.SizedBox(height: 3),
+2728:             pw.Text(
+2729:               subtitle,
+2730:               style: pw.TextStyle(color: textMuted, fontSize: 7),
+2731:             ),
+2732:           ],
+2733:         ),
+2734:       );
+2735:     }
+2736: 
+2737:     pw.Widget sectionTitle(String title, String subtitle) {
+2738:       return pw.Container(
+2739:         margin: pw.EdgeInsets.only(
+2740:           top: options.compactTables ? 4 : 10,
+2741:           bottom: options.compactTables ? 2 : 5,
+2742:         ),
+2743:         padding: const pw.EdgeInsets.only(left: 8),
+2744:         decoration: pw.BoxDecoration(
+2745:           border: pw.Border(left: pw.BorderSide(color: primary, width: 4)),
+2746:         ),
+2747:         child: pw.Column(
+2748:           crossAxisAlignment: pw.CrossAxisAlignment.start,
+2749:           children: [
+2750:             pw.Text(
+2751:               title,
+2752:               style: pw.TextStyle(
+2753:                 fontSize: 14,
+2754:                 color: primary,
+2755:                 fontWeight: pw.FontWeight.bold,
+2756:               ),
+2757:             ),
+2758:             pw.SizedBox(height: 2),
+2759:             pw.Text(
+2760:               subtitle,
+2761:               style: pw.TextStyle(fontSize: 8, color: textMuted),
+2762:             ),
+2763:           ],
+2764:         ),
+2765:       );
+2766:     }
+2767: 
+2768:     pw.Widget dataTable({
+2769:       required List<String> headers,
+2770:       required List<List<String>> rows,
+2771:       required String emptyText,
+2772:     }) {
+2773:       if (rows.isEmpty) {
+2774:         return pw.Container(
+2775:           padding: options.compactTables
+2776:               ? const pw.EdgeInsets.all(5)
+2777:               : const pw.EdgeInsets.all(8),
+2778:           decoration: pw.BoxDecoration(
+2779:             color: softSurface,
+2780:             borderRadius: pw.BorderRadius.circular(8),
+2781:           ),
+2782:           child: pw.Text(
+2783:             emptyText,
+2784:             style: pw.TextStyle(color: textMuted, fontSize: 9),
+2785:           ),
+2786:         );
+2787:       }
+2788: 
+2789:       return pw.TableHelper.fromTextArray(
+2790:         headers: headers,
+2791:         data: rows,
+2792:         border: pw.TableBorder.all(
+2793:           color: const PdfColor.fromInt(0xFFE6DED7),
+2794:           width: 0.5,
+2795:         ),
+2796:         headerStyle: pw.TextStyle(
+2797:           fontWeight: pw.FontWeight.bold,
+2798:           color: white,
+2799:           fontSize: options.compactTables ? 6 : 8,
+2800:         ),
+2801:         headerDecoration: pw.BoxDecoration(color: primary),
+2802:         cellStyle: pw.TextStyle(
+2803:           fontSize: options.compactTables ? 6 : 8,
+2804:           color: const PdfColor.fromInt(0xFF241A1C),
+2805:         ),
+2806:         oddRowDecoration: pw.BoxDecoration(color: softSurface),
+2807:         cellAlignment: pw.Alignment.centerLeft,
+2808:         headerAlignment: pw.Alignment.centerLeft,
+2809:         cellPadding: options.compactTables
+2810:             ? const pw.EdgeInsets.symmetric(horizontal: 3, vertical: 2)
+2811:             : const pw.EdgeInsets.all(6),
+2812:       );
+2813:     }
+2814: 
+2815:     document.addPage(
+2816:       pw.MultiPage(
+2817:         pageFormat: PdfPageFormat.a4.landscape,
+2818:         margin: const pw.EdgeInsets.fromLTRB(14, 12, 14, 14),
+2819:         footer: (pdfContext) {
+2820:           return pw.Container(
+2821:             padding: const pw.EdgeInsets.only(top: 8),
+2822:             decoration: const pw.BoxDecoration(
+2823:               border: pw.Border(
+2824:                 top: pw.BorderSide(
+2825:                   color: PdfColor.fromInt(0xFFE6DED7),
+2826:                   width: 0.7,
+2827:                 ),
+2828:               ),
+2829:             ),
+2830:             child: pw.Row(
+2831:               mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+2832:               children: [
+2833:                 pw.Text(
+2834:                   'Açougue do Leleco • Relatório ${options.template.label}',
+2835:                   style: pw.TextStyle(fontSize: 7, color: textMuted),
+2836:                 ),
+2837:                 pw.Text(
+2838:                   'Página ${pdfContext.pageNumber} de ${pdfContext.pagesCount}',
+2839:                   style: pw.TextStyle(fontSize: 7, color: textMuted),
+2840:                 ),
+2841:               ],
+2842:             ),
+2843:           );
+2844:         },
+2845:         build: (_) {
+2846:           final widgets = <pw.Widget>[
+2847:             pw.Container(
+2848:               padding: const pw.EdgeInsets.all(9),
+2849:               decoration: pw.BoxDecoration(
+2850:                 color: primary,
+2851:                 borderRadius: pw.BorderRadius.circular(14),
+2852:               ),
+2853:               child: pw.Column(
+2854:                 crossAxisAlignment: pw.CrossAxisAlignment.start,
+2855:                 children: [
+2856:                   pw.Text(
+2857:                     'AÇOUGUE DO LELECO',
+2858:                     style: pw.TextStyle(
+
+============================================================
+BLOCO REAL DE WIDGETS
+============================================================
+2816:       pw.MultiPage(
+2817:         pageFormat: PdfPageFormat.a4.landscape,
+2818:         margin: const pw.EdgeInsets.fromLTRB(14, 12, 14, 14),
+2819:         footer: (pdfContext) {
+2820:           return pw.Container(
+2821:             padding: const pw.EdgeInsets.only(top: 8),
+2822:             decoration: const pw.BoxDecoration(
+2823:               border: pw.Border(
+2824:                 top: pw.BorderSide(
+2825:                   color: PdfColor.fromInt(0xFFE6DED7),
+2826:                   width: 0.7,
+2827:                 ),
+2828:               ),
+2829:             ),
+2830:             child: pw.Row(
+2831:               mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+2832:               children: [
+2833:                 pw.Text(
+2834:                   'Açougue do Leleco • Relatório ${options.template.label}',
+2835:                   style: pw.TextStyle(fontSize: 7, color: textMuted),
+2836:                 ),
+2837:                 pw.Text(
+2838:                   'Página ${pdfContext.pageNumber} de ${pdfContext.pagesCount}',
+2839:                   style: pw.TextStyle(fontSize: 7, color: textMuted),
+2840:                 ),
+2841:               ],
+2842:             ),
+2843:           );
+2844:         },
+2845:         build: (_) {
+2846:           final widgets = <pw.Widget>[
+2847:             pw.Container(
+2848:               padding: const pw.EdgeInsets.all(9),
+2849:               decoration: pw.BoxDecoration(
+2850:                 color: primary,
+2851:                 borderRadius: pw.BorderRadius.circular(14),
+2852:               ),
+2853:               child: pw.Column(
+2854:                 crossAxisAlignment: pw.CrossAxisAlignment.start,
+2855:                 children: [
+2856:                   pw.Text(
+2857:                     'AÇOUGUE DO LELECO',
+2858:                     style: pw.TextStyle(
+2859:                       color: white,
+2860:                       fontSize: 10,
+2861:                       letterSpacing: 1.5,
+2862:                       fontWeight: pw.FontWeight.bold,
+2863:                     ),
+2864:                   ),
+2865:                   pw.SizedBox(height: 8),
+2866:                   pw.Text(
+2867:                     'Relatório Gerencial',
+2868:                     style: pw.TextStyle(
+2869:                       color: white,
+2870:                       fontSize: 17,
+2871:                       fontWeight: pw.FontWeight.bold,
+2872:                     ),
+2873:                   ),
+2874:                   pw.SizedBox(height: 6),
+2875:                   pw.Text(
+2876:                     'Período: $periodLabel',
+2877:                     style: pw.TextStyle(color: secondary, fontSize: 11),
+2878:                   ),
+2879:                   pw.Text(
+2880:                     'Gerado em: ${_formatDate(DateTime.now())} às ${_formatTime(DateTime.now())}',
+2881:                     style: pw.TextStyle(color: secondary, fontSize: 9),
+2882:                   ),
+2883:                 ],
+2884:               ),
+2885:             ),
+2886:             pw.SizedBox(height: 8),
+2887:           ];
+2888: 
+2889:           if (options.includeSummary) {
+2890:             widgets.addAll([
+2891:               sectionTitle(
+2892:                 'Resumo geral',
+2893:                 'Visão rápida dos principais números do período.',
+2894:               ),
+2895:               pw.Wrap(
+2896:                 spacing: 8,
+2897:                 runSpacing: 8,
+2898:                 children: [
+2899:                   metricCard(
+2900:                     'Vendas',
+2901:                     sales.length.toString(),
+2902:                     'Quantidade no período',
+2903:                   ),
+2904:                   metricCard(
+2905:                     'Faturamento',
+2906:                     _formatMoney(revenue),
+2907:                     'Total vendido',
+2908:                   ),
+2909:                   metricCard(
+2910:                     'Ticket médio',
+2911:                     _formatMoney(averageTicket),
+2912:                     'Média por venda',
+2913:                   ),
+2914:                   metricCard(
+2915:                     'Fiado aberto',
+2916:                     _formatMoney(openCredit),
+2917:                     'Clientes em aberto',
+2918:                   ),
+2919:                   metricCard(
+2920:                     'Fornecedores',
+2921:                     _formatMoney(supplierPurchases),
+2922:                     'Compras no período',
+2923:                   ),
+2924:                   metricCard(
+2925:                     'Estoque baixo',
+2926:                     lowStockCount.toString(),
+2927:                     'Itens para atenção',
+2928:                   ),
+2929:                 ],
+2930:               ),
+2931:             ]);
+2932:           }
+2933: 
+2934:           if (options.includePayments) {
+2935:             widgets.addAll([
+2936:               sectionTitle(
+2937:                 'Formas de pagamento',
+2938:                 'Distribuição do faturamento por tipo de pagamento.',
+2939:               ),
+2940:               dataTable(
+2941:                 headers: const ['Forma', 'Total'],
+2942:                 rows: paymentRows,
+2943:                 emptyText: 'Nenhum pagamento registrado no período.',
+2944:               ),
+2945:             ]);
+2946:           }
+2947: 
+2948:           if (options.includeProducts &&
+2949:               (options.template != _PdfReportTemplate.complete ||
+2950:                   productRows.isNotEmpty)) {
+2951:             widgets.addAll([
+2952:               sectionTitle(
+2953:                 'Top produtos',
+2954:                 'Produtos com melhor desempenho no período.',
+2955:               ),
+2956:               dataTable(
+2957:                 headers: const ['Produto', 'Quantidade', 'Total'],
+2958:                 rows: productRows,
+2959:                 emptyText: 'Nenhum produto vendido no período.',
+2960:               ),
+2961:             ]);
+2962:           }
+2963: 
+2964:           if (options.includeCategories &&
+2965:               (options.template != _PdfReportTemplate.complete ||
+2966:                   categoryRows.isNotEmpty)) {
+2967:             widgets.addAll([
+2968:               sectionTitle('Categorias', 'Resultado separado por categoria.'),
+2969:               dataTable(
+2970:                 headers: const ['Categoria', 'Quantidade', 'Total'],
+2971:                 rows: categoryRows,
+2972:                 emptyText: 'Nenhuma categoria registrada no período.',
+2973:               ),
+2974:             ]);
+2975:           }
+2976: 
+2977:           if (options.includePurchases &&
+2978:               (options.template != _PdfReportTemplate.complete ||
+2979:                   purchaseRows.isNotEmpty)) {
+2980:             widgets.addAll([
+2981:               sectionTitle(
+2982:                 'Compras de fornecedores',
+2983:                 'Entradas e compras registradas no período.',
+2984:               ),
+2985:               dataTable(
+2986:                 headers: const [
+2987:                   'Data',
+2988:                   'Fornecedor',
+2989:                   'Item',
+2990:                   'Qtd',
+2991:                   'Total',
+2992:                   'Status',
+2993:                 ],
+2994:                 rows: purchaseRows,
+2995:                 emptyText: 'Nenhuma compra registrada no período.',
+2996:               ),
+2997:             ]);
+2998:           }
+2999: 
+3000:           if (options.includeLowStock &&
+3001:               (options.template != _PdfReportTemplate.complete ||
+3002:                   lowStockRows.isNotEmpty)) {
+3003:             widgets.addAll([
+3004:               sectionTitle(
+3005:                 'Estoque baixo',
+3006:                 'Produtos que precisam de atenção para reposição.',
+3007:               ),
+3008:               dataTable(
+3009:                 headers: const ['Código', 'Produto', 'Estoque', 'Mínimo'],
+3010:                 rows: lowStockRows,
+3011:                 emptyText: 'Nenhum produto em estoque baixo.',
+3012:               ),
+3013:             ]);
+3014:           }
+3015: 
+3016:           if (options.includeSalesDetails &&
+3017:               (options.template != _PdfReportTemplate.complete ||
+3018:                   saleRows.isNotEmpty)) {
+3019:             widgets.addAll([
+3020:               sectionTitle(
+3021:                 'Vendas detalhadas',
+3022:                 'Lista das vendas incluídas no período selecionado.',
+3023:               ),
+3024:               dataTable(
+3025:                 headers: const [
+3026:                   'Venda',
+3027:                   'Data/Hora',
+3028:                   'Pagamento',
+3029:                   'Itens',
+3030:                   'Total',
+3031:                 ],
+3032:                 rows: saleRows,
+3033:                 emptyText: 'Nenhuma venda registrada no período.',
+3034:               ),
+3035:             ]);
+3036:           }
+3037: 
+3038:           return widgets;
+3039:         },
+3040:       ),
+3041:     );
+3042: 
+3043:     final bytes = await document.save();
+3044:     final outputDir = await _reportsOutputDirectory();
+3045:     final fileName =
+3046:         'relatorio_${options.template.label.toLowerCase()}_${_reportsFileTimestamp(DateTime.now())}.pdf'
+3047:             .replaceAll(' ', '_');
+3048:     final file = File('${outputDir.path}${Platform.pathSeparator}$fileName');
+3049: 
+3050:     await file.writeAsBytes(bytes, flush: true);
+3051: 
+3052:     if (context.mounted) {
+3053:       await showDialog<void>(
+3054:         context: context,
+3055:         builder: (dialogContext) {
+3056:           return AlertDialog(
+3057:             title: const Text('PDF gerado com sucesso'),
+3058:             content: SelectableText(
+3059:               'Modelo: ${options.template.label}\n\nArquivo salvo em:\n${file.path}',
+3060:             ),
+3061:             actions: [
+3062:               TextButton(
+3063:                 onPressed: () => Navigator.of(dialogContext).pop(),
+3064:                 child: const Text('OK'),
+3065:               ),
+3066:             ],
+3067:           );
+3068:         },
+3069:       );
+3070:     }
+3071:   } catch (error, stackTrace) {
+3072:     debugPrint('ERRO AO GERAR PDF: $error');
+3073:     debugPrintStack(stackTrace: stackTrace);
+3074: 
+3075:     if (context.mounted) {
+3076:       await showDialog<void>(
+3077:         context: context,
+3078:         builder: (dialogContext) {
+3079:           return AlertDialog(
+3080:             title: const Text('Erro ao gerar PDF'),
+3081:             content: SelectableText(error.toString()),
+3082:             actions: [
+3083:               TextButton(
+3084:                 onPressed: () => Navigator.of(dialogContext).pop(),
+3085:                 child: const Text('OK'),
+3086:               ),
+3087:             ],
+3088:           );
+3089:         },
+3090:       );
+3091:     }
+3092:   }
+3093: }
+3094: 
+3095: Future<Directory> _reportsOutputDirectory() async {
+3096:   final home =
+3097:       Platform.environment['USERPROFILE'] ??
+3098:       Platform.environment['HOME'] ??
+3099:       Directory.current.path;
+3100: 
+3101:   final downloads = Directory('$home${Platform.pathSeparator}Downloads');
+3102:   final baseDir = await downloads.exists() ? downloads : Directory.current;
+3103: 
+3104:   final outputDir = Directory(
+3105:     '${baseDir.path}${Platform.pathSeparator}Relatorios_Acougue_Do_Leleco',
+3106:   );
+3107: 
+3108:   if (!await outputDir.exists()) {
+3109:     await outputDir.create(recursive: true);
+3110:   }
+3111: 
+3112:   return outputDir;
+3113: }
+3114: 
+3115: String _reportsFileTimestamp(DateTime date) {
+3116:   String two(int value) => value.toString().padLeft(2, '0');
+3117: 
+3118:   return '${date.year}-${two(date.month)}-${two(date.day)}_'
+3119:       '${two(date.hour)}-${two(date.minute)}-${two(date.second)}';
+3120: }
+3121: 
+3122: class _CashFlowSummaryPanel extends StatelessWidget {
+3123:   const _CashFlowSummaryPanel({
+3124:     required this.inputs,
+3125:     required this.outputs,
+3126:     required this.balance,
+3127:   });
+3128: 
+3129:   final double inputs;
+3130:   final double outputs;
+3131:   final double balance;
+3132: 
+3133:   @override
+3134:   Widget build(BuildContext context) {
+3135:     return _LelecoPanel(
+3136:       padding: const EdgeInsets.all(16),
+3137:       child: LayoutBuilder(
+3138:         builder: (context, constraints) {
+3139:           final compact = constraints.maxWidth < 760;
+3140: 
+3141:           final cards = [
+3142:             _CashReportMiniCard(
+3143:               title: 'Entradas manuais',
+3144:               value: _formatMoney(inputs),
+3145:               icon: Icons.south_west_rounded,
+3146:               color: Colors.green.shade700,
+3147:               detail: 'Dinheiro que entrou fora das vendas',
+3148:             ),
+3149:             _CashReportMiniCard(
+3150:               title: 'Saídas do caixa',
+3151:               value: _formatMoney(outputs),
+3152:               icon: Icons.north_east_rounded,
+3153:               color: Colors.red.shade700,
+3154:               detail: 'Compras, retiradas e despesas',
+3155:             ),
+3156:             _CashReportMiniCard(
+3157:               title: 'Saldo manual',
+3158:               value: _formatMoney(balance),
+3159:               icon: Icons.account_balance_wallet_rounded,
+3160:               color: balance >= 0 ? Colors.green.shade700 : Colors.red.shade700,
+3161:               detail: 'Entradas menos saídas manuais',
+3162:             ),
+3163:           ];
+3164: 
+3165:           if (compact) {
+3166:             return Column(
+3167:               children: cards
+3168:                   .map(
+3169:                     (card) => Padding(
+3170:                       padding: const EdgeInsets.only(bottom: 10),
+3171:                       child: card,
+3172:                     ),
+3173:                   )
+3174:                   .toList(),
+3175:             );
+3176:           }
+3177: 
+3178:           return Row(
+3179:             children: cards
+3180:                 .map(
+3181:                   (card) => Expanded(
+3182:                     child: Padding(
+3183:                       padding: const EdgeInsets.symmetric(horizontal: 5),
+3184:                       child: card,
+3185:                     ),
+3186:                   ),
+
+============================================================
+BLOCO FORMAS DE PAGAMENTO
+============================================================
+2894:               ),
+2895:               pw.Wrap(
+2896:                 spacing: 8,
+2897:                 runSpacing: 8,
+2898:                 children: [
+2899:                   metricCard(
+2900:                     'Vendas',
+2901:                     sales.length.toString(),
+2902:                     'Quantidade no período',
+2903:                   ),
+2904:                   metricCard(
+2905:                     'Faturamento',
+2906:                     _formatMoney(revenue),
+2907:                     'Total vendido',
+2908:                   ),
+2909:                   metricCard(
+2910:                     'Ticket médio',
+2911:                     _formatMoney(averageTicket),
+2912:                     'Média por venda',
+2913:                   ),
+2914:                   metricCard(
+2915:                     'Fiado aberto',
+2916:                     _formatMoney(openCredit),
+2917:                     'Clientes em aberto',
+2918:                   ),
+2919:                   metricCard(
+2920:                     'Fornecedores',
+2921:                     _formatMoney(supplierPurchases),
+2922:                     'Compras no período',
+2923:                   ),
+2924:                   metricCard(
+2925:                     'Estoque baixo',
+2926:                     lowStockCount.toString(),
+2927:                     'Itens para atenção',
+2928:                   ),
+2929:                 ],
+2930:               ),
+2931:             ]);
+2932:           }
+2933: 
+2934:           if (options.includePayments) {
+2935:             widgets.addAll([
+2936:               sectionTitle(
+2937:                 'Formas de pagamento',
+2938:                 'Distribuição do faturamento por tipo de pagamento.',
+2939:               ),
+2940:               dataTable(
+2941:                 headers: const ['Forma', 'Total'],
+2942:                 rows: paymentRows,
+2943:                 emptyText: 'Nenhum pagamento registrado no período.',
+2944:               ),
+2945:             ]);
+2946:           }
+2947: 
+2948:           if (options.includeProducts &&
+2949:               (options.template != _PdfReportTemplate.complete ||
+2950:                   productRows.isNotEmpty)) {
+2951:             widgets.addAll([
+2952:               sectionTitle(
+2953:                 'Top produtos',
+2954:                 'Produtos com melhor desempenho no período.',
+2955:               ),
+2956:               dataTable(
+2957:                 headers: const ['Produto', 'Quantidade', 'Total'],
+2958:                 rows: productRows,
+2959:                 emptyText: 'Nenhum produto vendido no período.',
+2960:               ),
+2961:             ]);
+2962:           }
+2963: 
+2964:           if (options.includeCategories &&
+2965:               (options.template != _PdfReportTemplate.complete ||
+2966:                   categoryRows.isNotEmpty)) {
+2967:             widgets.addAll([
+2968:               sectionTitle('Categorias', 'Resultado separado por categoria.'),
+2969:               dataTable(
+2970:                 headers: const ['Categoria', 'Quantidade', 'Total'],
+2971:                 rows: categoryRows,
+2972:                 emptyText: 'Nenhuma categoria registrada no período.',
+2973:               ),
+2974:             ]);
+2975:           }
+2976: 
+2977:           if (options.includePurchases &&
+2978:               (options.template != _PdfReportTemplate.complete ||
+2979:                   purchaseRows.isNotEmpty)) {
+2980:             widgets.addAll([
+2981:               sectionTitle(
+2982:                 'Compras de fornecedores',
+2983:                 'Entradas e compras registradas no período.',
+2984:               ),
+2985:               dataTable(
+2986:                 headers: const [
+2987:                   'Data',
+2988:                   'Fornecedor',
+2989:                   'Item',
+2990:                   'Qtd',
+2991:                   'Total',
+2992:                   'Status',
+2993:                 ],
+2994:                 rows: purchaseRows,
+2995:                 emptyText: 'Nenhuma compra registrada no período.',
+2996:               ),
+2997:             ]);
+2998:           }
+2999: 
+3000:           if (options.includeLowStock &&
+3001:               (options.template != _PdfReportTemplate.complete ||
+3002:                   lowStockRows.isNotEmpty)) {
+3003:             widgets.addAll([
+3004:               sectionTitle(
+3005:                 'Estoque baixo',
+3006:                 'Produtos que precisam de atenção para reposição.',
+3007:               ),
+3008:               dataTable(
+3009:                 headers: const ['Código', 'Produto', 'Estoque', 'Mínimo'],
+3010:                 rows: lowStockRows,
+3011:                 emptyText: 'Nenhum produto em estoque baixo.',
+3012:               ),
+3013:             ]);
+3014:           }
+3015: 
+3016:           if (options.includeSalesDetails &&
+3017:               (options.template != _PdfReportTemplate.complete ||
+3018:                   saleRows.isNotEmpty)) {
+3019:             widgets.addAll([
+3020:               sectionTitle(
+3021:                 'Vendas detalhadas',
+3022:                 'Lista das vendas incluídas no período selecionado.',
+3023:               ),
+3024:               dataTable(
+3025:                 headers: const [
+3026:                   'Venda',
+3027:                   'Data/Hora',
+3028:                   'Pagamento',
+3029:                   'Itens',
+3030:                   'Total',
+3031:                 ],
+3032:                 rows: saleRows,
+3033:                 emptyText: 'Nenhuma venda registrada no período.',
+3034:               ),
+3035:             ]);
+3036:           }
+3037: 
+3038:           return widgets;
+3039:         },
+3040:       ),
+3041:     );
+3042: 
+3043:     final bytes = await document.save();
+3044:     final outputDir = await _reportsOutputDirectory();
+3045:     final fileName =
+3046:         'relatorio_${options.template.label.toLowerCase()}_${_reportsFileTimestamp(DateTime.now())}.pdf'
+3047:             .replaceAll(' ', '_');
+3048:     final file = File('${outputDir.path}${Platform.pathSeparator}$fileName');
+3049: 
+3050:     await file.writeAsBytes(bytes, flush: true);
+3051: 
+3052:     if (context.mounted) {
+3053:       await showDialog<void>(
+3054:         context: context,
+3055:         builder: (dialogContext) {
+3056:           return AlertDialog(
+3057:             title: const Text('PDF gerado com sucesso'),
+3058:             content: SelectableText(
+3059:               'Modelo: ${options.template.label}\n\nArquivo salvo em:\n${file.path}',
+3060:             ),
+3061:             actions: [
+3062:               TextButton(
+3063:                 onPressed: () => Navigator.of(dialogContext).pop(),
+3064:                 child: const Text('OK'),
+3065:               ),
+3066:             ],
+3067:           );
+3068:         },
+3069:       );
+3070:     }
+3071:   } catch (error, stackTrace) {
+3072:     debugPrint('ERRO AO GERAR PDF: $error');
+3073:     debugPrintStack(stackTrace: stackTrace);
+3074: 
+3075:     if (context.mounted) {
+3076:       await showDialog<void>(
+3077:         context: context,
+3078:         builder: (dialogContext) {
+3079:           return AlertDialog(
+3080:             title: const Text('Erro ao gerar PDF'),
+3081:             content: SelectableText(error.toString()),
+3082:             actions: [
+3083:               TextButton(
+3084:                 onPressed: () => Navigator.of(dialogContext).pop(),
+3085:                 child: const Text('OK'),
+3086:               ),
+3087:             ],
+3088:           );
+3089:         },
+3090:       );
+3091:     }
+3092:   }
+3093: }
+3094: 
+3095: Future<Directory> _reportsOutputDirectory() async {
+3096:   final home =
+3097:       Platform.environment['USERPROFILE'] ??
+3098:       Platform.environment['HOME'] ??
+3099:       Directory.current.path;
+3100: 
+3101:   final downloads = Directory('$home${Platform.pathSeparator}Downloads');
+3102:   final baseDir = await downloads.exists() ? downloads : Directory.current;
+3103: 
+3104:   final outputDir = Directory(
+3105:     '${baseDir.path}${Platform.pathSeparator}Relatorios_Acougue_Do_Leleco',
+3106:   );
+3107: 
+3108:   if (!await outputDir.exists()) {
+3109:     await outputDir.create(recursive: true);
+3110:   }
+3111: 
+3112:   return outputDir;
+3113: }
+3114: 

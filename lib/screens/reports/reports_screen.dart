@@ -2316,6 +2316,7 @@ class _PdfReportOptions {
     required this.includePurchases,
     required this.includeLowStock,
     required this.includeSalesDetails,
+    required this.includeCashMovements,
     required this.compactTables,
   });
 
@@ -2327,6 +2328,7 @@ class _PdfReportOptions {
   final bool includePurchases;
   final bool includeLowStock;
   final bool includeSalesDetails;
+  final bool includeCashMovements;
   final bool compactTables;
 }
 
@@ -2354,6 +2356,7 @@ Future<void> _showReportsPdfOptionsDialog({
   var includePurchases = false;
   var includeLowStock = false;
   var includeSalesDetails = false;
+  var includeCashMovements = true;
   var compactTables = true;
 
   void applyPreset(_PdfReportTemplate selected) {
@@ -2368,6 +2371,7 @@ Future<void> _showReportsPdfOptionsDialog({
         includePurchases = false;
         includeLowStock = false;
         includeSalesDetails = false;
+        includeCashMovements = true;
         compactTables = true;
         break;
       case _PdfReportTemplate.complete:
@@ -2378,6 +2382,7 @@ Future<void> _showReportsPdfOptionsDialog({
         includePurchases = true;
         includeLowStock = true;
         includeSalesDetails = true;
+        includeCashMovements = true;
         compactTables = true;
         break;
       case _PdfReportTemplate.simple:
@@ -2388,6 +2393,7 @@ Future<void> _showReportsPdfOptionsDialog({
         includePurchases = false;
         includeLowStock = false;
         includeSalesDetails = false;
+        includeCashMovements = true;
         compactTables = true;
         break;
     }
@@ -2488,6 +2494,18 @@ Future<void> _showReportsPdfOptionsDialog({
                       subtitle: const Text('Pode deixar o PDF maior'),
                     ),
                     CheckboxListTile(
+                      value: includeCashMovements,
+                      onChanged: (value) {
+                        setDialogState(
+                          () => includeCashMovements = value ?? true,
+                        );
+                      },
+                      title: const Text('Resumo do caixa'),
+                      subtitle: const Text(
+                        'Totais e saídas por motivo, sem listar tudo',
+                      ),
+                    ),
+                    CheckboxListTile(
                       value: compactTables,
                       onChanged: (value) {
                         setDialogState(() => compactTables = value ?? false);
@@ -2515,6 +2533,7 @@ Future<void> _showReportsPdfOptionsDialog({
                       includePurchases: includePurchases,
                       includeLowStock: includeLowStock,
                       includeSalesDetails: includeSalesDetails,
+                      includeCashMovements: includeCashMovements,
                       compactTables: compactTables,
                     ),
                   );
@@ -2609,6 +2628,67 @@ Future<void> _exportReportsPdf({
       final value = ((paymentTotals[method] ?? 0) as num).toDouble();
       paymentRows.add([method.label, _formatMoney(value)]);
     }
+
+    // PDF_CAIXA_OK_DADOS_START
+    final cashPdfProvider = context.read<CashMovementProvider>();
+    final cashPdfMovements = cashPdfProvider.todayMovements.toList();
+    final cashPdfInputs = cashPdfProvider.todayInputs;
+    final cashPdfOutputs = cashPdfProvider.todayOutputs;
+    final cashPdfBalance = cashPdfProvider.todayBalance;
+
+    final cashPdfInputCount = cashPdfMovements
+        .where((movement) => movement.type == CashMovementType.input)
+        .length;
+
+    final cashPdfOutputCount = cashPdfMovements
+        .where((movement) => movement.type == CashMovementType.output)
+        .length;
+
+    final cashPdfOutputTotals = <CashMovementCategory, double>{};
+    final cashPdfOutputCounts = <CashMovementCategory, int>{};
+
+    for (final movement in cashPdfMovements) {
+      if (movement.type != CashMovementType.output) continue;
+
+      cashPdfOutputTotals[movement.category] =
+          (cashPdfOutputTotals[movement.category] ?? 0) + movement.amount;
+
+      cashPdfOutputCounts[movement.category] =
+          (cashPdfOutputCounts[movement.category] ?? 0) + 1;
+    }
+
+    final cashPdfSummaryRows = <List<String>>[
+      [
+        'Entradas manuais',
+        _formatMoney(cashPdfInputs),
+        '$cashPdfInputCount lançamento(s)',
+      ],
+      [
+        'Saídas manuais',
+        _formatMoney(cashPdfOutputs),
+        '$cashPdfOutputCount lançamento(s)',
+      ],
+      ['Saldo manual', _formatMoney(cashPdfBalance), 'Entradas menos saídas'],
+      [
+        'Total de lançamentos',
+        '${cashPdfMovements.length}',
+        'Detalhes completos na tela Caixa',
+      ],
+    ];
+
+    final cashPdfOutputRows = cashPdfOutputTotals.entries.toList()
+      ..sort((a, b) => b.value.compareTo(a.value));
+
+    final cashPdfOutputTableRows = cashPdfOutputRows.map<List<String>>((entry) {
+      final count = cashPdfOutputCounts[entry.key] ?? 0;
+
+      return [
+        entry.key.label,
+        _formatMoney(entry.value),
+        '$count lançamento(s)',
+      ];
+    }).toList();
+    // PDF_CAIXA_OK_DADOS_END
 
     final productRows = <List<String>>[];
     for (final item in productTotals.take(options.compactTables ? 5 : 20)) {
@@ -2925,6 +3005,56 @@ Future<void> _exportReportsPdf({
               ),
             ]);
           }
+
+          // PDF_CAIXA_OK_SECAO_START
+          if (options.includeCashMovements) {
+            widgets.addAll([
+              pw.SizedBox(height: 8),
+              sectionTitle(
+                'Controle do caixa',
+                'Resumo das entradas e saídas manuais do caixa.',
+              ),
+              pw.Wrap(
+                spacing: 8,
+                runSpacing: 8,
+                children: [
+                  metricCard(
+                    'Entradas manuais',
+                    _formatMoney(cashPdfInputs),
+                    '$cashPdfInputCount lançamento(s)',
+                  ),
+                  metricCard(
+                    'Saídas manuais',
+                    _formatMoney(cashPdfOutputs),
+                    '$cashPdfOutputCount lançamento(s)',
+                  ),
+                  metricCard(
+                    'Saldo manual',
+                    _formatMoney(cashPdfBalance),
+                    'Entradas menos saídas',
+                  ),
+                ],
+              ),
+              pw.SizedBox(height: 8),
+              dataTable(
+                headers: const ['Indicador', 'Valor', 'Observação'],
+                rows: cashPdfSummaryRows,
+                emptyText: 'Nenhuma movimentação manual no caixa.',
+              ),
+              pw.SizedBox(height: 7),
+              dataTable(
+                headers: const ['Saídas agrupadas por motivo', 'Total', 'Qtd.'],
+                rows: cashPdfOutputTableRows,
+                emptyText: 'Nenhuma saída manual registrada hoje.',
+              ),
+              pw.SizedBox(height: 3),
+              pw.Text(
+                'O PDF mostra o resumo do caixa para não ficar grande. O histórico completo fica na tela Caixa.',
+                style: pw.TextStyle(fontSize: 7, color: textMuted),
+              ),
+            ]);
+          }
+          // PDF_CAIXA_OK_SECAO_END
 
           if (options.includeProducts &&
               (options.template != _PdfReportTemplate.complete ||
