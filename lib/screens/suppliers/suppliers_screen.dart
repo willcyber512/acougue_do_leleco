@@ -3,20 +3,18 @@ import 'package:provider/provider.dart';
 import 'package:uuid/uuid.dart';
 
 import '../../core/constants/app_colors.dart';
+import '../../models/cash_movement.dart';
 import '../../models/product.dart';
 import '../../models/product_category.dart';
 import '../../models/product_unit.dart';
+import '../../models/payment_method.dart';
 import '../../models/supplier_purchase.dart';
 import '../../models/supplier_profile.dart';
+import '../../providers/cash_movement_provider.dart';
 import '../../providers/inventory_provider.dart';
 import '../../providers/suppliers_provider.dart';
 
-enum _SupplierPeriod {
-  today,
-  sevenDays,
-  thirtyDays,
-  all,
-}
+enum _SupplierPeriod { today, sevenDays, thirtyDays, all }
 
 class SuppliersScreen extends StatefulWidget {
   const SuppliersScreen({super.key});
@@ -42,7 +40,8 @@ class _SuppliersScreenState extends State<SuppliersScreen> {
         final filteredPurchases = periodPurchases.where((purchase) {
           final term = searchTerm.trim().toLowerCase();
 
-          final matchesSearch = term.isEmpty ||
+          final matchesSearch =
+              term.isEmpty ||
               purchase.supplierName.toLowerCase().contains(term) ||
               purchase.itemName.toLowerCase().contains(term) ||
               purchase.category.label.toLowerCase().contains(term) ||
@@ -61,17 +60,11 @@ class _SuppliersScreenState extends State<SuppliersScreen> {
 
         final openAmount = periodPurchases
             .where((purchase) => !purchase.paid)
-            .fold<double>(
-              0,
-              (total, purchase) => total + purchase.totalCost,
-            );
+            .fold<double>(0, (total, purchase) => total + purchase.totalCost);
 
         final paidAmount = periodPurchases
             .where((purchase) => purchase.paid)
-            .fold<double>(
-              0,
-              (total, purchase) => total + purchase.totalCost,
-            );
+            .fold<double>(0, (total, purchase) => total + purchase.totalCost);
 
         final suppliersCount = periodPurchases
             .map((purchase) => purchase.supplierName.trim().toLowerCase())
@@ -90,34 +83,34 @@ class _SuppliersScreenState extends State<SuppliersScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-              _SupplierHeader(
-                selectedPeriod: selectedPeriod,
-                periodLabel: _periodLabel(selectedPeriod),
-                totalPurchased: totalPurchased,
-                openAmount: openAmount,
-                paidAmount: paidAmount,
-                suppliersCount: suppliersCount,
-                purchasesCount: periodPurchases.length,
-                onAdd: () => _openPurchaseDialog(context),
-                onAddSupplier: () => _openSupplierDialog(context),
-                onPeriodChanged: (period) {
-                  setState(() => selectedPeriod = period);
-                },
-              ),
-              const SizedBox(height: 14),
-              _SupplierSearchBar(
-                searchTerm: searchTerm,
-                showOnlyOpen: showOnlyOpen,
-                onSearchChanged: (value) {
-                  setState(() => searchTerm = value);
-                },
-                onOpenChanged: (value) {
-                  setState(() => showOnlyOpen = value);
-                },
-              ),
-              const SizedBox(height: 14),
-              LayoutBuilder(
-                builder: (context, constraints) {
+                _SupplierHeader(
+                  selectedPeriod: selectedPeriod,
+                  periodLabel: _periodLabel(selectedPeriod),
+                  totalPurchased: totalPurchased,
+                  openAmount: openAmount,
+                  paidAmount: paidAmount,
+                  suppliersCount: suppliersCount,
+                  purchasesCount: periodPurchases.length,
+                  onAdd: () => _openPurchaseDialog(context),
+                  onAddSupplier: () => _openSupplierDialog(context),
+                  onPeriodChanged: (period) {
+                    setState(() => selectedPeriod = period);
+                  },
+                ),
+                const SizedBox(height: 14),
+                _SupplierSearchBar(
+                  searchTerm: searchTerm,
+                  showOnlyOpen: showOnlyOpen,
+                  onSearchChanged: (value) {
+                    setState(() => searchTerm = value);
+                  },
+                  onOpenChanged: (value) {
+                    setState(() => showOnlyOpen = value);
+                  },
+                ),
+                const SizedBox(height: 14),
+                LayoutBuilder(
+                  builder: (context, constraints) {
                     final compact = constraints.maxWidth < 1050;
 
                     if (compact) {
@@ -184,21 +177,23 @@ class _SuppliersScreenState extends State<SuppliersScreen> {
   }
 
   void _togglePaid(BuildContext context, SupplierPurchase purchase) {
-    context.read<SuppliersProvider>().updatePurchase(
-          purchase.copyWith(
-            paid: !purchase.paid,
-            updatedAt: DateTime.now(),
-          ),
-        );
+    final updatedPurchase = purchase.copyWith(
+      paid: !purchase.paid,
+      updatedAt: DateTime.now(),
+    );
+
+    context.read<SuppliersProvider>().updatePurchase(updatedPurchase);
+
+    _syncSupplierPurchaseCashMovement(context, updatedPurchase);
 
     ScaffoldMessenger.of(context)
       ..clearSnackBars()
       ..showSnackBar(
         SnackBar(
           content: Text(
-            purchase.paid
-                ? 'Compra marcada como em aberto.'
-                : 'Compra marcada como paga.',
+            updatedPurchase.paid
+                ? 'Compra marcada como paga e lançada no caixa.'
+                : 'Compra marcada como em aberto e removida do caixa.',
           ),
         ),
       );
@@ -232,14 +227,45 @@ class _SuppliersScreenState extends State<SuppliersScreen> {
 
     if (confirmed != true || !context.mounted) return;
 
+    context.read<CashMovementProvider>().deleteMovementsByReferenceId(
+      _supplierPurchaseCashReferenceId(purchase.id),
+    );
+
     context.read<SuppliersProvider>().deletePurchase(purchase.id);
 
     ScaffoldMessenger.of(context)
       ..clearSnackBars()
-      ..showSnackBar(
-        const SnackBar(content: Text('Compra removida.')),
-      );
+      ..showSnackBar(const SnackBar(content: Text('Compra removida.')));
   }
+}
+
+String _supplierPurchaseCashReferenceId(String purchaseId) {
+  return 'supplier_purchase:$purchaseId';
+}
+
+void _syncSupplierPurchaseCashMovement(
+  BuildContext context,
+  SupplierPurchase purchase,
+) {
+  final cash = context.read<CashMovementProvider>();
+  final referenceId = _supplierPurchaseCashReferenceId(purchase.id);
+
+  cash.deleteMovementsByReferenceId(referenceId);
+
+  if (!purchase.paid || purchase.totalCost <= 0) return;
+
+  cash.addMovement(
+    type: CashMovementType.output,
+    category: CashMovementCategory.supplier,
+    amount: purchase.totalCost,
+    paymentMethod: purchase.paymentMethod,
+    reason: 'Pagamento fornecedor - ${purchase.supplierName}',
+    description:
+        '${purchase.itemName} • ${_formatNumber(purchase.quantity)} ${purchase.unit.label} x ${_formatMoney(purchase.unitCost)}',
+    referenceId: referenceId,
+    personName: purchase.supplierName,
+    createdAt: DateTime.now(),
+  );
 }
 
 class _SupplierHeader extends StatelessWidget {
@@ -338,11 +364,7 @@ class _SupplierHeader extends StatelessWidget {
               if (compact) {
                 return Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    title,
-                    const SizedBox(height: 16),
-                    actions,
-                  ],
+                  children: [title, const SizedBox(height: 16), actions],
                 );
               }
 
@@ -361,8 +383,8 @@ class _SupplierHeader extends StatelessWidget {
               final columns = constraints.maxWidth >= 1000
                   ? 4
                   : constraints.maxWidth >= 660
-                      ? 2
-                      : 1;
+                  ? 2
+                  : 1;
 
               const gap = 12.0;
               final width =
@@ -411,10 +433,7 @@ class _SupplierHeader extends StatelessWidget {
 }
 
 class _PeriodPills extends StatelessWidget {
-  const _PeriodPills({
-    required this.selected,
-    required this.onChanged,
-  });
+  const _PeriodPills({required this.selected, required this.onChanged});
 
   final _SupplierPeriod selected;
   final ValueChanged<_SupplierPeriod> onChanged;
@@ -563,7 +582,8 @@ class _SupplierSearchBar extends StatelessWidget {
             onChanged: onSearchChanged,
             decoration: InputDecoration(
               prefixIcon: const Icon(Icons.search_rounded),
-              hintText: 'Pesquisar fornecedor, carne, categoria ou documento...',
+              hintText:
+                  'Pesquisar fornecedor, carne, categoria ou documento...',
               filled: true,
               fillColor: _cardBackground(context),
               border: OutlineInputBorder(
@@ -597,11 +617,7 @@ class _SupplierSearchBar extends StatelessWidget {
           if (compact) {
             return Column(
               crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                search,
-                const SizedBox(height: 10),
-                chip,
-              ],
+              children: [search, const SizedBox(height: 10), chip],
             );
           }
 
@@ -639,9 +655,7 @@ class _PurchasesBoard extends StatelessWidget {
         ? const _EmptySuppliers()
         : ListView.separated(
             shrinkWrap: !fillHeight,
-            physics: fillHeight
-                ? null
-                : const NeverScrollableScrollPhysics(),
+            physics: fillHeight ? null : const NeverScrollableScrollPhysics(),
             itemCount: purchases.length,
             separatorBuilder: (_, __) => const SizedBox(height: 12),
             itemBuilder: (context, index) {
@@ -695,9 +709,9 @@ class _BoardHeader extends StatelessWidget {
               Text(
                 'Compras registradas',
                 style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                      fontWeight: FontWeight.w900,
-                      color: _titleColor(context),
-                    ),
+                  fontWeight: FontWeight.w900,
+                  color: _titleColor(context),
+                ),
               ),
               Text(
                 'Histórico de entradas e custos',
@@ -768,14 +782,13 @@ class _PurchaseCard extends StatelessWidget {
                       _formatMoney(purchase.totalCost),
                       textAlign: TextAlign.end,
                       style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                            fontWeight: FontWeight.w900,
-                            color: AppColors.wine700,
-                          ),
+                        fontWeight: FontWeight.w900,
+                        color: AppColors.wine700,
+                      ),
                     ),
                   ),
                   IconButton(
-                    tooltip:
-                        purchase.paid ? 'Marcar em aberto' : 'Marcar pago',
+                    tooltip: purchase.paid ? 'Marcar em aberto' : 'Marcar pago',
                     onPressed: onTogglePaid,
                     icon: Icon(
                       purchase.paid
@@ -842,9 +855,9 @@ class _PurchaseMainInfo extends StatelessWidget {
           maxLines: 1,
           overflow: TextOverflow.ellipsis,
           style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                fontWeight: FontWeight.w900,
-                color: _titleColor(context),
-              ),
+            fontWeight: FontWeight.w900,
+            color: _titleColor(context),
+          ),
         ),
         const SizedBox(height: 4),
         Text(
@@ -936,10 +949,8 @@ class _SideDashboard extends StatelessWidget {
           suppliers: supplierProfiles,
           purchases: provider.purchases,
           onAdd: () => _openSupplierDialog(context),
-          onEdit: (supplier) => _openSupplierDialog(
-            context,
-            supplier: supplier,
-          ),
+          onEdit: (supplier) =>
+              _openSupplierDialog(context, supplier: supplier),
           onToggleActive: (supplier) {
             context.read<SuppliersProvider>().toggleSupplierActive(supplier.id);
           },
@@ -987,7 +998,6 @@ class _SideDashboard extends StatelessWidget {
     );
   }
 }
-
 
 class _SupplierDirectoryPanel extends StatelessWidget {
   const _SupplierDirectoryPanel({
@@ -1116,10 +1126,8 @@ class _SupplierProfileRow extends StatelessWidget {
           const SizedBox(width: 10),
           Expanded(
             child: InkWell(
-              onTap: () => _openSupplierDetailsDialog(
-                context,
-                supplier: supplier,
-              ),
+              onTap: () =>
+                  _openSupplierDetailsDialog(context, supplier: supplier),
               borderRadius: BorderRadius.circular(12),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -1161,10 +1169,8 @@ class _SupplierProfileRow extends StatelessWidget {
           ),
           IconButton(
             tooltip: 'Ficha do fornecedor',
-            onPressed: () => _openSupplierDetailsDialog(
-              context,
-              supplier: supplier,
-            ),
+            onPressed: () =>
+                _openSupplierDetailsDialog(context, supplier: supplier),
             icon: const Icon(Icons.manage_search_rounded),
           ),
           IconButton(
@@ -1216,16 +1222,16 @@ _SupplierStats _supplierStats(
     (sum, purchase) => sum + purchase.totalCost,
   );
 
-  final open = supplierPurchases.where((purchase) => !purchase.paid).fold<double>(
-        0,
-        (sum, purchase) => sum + purchase.totalCost,
-      );
+  final open = supplierPurchases
+      .where((purchase) => !purchase.paid)
+      .fold<double>(0, (sum, purchase) => sum + purchase.totalCost);
 
   return _SupplierStats(
     total: total,
     open: open,
-    lastPurchase:
-        supplierPurchases.isEmpty ? null : supplierPurchases.first.purchaseDate,
+    lastPurchase: supplierPurchases.isEmpty
+        ? null
+        : supplierPurchases.first.purchaseDate,
   );
 }
 
@@ -1238,7 +1244,6 @@ Future<void> _openSupplierDialog(
     builder: (_) => _SupplierDialog(supplier: supplier),
   );
 }
-
 
 Future<void> _openSupplierDetailsDialog(
   BuildContext context, {
@@ -1344,7 +1349,9 @@ class _SupplierDetailsHeader extends StatelessWidget {
                     ),
                     const SizedBox(height: 4),
                     Text(
-                      supplier.active ? 'Fornecedor ativo' : 'Fornecedor inativo',
+                      supplier.active
+                          ? 'Fornecedor ativo'
+                          : 'Fornecedor inativo',
                       style: TextStyle(
                         color: AppColors.beige100.withOpacity(0.72),
                         fontWeight: FontWeight.w800,
@@ -1410,10 +1417,7 @@ class _SupplierDetailsHeader extends StatelessWidget {
 }
 
 class _DarkStatusPill extends StatelessWidget {
-  const _DarkStatusPill({
-    required this.label,
-    required this.icon,
-  });
+  const _DarkStatusPill({required this.label, required this.icon});
 
   final String label;
   final IconData icon;
@@ -1668,8 +1672,9 @@ class _SupplierPurchasesHistory extends StatelessWidget {
             )
           else
             ...sorted.take(20).map((purchase) {
-              final statusColor =
-                  purchase.paid ? AppColors.success : AppColors.warning;
+              final statusColor = purchase.paid
+                  ? AppColors.success
+                  : AppColors.warning;
 
               return Container(
                 margin: const EdgeInsets.only(bottom: 10),
@@ -1775,8 +1780,9 @@ class _SupplierDialogState extends State<_SupplierDialog> {
 
     nameController = TextEditingController(text: supplier?.name ?? '');
     phoneController = TextEditingController(text: supplier?.phone ?? '');
-    responsibleController =
-        TextEditingController(text: supplier?.responsible ?? '');
+    responsibleController = TextEditingController(
+      text: supplier?.responsible ?? '',
+    );
     cityController = TextEditingController(text: supplier?.city ?? '');
     addressController = TextEditingController(text: supplier?.address ?? '');
     notesController = TextEditingController(text: supplier?.notes ?? '');
@@ -1933,9 +1939,7 @@ class _SupplierDialogState extends State<_SupplierDialog> {
 
     ScaffoldMessenger.of(context)
       ..clearSnackBars()
-      ..showSnackBar(
-        const SnackBar(content: Text('Fornecedor salvo.')),
-      );
+      ..showSnackBar(const SnackBar(content: Text('Fornecedor salvo.')));
   }
 }
 
@@ -1997,10 +2001,7 @@ class _DarkMiniPanel extends StatelessWidget {
 }
 
 class _DarkSummaryNumber extends StatelessWidget {
-  const _DarkSummaryNumber({
-    required this.label,
-    required this.value,
-  });
+  const _DarkSummaryNumber({required this.label, required this.value});
 
   final String label;
   final String value;
@@ -2183,10 +2184,7 @@ class _PurchaseIcon extends StatelessWidget {
 }
 
 class _StatusBadge extends StatelessWidget {
-  const _StatusBadge({
-    required this.label,
-    required this.color,
-  });
+  const _StatusBadge({required this.label, required this.color});
 
   final String label;
   final Color color;
@@ -2203,10 +2201,7 @@ class _StatusBadge extends StatelessWidget {
       child: Text(
         label,
         textAlign: TextAlign.center,
-        style: TextStyle(
-          color: color,
-          fontWeight: FontWeight.w900,
-        ),
+        style: TextStyle(color: color, fontWeight: FontWeight.w900),
       ),
     );
   }
@@ -2229,10 +2224,7 @@ class _CountBadge extends StatelessWidget {
       ),
       child: Text(
         value,
-        style: TextStyle(
-          color: AppColors.wine700,
-          fontWeight: FontWeight.w900,
-        ),
+        style: TextStyle(color: AppColors.wine700, fontWeight: FontWeight.w900),
       ),
     );
   }
@@ -2252,10 +2244,7 @@ class _IconBadge extends StatelessWidget {
         color: AppColors.wine900,
         borderRadius: BorderRadius.circular(16),
       ),
-      child: Icon(
-        icon,
-        color: AppColors.beige100,
-      ),
+      child: Icon(icon, color: AppColors.beige100),
     );
   }
 }
@@ -2274,11 +2263,7 @@ class _SmallIcon extends StatelessWidget {
         color: AppColors.wine900,
         borderRadius: BorderRadius.circular(12),
       ),
-      child: Icon(
-        icon,
-        color: AppColors.beige100,
-        size: 18,
-      ),
+      child: Icon(icon, color: AppColors.beige100, size: 18),
     );
   }
 }
@@ -2297,10 +2282,7 @@ class _DarkIconBox extends StatelessWidget {
         color: AppColors.beige100,
         borderRadius: BorderRadius.circular(16),
       ),
-      child: Icon(
-        icon,
-        color: AppColors.wine900,
-      ),
+      child: Icon(icon, color: AppColors.wine900),
     );
   }
 }
@@ -2338,10 +2320,7 @@ class _DarkSupplierPanel extends StatelessWidget {
       padding: padding,
       decoration: BoxDecoration(
         gradient: const LinearGradient(
-          colors: [
-            AppColors.wine900,
-            AppColors.wine700,
-          ],
+          colors: [AppColors.wine900, AppColors.wine700],
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
         ),
@@ -2388,7 +2367,6 @@ Future<void> _openPurchaseDialog(
   );
 }
 
-
 class _PurchaseDialog extends StatefulWidget {
   const _PurchaseDialog({this.purchase});
 
@@ -2410,6 +2388,7 @@ class _PurchaseDialogState extends State<_PurchaseDialog> {
   late ProductUnit selectedUnit;
   late DateTime purchaseDate;
   late bool paid;
+  late PaymentMethod selectedPaymentMethod;
 
   late bool replenishStock;
   String? selectedStockProductId;
@@ -2424,9 +2403,7 @@ class _PurchaseDialogState extends State<_PurchaseDialog> {
       text: purchase?.supplierName ?? '',
     );
 
-    itemController = TextEditingController(
-      text: purchase?.itemName ?? '',
-    );
+    itemController = TextEditingController(text: purchase?.itemName ?? '');
 
     quantityController = TextEditingController(
       text: purchase == null ? '' : _moneyInput(purchase.quantity),
@@ -2440,14 +2417,13 @@ class _PurchaseDialogState extends State<_PurchaseDialog> {
       text: purchase?.documentNumber ?? '',
     );
 
-    notesController = TextEditingController(
-      text: purchase?.notes ?? '',
-    );
+    notesController = TextEditingController(text: purchase?.notes ?? '');
 
     selectedCategory = purchase?.category ?? ProductCategory.values.first;
     selectedUnit = purchase?.unit ?? ProductUnit.values.first;
     purchaseDate = purchase?.purchaseDate ?? DateTime.now();
     paid = purchase?.paid ?? false;
+    selectedPaymentMethod = purchase?.paymentMethod ?? PaymentMethod.dinheiro;
 
     replenishStock = purchase == null;
     selectedStockProductId = null;
@@ -2515,9 +2491,7 @@ class _PurchaseDialogState extends State<_PurchaseDialog> {
     final total = quantity * unitCost;
 
     return AlertDialog(
-      title: Text(
-        widget.purchase == null ? 'Nova compra' : 'Editar compra',
-      ),
+      title: Text(widget.purchase == null ? 'Nova compra' : 'Editar compra'),
       content: SizedBox(
         width: 860,
         height: 680,
@@ -2566,7 +2540,7 @@ class _PurchaseDialogState extends State<_PurchaseDialog> {
                           children: activeSuppliers.take(12).map((supplier) {
                             final selected =
                                 supplierController.text.trim().toLowerCase() ==
-                                    supplier.name.trim().toLowerCase();
+                                supplier.name.trim().toLowerCase();
 
                             return Padding(
                               padding: const EdgeInsets.only(right: 8),
@@ -2623,11 +2597,13 @@ class _PurchaseDialogState extends State<_PurchaseDialog> {
             if (widget.purchase == null)
               Consumer<InventoryProvider>(
                 builder: (context, inventory, _) {
-                  final stockProducts =
-                      _stockProductsForSelectedUnit(inventory.products);
+                  final stockProducts = _stockProductsForSelectedUnit(
+                    inventory.products,
+                  );
 
-                  final selectedForUi =
-                      _selectedStockProductIdForSave(inventory.products);
+                  final selectedForUi = _selectedStockProductIdForSave(
+                    inventory.products,
+                  );
 
                   return Container(
                     margin: const EdgeInsets.only(bottom: 14),
@@ -2722,9 +2698,7 @@ class _PurchaseDialogState extends State<_PurchaseDialog> {
                 Expanded(
                   child: DropdownButtonFormField<ProductCategory>(
                     value: selectedCategory,
-                    decoration: const InputDecoration(
-                      labelText: 'Categoria',
-                    ),
+                    decoration: const InputDecoration(labelText: 'Categoria'),
                     items: ProductCategory.values.map((category) {
                       return DropdownMenuItem<ProductCategory>(
                         value: category,
@@ -2744,9 +2718,7 @@ class _PurchaseDialogState extends State<_PurchaseDialog> {
                 Expanded(
                   child: DropdownButtonFormField<ProductUnit>(
                     value: selectedUnit,
-                    decoration: const InputDecoration(
-                      labelText: 'Unidade',
-                    ),
+                    decoration: const InputDecoration(labelText: 'Unidade'),
                     items: ProductUnit.values.map((unit) {
                       return DropdownMenuItem<ProductUnit>(
                         value: unit,
@@ -2846,6 +2818,30 @@ class _PurchaseDialogState extends State<_PurchaseDialog> {
                 ),
               ],
             ),
+            if (paid) ...[
+              const SizedBox(height: 12),
+              DropdownButtonFormField<PaymentMethod>(
+                value: selectedPaymentMethod,
+                decoration: const InputDecoration(
+                  labelText: 'Forma de pagamento',
+                  helperText: 'Usada para lançar a saída automática no caixa',
+                ),
+                items: PaymentMethod.values
+                    .where((method) => method != PaymentMethod.fiado)
+                    .map((method) {
+                      return DropdownMenuItem(
+                        value: method,
+                        child: Text(method.label),
+                      );
+                    })
+                    .toList(),
+                onChanged: (value) {
+                  if (value == null) return;
+
+                  setState(() => selectedPaymentMethod = value);
+                },
+              ),
+            ],
             const SizedBox(height: 12),
             TextField(
               controller: documentController,
@@ -2918,7 +2914,8 @@ class _PurchaseDialogState extends State<_PurchaseDialog> {
       }
     }
 
-    final itemName = replenishStock && widget.purchase == null && stockProduct != null
+    final itemName =
+        replenishStock && widget.purchase == null && stockProduct != null
         ? stockProduct.name
         : itemController.text.trim();
 
@@ -2955,6 +2952,7 @@ class _PurchaseDialogState extends State<_PurchaseDialog> {
       unitCost: unitCost,
       purchaseDate: purchaseDate,
       paid: paid,
+      paymentMethod: selectedPaymentMethod,
       notes: notesController.text.trim(),
       createdAt: old?.createdAt ?? now,
       updatedAt: now,
@@ -2962,7 +2960,9 @@ class _PurchaseDialogState extends State<_PurchaseDialog> {
           ? null
           : documentController.text.trim(),
       stockReplenished: replenishStock && old == null && stockProduct != null,
-      stockProductId: replenishStock && old == null ? stockProductId : old?.stockProductId,
+      stockProductId: replenishStock && old == null
+          ? stockProductId
+          : old?.stockProductId,
       stockProductName: replenishStock && old == null
           ? stockProduct?.name
           : old?.stockProductName,
@@ -2978,6 +2978,18 @@ class _PurchaseDialogState extends State<_PurchaseDialog> {
       suppliers.updatePurchase(purchase);
     }
 
+    final shouldSyncCash =
+        old == null ||
+        old.paid != purchase.paid ||
+        old.totalCost != purchase.totalCost ||
+        old.paymentMethod != purchase.paymentMethod ||
+        old.supplierName != purchase.supplierName ||
+        old.itemName != purchase.itemName;
+
+    if (shouldSyncCash) {
+      _syncSupplierPurchaseCashMovement(context, purchase);
+    }
+
     Navigator.of(context).pop();
 
     ScaffoldMessenger.of(context)
@@ -2987,8 +2999,8 @@ class _PurchaseDialogState extends State<_PurchaseDialog> {
           content: Text(
             old == null
                 ? replenishStock
-                    ? 'Compra salva e estoque reposto.'
-                    : 'Compra salva.'
+                      ? 'Compra salva e estoque reposto.'
+                      : 'Compra salva.'
                 : 'Compra atualizada.',
           ),
         ),
@@ -2998,9 +3010,7 @@ class _PurchaseDialogState extends State<_PurchaseDialog> {
   void _showSnack(String message) {
     ScaffoldMessenger.of(context)
       ..clearSnackBars()
-      ..showSnackBar(
-        SnackBar(content: Text(message)),
-      );
+      ..showSnackBar(SnackBar(content: Text(message)));
   }
 
   double _parsePurchaseDouble(String value) {
@@ -3017,8 +3027,6 @@ class _PurchaseDialogState extends State<_PurchaseDialog> {
     return value.toStringAsFixed(2).replaceAll('.', ',');
   }
 }
-
-
 
 List<SupplierPurchase> _filterByPeriod(
   List<SupplierPurchase> purchases,
@@ -3077,9 +3085,7 @@ List<_SupplierTotal> _supplierTotals(List<SupplierPurchase> purchases) {
   return result;
 }
 
-List<_CategoryPurchaseTotal> _categoryTotals(
-  List<SupplierPurchase> purchases,
-) {
+List<_CategoryPurchaseTotal> _categoryTotals(List<SupplierPurchase> purchases) {
   final map = <String, _CategoryPurchaseTotal>{};
 
   for (final purchase in purchases) {
@@ -3110,8 +3116,9 @@ List<_ItemPurchaseTotal> _itemTotals(List<SupplierPurchase> purchases) {
   final map = <String, _ItemPurchaseTotal>{};
 
   for (final purchase in purchases) {
-    final key =
-        purchase.itemName.trim().isEmpty ? 'Sem item' : purchase.itemName.trim();
+    final key = purchase.itemName.trim().isEmpty
+        ? 'Sem item'
+        : purchase.itemName.trim();
 
     final existing = map[key];
 
@@ -3249,10 +3256,7 @@ class _SupplierTotal {
   final int count;
   final double total;
 
-  _SupplierTotal copyWith({
-    int? count,
-    double? total,
-  }) {
+  _SupplierTotal copyWith({int? count, double? total}) {
     return _SupplierTotal(
       supplierName: supplierName,
       count: count ?? this.count,
@@ -3272,10 +3276,7 @@ class _CategoryPurchaseTotal {
   final double quantity;
   final double total;
 
-  _CategoryPurchaseTotal copyWith({
-    double? quantity,
-    double? total,
-  }) {
+  _CategoryPurchaseTotal copyWith({double? quantity, double? total}) {
     return _CategoryPurchaseTotal(
       category: category,
       quantity: quantity ?? this.quantity,
@@ -3295,10 +3296,7 @@ class _ItemPurchaseTotal {
   final double quantity;
   final double total;
 
-  _ItemPurchaseTotal copyWith({
-    double? quantity,
-    double? total,
-  }) {
+  _ItemPurchaseTotal copyWith({double? quantity, double? total}) {
     return _ItemPurchaseTotal(
       itemName: itemName,
       quantity: quantity ?? this.quantity,

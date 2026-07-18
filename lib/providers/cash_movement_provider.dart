@@ -116,6 +116,23 @@ class CashMovementProvider extends ChangeNotifier {
     _safeNotifySoon();
   }
 
+  void deleteMovementsByReferenceId(String referenceId) {
+    final cleanReference = referenceId.trim();
+
+    if (cleanReference.isEmpty) return;
+
+    final before = _movements.length;
+
+    _movements.removeWhere(
+      (movement) => movement.referenceId == cleanReference,
+    );
+
+    if (_movements.length == before) return;
+
+    _saveData();
+    _safeNotifySoon();
+  }
+
   Future<void> reloadFromStorage() async {
     await _loadData();
     notifyListeners();

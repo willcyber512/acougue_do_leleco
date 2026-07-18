@@ -1,5 +1,6 @@
 import 'product_category.dart';
 import 'product_unit.dart';
+import 'payment_method.dart';
 
 class SupplierPurchase {
   const SupplierPurchase({
@@ -15,6 +16,7 @@ class SupplierPurchase {
     required this.notes,
     required this.createdAt,
     required this.updatedAt,
+    this.paymentMethod = PaymentMethod.dinheiro,
     this.documentNumber,
     this.stockReplenished = false,
     this.stockProductId,
@@ -30,6 +32,7 @@ class SupplierPurchase {
   final double unitCost;
   final DateTime purchaseDate;
   final bool paid;
+  final PaymentMethod paymentMethod;
   final String notes;
   final DateTime createdAt;
   final DateTime updatedAt;
@@ -51,6 +54,7 @@ class SupplierPurchase {
       'unitCost': unitCost,
       'purchaseDate': purchaseDate.toIso8601String(),
       'paid': paid,
+      'paymentMethod': paymentMethod.name,
       'notes': notes,
       'createdAt': createdAt.toIso8601String(),
       'updatedAt': updatedAt.toIso8601String(),
@@ -72,6 +76,7 @@ class SupplierPurchase {
       unitCost: _toDouble(map['unitCost']),
       purchaseDate: _toDate(map['purchaseDate']),
       paid: _toBool(map['paid']),
+      paymentMethod: paymentMethodFromName(map['paymentMethod']?.toString()),
       notes: map['notes']?.toString() ?? '',
       createdAt: _toDate(map['createdAt']),
       updatedAt: _toDate(map['updatedAt']),
@@ -91,6 +96,7 @@ class SupplierPurchase {
     double? unitCost,
     DateTime? purchaseDate,
     bool? paid,
+    PaymentMethod? paymentMethod,
     String? notes,
     DateTime? updatedAt,
     String? documentNumber,
@@ -108,6 +114,7 @@ class SupplierPurchase {
       unitCost: unitCost ?? this.unitCost,
       purchaseDate: purchaseDate ?? this.purchaseDate,
       paid: paid ?? this.paid,
+      paymentMethod: paymentMethod ?? this.paymentMethod,
       notes: notes ?? this.notes,
       createdAt: createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
