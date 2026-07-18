@@ -1292,13 +1292,13 @@ class _CashMovementsPanelState extends State<_CashMovementsPanel> {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
-                          'Controle manual do caixa',
+                          'Controle do caixa',
                           style: Theme.of(context).textTheme.titleLarge
                               ?.copyWith(fontWeight: FontWeight.w900),
                         ),
                         const SizedBox(height: 2),
                         Text(
-                          'Registre dinheiro que entrou ou saiu fora das vendas.',
+                          'Acompanhe entradas, saídas, vendas, fiado recebido e despesas.',
                           style: Theme.of(context).textTheme.bodyMedium
                               ?.copyWith(
                                 color: Theme.of(
@@ -1317,21 +1317,21 @@ class _CashMovementsPanelState extends State<_CashMovementsPanel> {
                 runSpacing: 12,
                 children: [
                   _CashMovementSummaryCard(
-                    title: 'Entradas manuais',
+                    title: 'Entradas no caixa',
                     value: cash.todayInputs,
                     icon: Icons.south_west_rounded,
                     color: Colors.green.shade700,
                     subtitle: 'Reforços e recebimentos extras',
                   ),
                   _CashMovementSummaryCard(
-                    title: 'Saídas manuais',
+                    title: 'Saídas do caixa',
                     value: cash.todayOutputs,
                     icon: Icons.north_east_rounded,
                     color: Colors.red.shade700,
                     subtitle: 'Compras, retiradas e despesas',
                   ),
                   _CashMovementSummaryCard(
-                    title: 'Saldo manual',
+                    title: 'Saldo do caixa',
                     value: cash.todayBalance,
                     icon: Icons.calculate_rounded,
                     color: cash.todayBalance >= 0
@@ -1403,7 +1403,7 @@ class _CashMovementsPanelState extends State<_CashMovementsPanel> {
                     borderRadius: BorderRadius.circular(12),
                   ),
                   child: Text(
-                    'Nenhuma entrada ou saída manual registrada hoje.',
+                    'Nenhuma entrada ou saída registrada hoje.',
                     style: Theme.of(context).textTheme.bodyMedium,
                   ),
                 )
@@ -1504,6 +1504,7 @@ class _CashMovementTile extends StatelessWidget {
     final isInput = movement.type == CashMovementType.input;
     final color = isInput ? Colors.green.shade700 : Colors.red.shade700;
     final sign = isInput ? '+' : '-';
+    final isAutomatic = movement.referenceId?.trim().isNotEmpty == true;
 
     return Container(
       margin: const EdgeInsets.only(bottom: 10),
@@ -1570,54 +1571,74 @@ class _CashMovementTile extends StatelessWidget {
                 ),
               ),
               const SizedBox(height: 4),
-              FilledButton.tonalIcon(
-                style: FilledButton.styleFrom(
-                  foregroundColor: Colors.red.shade700,
+              if (isAutomatic)
+                Container(
                   padding: const EdgeInsets.symmetric(
                     horizontal: 10,
                     vertical: 8,
                   ),
-                  minimumSize: const Size(0, 36),
+                  decoration: BoxDecoration(
+                    color: Theme.of(context).colorScheme.primaryContainer,
+                    borderRadius: BorderRadius.circular(999),
+                  ),
+                  child: Text(
+                    'Automático',
+                    style: TextStyle(
+                      color: Theme.of(context).colorScheme.onPrimaryContainer,
+                      fontWeight: FontWeight.w900,
+                      fontSize: 12,
+                    ),
+                  ),
+                )
+              else
+                FilledButton.tonalIcon(
+                  style: FilledButton.styleFrom(
+                    foregroundColor: Colors.red.shade700,
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 10,
+                      vertical: 8,
+                    ),
+                    minimumSize: const Size(0, 36),
+                  ),
+                  onPressed: () async {
+                    final confirmed = await showDialog<bool>(
+                      context: context,
+                      builder: (dialogContext) {
+                        return AlertDialog(
+                          title: const Text('Excluir lançamento?'),
+                          content: Text(
+                            'Remover este registro manual do caixa?\n\n'
+                            '${movement.reason.isEmpty ? movement.category.label : movement.reason}\n'
+                            '${_formatMoney(movement.amount)}',
+                          ),
+                          actions: [
+                            TextButton(
+                              onPressed: () =>
+                                  Navigator.of(dialogContext).pop(false),
+                              child: const Text('Cancelar'),
+                            ),
+                            FilledButton.icon(
+                              onPressed: () =>
+                                  Navigator.of(dialogContext).pop(true),
+                              icon: const Icon(Icons.delete_outline_rounded),
+                              label: const Text('Excluir'),
+                            ),
+                          ],
+                        );
+                      },
+                    );
+
+                    if (confirmed != true) return;
+
+                    context.read<CashMovementProvider>().deleteMovement(
+                      movement.id,
+                    );
+
+                    onChanged();
+                  },
+                  icon: const Icon(Icons.delete_outline_rounded, size: 18),
+                  label: const Text('Excluir'),
                 ),
-                onPressed: () async {
-                  final confirmed = await showDialog<bool>(
-                    context: context,
-                    builder: (dialogContext) {
-                      return AlertDialog(
-                        title: const Text('Excluir lançamento?'),
-                        content: Text(
-                          'Remover este registro do caixa?\n\n'
-                          '${movement.reason.isEmpty ? movement.category.label : movement.reason}\n'
-                          '${_formatMoney(movement.amount)}',
-                        ),
-                        actions: [
-                          TextButton(
-                            onPressed: () =>
-                                Navigator.of(dialogContext).pop(false),
-                            child: const Text('Cancelar'),
-                          ),
-                          FilledButton.icon(
-                            onPressed: () =>
-                                Navigator.of(dialogContext).pop(true),
-                            icon: const Icon(Icons.delete_outline_rounded),
-                            label: const Text('Excluir'),
-                          ),
-                        ],
-                      );
-                    },
-                  );
-
-                  if (confirmed != true) return;
-
-                  context.read<CashMovementProvider>().deleteMovement(
-                    movement.id,
-                  );
-
-                  onChanged();
-                },
-                icon: const Icon(Icons.delete_outline_rounded, size: 18),
-                label: const Text('Excluir'),
-              ),
             ],
           ),
         ],
