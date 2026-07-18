@@ -18,6 +18,8 @@ import '../../providers/cash_movement_provider.dart';
 import '../../providers/inventory_provider.dart';
 import '../../providers/sales_provider.dart';
 import '../../providers/suppliers_provider.dart';
+import '../../models/cash_closure.dart';
+import '../../providers/cash_closure_provider.dart';
 
 enum _ReportSection {
   overview,
@@ -103,6 +105,12 @@ class _ReportsScreenState extends State<ReportsScreen> {
               cashMovements,
             );
 
+            final cashClosuresProvider = context.watch<CashClosureProvider>();
+            final cashClosures = _filterCashClosuresByPeriod(
+              cashClosuresProvider.closures,
+              selectedPeriod,
+            );
+
             final lowStock = inventory.products.where((product) {
               return !product.isDeleted && product.isLowStock;
             }).toList();
@@ -154,6 +162,8 @@ class _ReportsScreenState extends State<ReportsScreen> {
                       outputs: manualCashOutputs,
                       balance: manualCashBalance,
                     ),
+                    const SizedBox(height: 14),
+                    _CashClosureReportPanel(closures: cashClosures),
                     const SizedBox(height: 14),
                     _ReportMenu(
                       selected: selectedSection,
@@ -480,6 +490,180 @@ class _KpiCard extends StatelessWidget {
             child: CustomPaint(
               painter: _SparkLinePainter(values, color: AppColors.wine700),
               size: Size.infinite,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _CashClosureReportPanel extends StatelessWidget {
+  const _CashClosureReportPanel({required this.closures});
+
+  final List<CashClosure> closures;
+
+  @override
+  Widget build(BuildContext context) {
+    final latest = closures.isEmpty ? null : closures.first;
+
+    if (latest == null) {
+      return _LelecoPanel(
+        padding: const EdgeInsets.all(18),
+        child: Row(
+          children: [
+            _IconBadge(icon: Icons.lock_clock_rounded),
+            const SizedBox(width: 14),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Fechamento do caixa',
+                    style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                      fontWeight: FontWeight.w900,
+                      color: _titleColor(context),
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    'Nenhum fechamento registrado nesse período.',
+                    style: TextStyle(
+                      color: _mutedColor(context),
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      );
+    }
+
+    final color = latest.isBalanced
+        ? Colors.green.shade700
+        : latest.difference > 0
+        ? Colors.orange.shade800
+        : Colors.red.shade700;
+
+    return _LelecoPanel(
+      padding: const EdgeInsets.all(18),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              _IconBadge(icon: Icons.fact_check_rounded),
+              const SizedBox(width: 14),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Fechamento do caixa',
+                      style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                        fontWeight: FontWeight.w900,
+                        color: _titleColor(context),
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      '${closures.length} fechamento(s) no período • último: ${latest.dayKey}',
+                      style: TextStyle(
+                        color: _mutedColor(context),
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              Chip(
+                avatar: Icon(Icons.verified_rounded, color: color, size: 18),
+                label: Text(
+                  latest.statusLabel,
+                  style: TextStyle(color: color, fontWeight: FontWeight.w900),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 14),
+          Wrap(
+            spacing: 10,
+            runSpacing: 10,
+            children: [
+              _CashClosureReportMetric(
+                title: 'Saldo inicial',
+                value: _formatMoney(latest.openingAmount),
+                color: AppColors.wine700,
+              ),
+              _CashClosureReportMetric(
+                title: 'Esperado',
+                value: _formatMoney(latest.expectedCash),
+                color: AppColors.wine700,
+              ),
+              _CashClosureReportMetric(
+                title: 'Contado',
+                value: _formatMoney(latest.countedAmount),
+                color: color,
+              ),
+              _CashClosureReportMetric(
+                title: 'Diferença',
+                value: _formatMoney(latest.difference),
+                color: color,
+              ),
+            ],
+          ),
+          if (latest.notes.trim().isNotEmpty) ...[
+            const SizedBox(height: 10),
+            Text(
+              'Observação: ${latest.notes}',
+              style: TextStyle(
+                color: _mutedColor(context),
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+}
+
+class _CashClosureReportMetric extends StatelessWidget {
+  const _CashClosureReportMetric({
+    required this.title,
+    required this.value,
+    required this.color,
+  });
+
+  final String title;
+  final String value;
+  final Color color;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: 170,
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: color.withOpacity(0.08),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: color.withOpacity(0.18)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(title, style: Theme.of(context).textTheme.bodySmall),
+          const SizedBox(height: 4),
+          Text(
+            value,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: TextStyle(
+              color: color,
+              fontWeight: FontWeight.w900,
+              fontSize: 16,
             ),
           ),
         ],
@@ -2636,6 +2820,9 @@ Future<void> _exportReportsPdf({
     final cashPdfOutputs = cashPdfProvider.todayOutputs;
     final cashPdfBalance = cashPdfProvider.todayBalance;
 
+    final cashPdfClosureProvider = context.read<CashClosureProvider>();
+    final cashPdfClosure = cashPdfClosureProvider.closureForDay(DateTime.now());
+
     final cashPdfInputCount = cashPdfMovements
         .where((movement) => movement.type == CashMovementType.input)
         .length;
@@ -2688,6 +2875,40 @@ Future<void> _exportReportsPdf({
         '$count lançamento(s)',
       ];
     }).toList();
+
+    final cashPdfClosureRows = <List<String>>[
+      if (cashPdfClosure == null) ...[
+        ['Status', 'Caixa ainda não fechado', 'Feche pela aba Caixa'],
+      ] else ...[
+        [
+          'Status',
+          cashPdfClosure.statusLabel,
+          'Fechado em ${_formatDate(cashPdfClosure.createdAt)} às ${_formatTime(cashPdfClosure.createdAt)}',
+        ],
+        [
+          'Saldo inicial',
+          _formatMoney(cashPdfClosure.openingAmount),
+          'Valor informado na abertura/fechamento',
+        ],
+        [
+          'Saldo esperado',
+          _formatMoney(cashPdfClosure.expectedCash),
+          'Inicial + entradas - saídas',
+        ],
+        [
+          'Valor contado',
+          _formatMoney(cashPdfClosure.countedAmount),
+          'Valor conferido no caixa',
+        ],
+        [
+          'Diferença',
+          _formatMoney(cashPdfClosure.difference),
+          cashPdfClosure.isBalanced ? 'Caixa batendo' : 'Conferir sobra/falta',
+        ],
+        if (cashPdfClosure.notes.trim().isNotEmpty)
+          ['Observação', cashPdfClosure.notes.trim(), '-'],
+      ],
+    ];
     // PDF_CAIXA_OK_DADOS_END
 
     final productRows = <List<String>>[];
@@ -3012,7 +3233,7 @@ Future<void> _exportReportsPdf({
               pw.SizedBox(height: 8),
               sectionTitle(
                 'Controle do caixa',
-                'Resumo das entradas e saídas do caixa do caixa.',
+                'Resumo das entradas, saídas e fechamento do caixa.',
               ),
               pw.Wrap(
                 spacing: 8,
@@ -3039,7 +3260,13 @@ Future<void> _exportReportsPdf({
               dataTable(
                 headers: const ['Indicador', 'Valor', 'Observação'],
                 rows: cashPdfSummaryRows,
-                emptyText: 'Nenhuma movimentação no caixa no caixa.',
+                emptyText: 'Nenhuma movimentação no caixa.',
+              ),
+              pw.SizedBox(height: 7),
+              dataTable(
+                headers: const ['Fechamento', 'Valor', 'Observação'],
+                rows: cashPdfClosureRows,
+                emptyText: 'Nenhum fechamento registrado.',
               ),
               pw.SizedBox(height: 7),
               dataTable(
@@ -3517,6 +3744,52 @@ class _CashMovementsReportPanel extends StatelessWidget {
       ],
     );
   }
+}
+
+List<CashClosure> _filterCashClosuresByPeriod(
+  List<CashClosure> closures,
+  _ReportPeriod period,
+) {
+  if (period == _ReportPeriod.all) {
+    return List.unmodifiable(closures);
+  }
+
+  final now = DateTime.now();
+  late final DateTime start;
+
+  switch (period) {
+    case _ReportPeriod.today:
+      start = DateTime(now.year, now.month, now.day);
+      break;
+    case _ReportPeriod.sevenDays:
+      start = DateTime(
+        now.year,
+        now.month,
+        now.day,
+      ).subtract(const Duration(days: 6));
+      break;
+    case _ReportPeriod.thirtyDays:
+      start = DateTime(
+        now.year,
+        now.month,
+        now.day,
+      ).subtract(const Duration(days: 29));
+      break;
+    case _ReportPeriod.all:
+      start = DateTime.fromMillisecondsSinceEpoch(0);
+      break;
+  }
+
+  final end = DateTime(
+    now.year,
+    now.month,
+    now.day,
+  ).add(const Duration(days: 1));
+
+  return closures.where((closure) {
+    final createdAt = closure.createdAt;
+    return !createdAt.isBefore(start) && createdAt.isBefore(end);
+  }).toList();
 }
 
 List<CashMovement> _filterCashMovementsByPeriod(
