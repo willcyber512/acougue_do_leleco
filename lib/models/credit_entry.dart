@@ -30,6 +30,7 @@ class CreditEntry {
     required this.description,
     required this.createdAt,
     this.paymentMethod = PaymentMethod.dinheiro,
+    this.cashMovementReferenceId,
     this.saleId,
   });
 
@@ -41,6 +42,7 @@ class CreditEntry {
   final String description;
   final DateTime createdAt;
   final PaymentMethod paymentMethod;
+  final String? cashMovementReferenceId;
   final String? saleId;
 
   Map<String, dynamic> toMap() {
@@ -53,6 +55,7 @@ class CreditEntry {
       'description': description,
       'createdAt': createdAt.toIso8601String(),
       'paymentMethod': paymentMethod.name,
+      'cashMovementReferenceId': cashMovementReferenceId,
       'saleId': saleId,
     };
   }
@@ -67,6 +70,7 @@ class CreditEntry {
       description: map['description']?.toString() ?? '',
       createdAt: _toDate(map['createdAt']),
       paymentMethod: paymentMethodFromName(map['paymentMethod']?.toString()),
+      cashMovementReferenceId: map['cashMovementReferenceId']?.toString(),
       saleId: map['saleId']?.toString(),
     );
   }

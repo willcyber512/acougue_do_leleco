@@ -420,10 +420,14 @@ Future<void> _openPaymentDialog(BuildContext context, Customer customer) async {
                       ? 'Pagamento de fiado'
                       : noteController.text.trim();
 
+                  final cashReferenceId =
+                      'credit_payment:${customer.id}:${DateTime.now().microsecondsSinceEpoch}';
+
                   provider.registerPayment(
                     customerId: customer.id,
                     amount: receivedAmount,
                     paymentMethod: selectedPaymentMethod,
+                    cashMovementReferenceId: cashReferenceId,
                     description: description,
                   );
 
@@ -434,8 +438,7 @@ Future<void> _openPaymentDialog(BuildContext context, Customer customer) async {
                     paymentMethod: selectedPaymentMethod,
                     reason: 'Pagamento fiado - ${customer.name}',
                     description: description,
-                    referenceId:
-                        'credit_payment:${customer.id}:${DateTime.now().microsecondsSinceEpoch}',
+                    referenceId: cashReferenceId,
                     personName: customer.name,
                     createdAt: DateTime.now(),
                   );
@@ -570,6 +573,7 @@ Future<void> _cancelFiadoSaleFromCustomerHistory(
   final reason = await _askCreditCancelReason(
     context,
     title: 'Cancelar venda fiada #${sale.shortId}',
+    actionLabel: 'Cancelar venda',
   );
 
   if (reason == null) return;
@@ -598,9 +602,45 @@ Future<void> _cancelFiadoSaleFromCustomerHistory(
   );
 }
 
+Future<void> _cancelCreditPaymentFromCustomerHistory(
+  BuildContext context,
+  CreditEntry entry,
+) async {
+  if (entry.type != CreditEntryType.payment) return;
+
+  final reason = await _askCreditCancelReason(
+    context,
+    title: 'Estornar pagamento de ${_formatMoney(entry.amount)}',
+    actionLabel: 'Estornar pagamento',
+  );
+
+  if (reason == null) return;
+  if (!context.mounted) return;
+
+  final customers = context.read<CustomersProvider>();
+  final cash = context.read<CashMovementProvider>();
+
+  customers.deleteEntryById(entry.id);
+
+  final cashReference = entry.cashMovementReferenceId?.trim();
+
+  if (cashReference != null && cashReference.isNotEmpty) {
+    cash.deleteMovementsByReferenceId(cashReference);
+
+    _showMessage(context, 'Pagamento estornado e entrada removida do caixa.');
+    return;
+  }
+
+  _showMessage(
+    context,
+    'Pagamento estornado no fiado. Confira o caixa manualmente se esse pagamento for antigo.',
+  );
+}
+
 Future<String?> _askCreditCancelReason(
   BuildContext context, {
   required String title,
+  required String actionLabel,
 }) async {
   final controller = TextEditingController();
 
@@ -614,8 +654,8 @@ Future<String?> _askCreditCancelReason(
           autofocus: true,
           maxLines: 3,
           decoration: const InputDecoration(
-            labelText: 'Motivo do cancelamento',
-            hintText: 'Ex: venda lançada errado',
+            labelText: 'Motivo',
+            hintText: 'Ex: lançamento feito errado',
           ),
         ),
         actions: [
@@ -624,18 +664,18 @@ Future<String?> _askCreditCancelReason(
             child: const Text('Voltar'),
           ),
           FilledButton.icon(
-            icon: const Icon(Icons.cancel_outlined),
+            icon: const Icon(Icons.undo_rounded),
             onPressed: () {
               final reason = controller.text.trim();
 
               if (reason.isEmpty) {
-                _showMessage(context, 'Informe o motivo do cancelamento.');
+                _showMessage(context, 'Informe o motivo.');
                 return;
               }
 
               Navigator.of(dialogContext).pop(reason);
             },
-            label: const Text('Cancelar venda'),
+            label: Text(actionLabel),
           ),
         ],
       );
@@ -712,6 +752,17 @@ class _CreditEntryCard extends StatelessWidget {
                     label: const Text('Cancelar'),
                     style: TextButton.styleFrom(
                       foregroundColor: AppColors.warning,
+                      visualDensity: VisualDensity.compact,
+                    ),
+                  ),
+                if (!isPurchase)
+                  TextButton.icon(
+                    onPressed: () =>
+                        _cancelCreditPaymentFromCustomerHistory(context, entry),
+                    icon: const Icon(Icons.undo_rounded, size: 18),
+                    label: const Text('Estornar'),
+                    style: TextButton.styleFrom(
+                      foregroundColor: AppColors.success,
                       visualDensity: VisualDensity.compact,
                     ),
                   ),

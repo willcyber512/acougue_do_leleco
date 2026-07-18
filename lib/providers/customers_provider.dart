@@ -183,6 +183,7 @@ class CustomersProvider extends ChangeNotifier {
     required String customerId,
     required double amount,
     PaymentMethod paymentMethod = PaymentMethod.dinheiro,
+    String? cashMovementReferenceId,
     String? description,
   }) {
     if (amount <= 0) return;
@@ -207,6 +208,7 @@ class CustomersProvider extends ChangeNotifier {
       description: _emptyToNull(description) ?? 'Pagamento recebido',
       createdAt: now,
       paymentMethod: paymentMethod,
+      cashMovementReferenceId: cashMovementReferenceId,
     );
 
     _entries.insert(0, entry);
@@ -221,6 +223,20 @@ class CustomersProvider extends ChangeNotifier {
     final before = _entries.length;
 
     _entries.removeWhere((entry) => entry.saleId == cleanSaleId);
+
+    if (_entries.length == before) return;
+
+    _saveAllAndNotify();
+  }
+
+  void deleteEntryById(String entryId) {
+    final cleanId = entryId.trim();
+
+    if (cleanId.isEmpty) return;
+
+    final before = _entries.length;
+
+    _entries.removeWhere((entry) => entry.id == cleanId);
 
     if (_entries.length == before) return;
 
