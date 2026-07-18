@@ -79,12 +79,14 @@ class CustomersProvider extends ChangeNotifier {
   double get paymentsReceivedToday {
     final now = DateTime.now();
 
-    return _entries.where((entry) {
-      return entry.type == CreditEntryType.payment &&
-          entry.createdAt.year == now.year &&
-          entry.createdAt.month == now.month &&
-          entry.createdAt.day == now.day;
-    }).fold(0.0, (total, entry) => total + entry.amount);
+    return _entries
+        .where((entry) {
+          return entry.type == CreditEntryType.payment &&
+              entry.createdAt.year == now.year &&
+              entry.createdAt.month == now.month &&
+              entry.createdAt.day == now.day;
+        })
+        .fold(0.0, (total, entry) => total + entry.amount);
   }
 
   Future<void> reloadFromStorage() async {
@@ -111,29 +113,27 @@ class CustomersProvider extends ChangeNotifier {
   }
 
   double balanceForCustomer(String customerId) {
-    return _entries.where((entry) => entry.customerId == customerId).fold(
-      0.0,
-      (total, entry) {
-        if (entry.type == CreditEntryType.purchase) {
-          return total + entry.amount;
-        }
+    return _entries.where((entry) => entry.customerId == customerId).fold(0.0, (
+      total,
+      entry,
+    ) {
+      if (entry.type == CreditEntryType.purchase) {
+        return total + entry.amount;
+      }
 
-        return total - entry.amount;
-      },
-    );
+      return total - entry.amount;
+    });
   }
 
   List<CreditEntry> entriesForCustomer(String customerId) {
-    final result = _entries.where((entry) => entry.customerId == customerId).toList();
+    final result = _entries
+        .where((entry) => entry.customerId == customerId)
+        .toList();
     result.sort((a, b) => b.createdAt.compareTo(a.createdAt));
     return List.unmodifiable(result);
   }
 
-  void addCustomer({
-    required String name,
-    String? phone,
-    String? notes,
-  }) {
+  void addCustomer({required String name, String? phone, String? notes}) {
     final now = DateTime.now();
 
     final customer = Customer(
@@ -180,6 +180,7 @@ class CustomersProvider extends ChangeNotifier {
   void registerPayment({
     required String customerId,
     required double amount,
+    PaymentMethod paymentMethod = PaymentMethod.dinheiro,
     String? description,
   }) {
     if (amount <= 0) return;
@@ -203,6 +204,7 @@ class CustomersProvider extends ChangeNotifier {
       amount: safeAmount,
       description: _emptyToNull(description) ?? 'Pagamento recebido',
       createdAt: now,
+      paymentMethod: paymentMethod,
     );
 
     _entries.insert(0, entry);
@@ -233,10 +235,8 @@ class CustomersProvider extends ChangeNotifier {
         ..clear()
         ..addAll(
           decoded.whereType<Map>().map(
-                (item) => Customer.fromMap(
-                  Map<String, dynamic>.from(item),
-                ),
-              ),
+            (item) => Customer.fromMap(Map<String, dynamic>.from(item)),
+          ),
         );
     }
   }
@@ -253,10 +253,8 @@ class CustomersProvider extends ChangeNotifier {
         ..clear()
         ..addAll(
           decoded.whereType<Map>().map(
-                (item) => CreditEntry.fromMap(
-                  Map<String, dynamic>.from(item),
-                ),
-              ),
+            (item) => CreditEntry.fromMap(Map<String, dynamic>.from(item)),
+          ),
         );
     }
   }
@@ -274,9 +272,7 @@ class CustomersProvider extends ChangeNotifier {
   Future<void> _saveEntries() async {
     final prefs = await SharedPreferences.getInstance();
 
-    final encoded = jsonEncode(
-      _entries.map((entry) => entry.toMap()).toList(),
-    );
+    final encoded = jsonEncode(_entries.map((entry) => entry.toMap()).toList());
 
     await prefs.setString(_entriesStorageKey, encoded);
   }

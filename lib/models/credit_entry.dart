@@ -1,7 +1,6 @@
-enum CreditEntryType {
-  purchase,
-  payment,
-}
+import 'payment_method.dart';
+
+enum CreditEntryType { purchase, payment }
 
 extension CreditEntryTypeLabel on CreditEntryType {
   String get label {
@@ -30,6 +29,7 @@ class CreditEntry {
     required this.amount,
     required this.description,
     required this.createdAt,
+    this.paymentMethod = PaymentMethod.dinheiro,
     this.saleId,
   });
 
@@ -40,6 +40,7 @@ class CreditEntry {
   final double amount;
   final String description;
   final DateTime createdAt;
+  final PaymentMethod paymentMethod;
   final String? saleId;
 
   Map<String, dynamic> toMap() {
@@ -51,6 +52,7 @@ class CreditEntry {
       'amount': amount,
       'description': description,
       'createdAt': createdAt.toIso8601String(),
+      'paymentMethod': paymentMethod.name,
       'saleId': saleId,
     };
   }
@@ -64,6 +66,7 @@ class CreditEntry {
       amount: _toDouble(map['amount']),
       description: map['description']?.toString() ?? '',
       createdAt: _toDate(map['createdAt']),
+      paymentMethod: paymentMethodFromName(map['paymentMethod']?.toString()),
       saleId: map['saleId']?.toString(),
     );
   }

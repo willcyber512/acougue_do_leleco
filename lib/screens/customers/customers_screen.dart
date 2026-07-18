@@ -2,8 +2,11 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import '../../core/constants/app_colors.dart';
+import '../../models/cash_movement.dart';
 import '../../models/credit_entry.dart';
 import '../../models/customer.dart';
+import '../../models/payment_method.dart';
+import '../../providers/cash_movement_provider.dart';
 import '../../providers/customers_provider.dart';
 import '../../widgets/leleco_metric_card.dart';
 
@@ -120,10 +123,7 @@ class _CustomersToolbar extends StatelessWidget {
 }
 
 class _CustomerCard extends StatelessWidget {
-  const _CustomerCard({
-    required this.provider,
-    required this.customer,
-  });
+  const _CustomerCard({required this.provider, required this.customer});
 
   final CustomersProvider provider;
   final Customer customer;
@@ -158,8 +158,8 @@ class _CustomerCard extends StatelessWidget {
                   Text(
                     customer.name,
                     style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                          fontWeight: FontWeight.w900,
-                        ),
+                      fontWeight: FontWeight.w900,
+                    ),
                   ),
                   const SizedBox(height: 4),
                   Text(
@@ -218,9 +218,7 @@ class _EmptyCustomers extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return const Center(
-      child: Text('Nenhum cliente cadastrado.'),
-    );
+    return const Center(child: Text('Nenhum cliente cadastrado.'));
   }
 }
 
@@ -311,78 +309,146 @@ Future<void> _openCustomerDialog(
   );
 }
 
-Future<void> _openPaymentDialog(
-  BuildContext context,
-  Customer customer,
-) async {
+Future<void> _openPaymentDialog(BuildContext context, Customer customer) async {
   final provider = context.read<CustomersProvider>();
+  final cashProvider = context.read<CashMovementProvider>();
   final balance = provider.balanceForCustomer(customer.id);
 
   final amountController = TextEditingController(
-    text: balance.toStringAsFixed(2),
+    text: balance.toStringAsFixed(2).replaceAll('.', ','),
   );
   final noteController = TextEditingController();
+
+  var selectedPaymentMethod = PaymentMethod.dinheiro;
 
   await showDialog<void>(
     context: context,
     builder: (dialogContext) {
-      return AlertDialog(
-        title: Text('Receber de ${customer.name}'),
-        content: SizedBox(
-          width: 420,
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Text(
-                'Saldo atual: ${_formatMoney(balance)}',
-                style: const TextStyle(fontWeight: FontWeight.w900),
+      return StatefulBuilder(
+        builder: (dialogContext, setDialogState) {
+          return AlertDialog(
+            title: Text('Receber de ${customer.name}'),
+            content: SizedBox(
+              width: 460,
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.all(14),
+                    decoration: BoxDecoration(
+                      color: AppColors.wine900.withOpacity(0.10),
+                      borderRadius: BorderRadius.circular(18),
+                    ),
+                    child: Text(
+                      'Saldo atual: ${_formatMoney(balance)}',
+                      style: const TextStyle(fontWeight: FontWeight.w900),
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  TextField(
+                    controller: amountController,
+                    keyboardType: TextInputType.number,
+                    decoration: const InputDecoration(
+                      labelText: 'Valor recebido',
+                      hintText: 'Ex: 50,00',
+                      prefixText: 'R\$ ',
+                    ),
+                  ),
+                  const SizedBox(height: 14),
+                  DropdownButtonFormField<PaymentMethod>(
+                    value: selectedPaymentMethod,
+                    decoration: const InputDecoration(
+                      labelText: 'Forma de pagamento',
+                      helperText: 'Esse valor entra automaticamente no caixa',
+                    ),
+                    items: PaymentMethod.values
+                        .where((method) => method != PaymentMethod.fiado)
+                        .map((method) {
+                          return DropdownMenuItem(
+                            value: method,
+                            child: Text(method.label),
+                          );
+                        })
+                        .toList(),
+                    onChanged: (value) {
+                      if (value == null) return;
+                      setDialogState(() => selectedPaymentMethod = value);
+                    },
+                  ),
+                  const SizedBox(height: 14),
+                  TextField(
+                    controller: noteController,
+                    maxLines: 2,
+                    decoration: const InputDecoration(
+                      labelText: 'Observação',
+                      hintText: 'Ex: pagou parte da dívida',
+                    ),
+                  ),
+                ],
               ),
-              const SizedBox(height: 16),
-              TextField(
-                controller: amountController,
-                keyboardType: TextInputType.number,
-                decoration: const InputDecoration(
-                  labelText: 'Valor recebido',
-                  hintText: 'Ex: 50,00',
-                ),
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.of(dialogContext).pop(),
+                child: const Text('Cancelar'),
               ),
-              const SizedBox(height: 14),
-              TextField(
-                controller: noteController,
-                maxLines: 2,
-                decoration: const InputDecoration(
-                  labelText: 'Observação',
-                  hintText: 'Ex: pagamento em dinheiro',
-                ),
+              FilledButton.icon(
+                icon: const Icon(Icons.payments_rounded),
+                onPressed: () {
+                  final amount = _parseDouble(amountController.text);
+
+                  if (amount <= 0) {
+                    _showMessage(context, 'Informe um valor válido.');
+                    return;
+                  }
+
+                  final receivedAmount = amount > balance ? balance : amount;
+
+                  if (receivedAmount <= 0) {
+                    _showMessage(
+                      context,
+                      'Esse cliente não tem saldo em aberto.',
+                    );
+                    return;
+                  }
+
+                  final description = noteController.text.trim().isEmpty
+                      ? 'Pagamento de fiado'
+                      : noteController.text.trim();
+
+                  provider.registerPayment(
+                    customerId: customer.id,
+                    amount: receivedAmount,
+                    paymentMethod: selectedPaymentMethod,
+                    description: description,
+                  );
+
+                  cashProvider.addMovement(
+                    type: CashMovementType.input,
+                    category: CashMovementCategory.creditPayment,
+                    amount: receivedAmount,
+                    paymentMethod: selectedPaymentMethod,
+                    reason: 'Pagamento fiado - ${customer.name}',
+                    description: description,
+                    referenceId:
+                        'credit_payment:${customer.id}:${DateTime.now().microsecondsSinceEpoch}',
+                    personName: customer.name,
+                    createdAt: DateTime.now(),
+                  );
+
+                  Navigator.of(dialogContext).pop();
+
+                  _showMessage(
+                    context,
+                    'Pagamento recebido e lançado no caixa.',
+                  );
+                },
+                label: const Text('Receber'),
               ),
             ],
-          ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(dialogContext).pop(),
-            child: const Text('Cancelar'),
-          ),
-          FilledButton(
-            onPressed: () {
-              final amount = _parseDouble(amountController.text);
-
-              if (amount <= 0) {
-                _showMessage(context, 'Informe um valor válido.');
-                return;
-              }
-
-              provider.registerPayment(
-                customerId: customer.id,
-                amount: amount,
-                description: noteController.text,
-              );
-
-              Navigator.of(dialogContext).pop();
-            },
-            child: const Text('Receber'),
-          ),
-        ],
+          );
+        },
       );
     },
   );
@@ -490,6 +556,11 @@ class _CreditEntryCard extends StatelessWidget {
                   ),
                   const SizedBox(height: 4),
                   Text(entry.description),
+                  if (!isPurchase)
+                    Text(
+                      'Forma: ${entry.paymentMethod.label}',
+                      style: Theme.of(context).textTheme.bodySmall,
+                    ),
                   const SizedBox(height: 3),
                   Text(
                     _formatDateTime(entry.createdAt),
@@ -500,10 +571,7 @@ class _CreditEntryCard extends StatelessWidget {
             ),
             Text(
               '${isPurchase ? '+' : '-'} ${_formatMoney(entry.amount)}',
-              style: TextStyle(
-                color: color,
-                fontWeight: FontWeight.w900,
-              ),
+              style: TextStyle(color: color, fontWeight: FontWeight.w900),
             ),
           ],
         ),
@@ -515,9 +583,7 @@ class _CreditEntryCard extends StatelessWidget {
 void _showMessage(BuildContext context, String message) {
   ScaffoldMessenger.of(context)
     ..clearSnackBars()
-    ..showSnackBar(
-      SnackBar(content: Text(message)),
-    );
+    ..showSnackBar(SnackBar(content: Text(message)));
 }
 
 String _formatMoney(double value) {
@@ -540,6 +606,11 @@ String _two(int value) {
 }
 
 double _parseDouble(String value) {
-  final normalized = value.trim().replaceAll(',', '.');
+  final normalized = value
+      .trim()
+      .replaceAll(r'R$', '')
+      .replaceAll('.', '')
+      .replaceAll(',', '.')
+      .replaceAll(RegExp(r'[^0-9\\.\\-]'), '');
   return double.tryParse(normalized) ?? 0;
 }
