@@ -11,6 +11,7 @@ import '../../models/scale_barcode_data.dart';
 import '../../providers/inventory_provider.dart';
 import '../../providers/sales_provider.dart';
 import '../../services/scales/scale_barcode_parser.dart';
+import '../../services/cash_sale_sync.dart';
 
 class QuickWeightSaleScreen extends StatefulWidget {
   const QuickWeightSaleScreen({super.key});
@@ -148,18 +149,22 @@ class _QuickWeightSaleScreenState extends State<QuickWeightSaleScreen> {
     final valueAsPrice = barcode.priceFromBarcode;
     final valueAsWeight = barcode.weightKgFromBarcode;
 
-    final quantityIfPrice = product.salePrice <= 0 ? 0.0 : valueAsPrice / product.salePrice;
+    final quantityIfPrice = product.salePrice <= 0
+        ? 0.0
+        : valueAsPrice / product.salePrice;
     final totalIfWeight = valueAsWeight * product.salePrice;
 
-    final stockLimit = product.stockQuantity <= 0 ? 999999.0 : product.stockQuantity * 1.05;
+    final stockLimit = product.stockQuantity <= 0
+        ? 999999.0
+        : product.stockQuantity * 1.05;
 
-    final priceLooksPossible = valueAsPrice > 0 &&
+    final priceLooksPossible =
+        valueAsPrice > 0 &&
         quantityIfPrice > 0 &&
         quantityIfPrice <= stockLimit;
 
-    final weightLooksPossible = valueAsWeight > 0 &&
-        valueAsWeight <= stockLimit &&
-        valueAsWeight <= 30;
+    final weightLooksPossible =
+        valueAsWeight > 0 && valueAsWeight <= stockLimit && valueAsWeight <= 30;
 
     if (weightLooksPossible && !priceLooksPossible) {
       return _DecodedLabel(
@@ -218,7 +223,9 @@ class _QuickWeightSaleScreenState extends State<QuickWeightSaleScreen> {
         : (_weightKg * 1000).round();
 
     if (value <= 0) {
-      _showError('Digite um peso/quantidade maior que zero para gerar a etiqueta teste.');
+      _showError(
+        'Digite um peso/quantidade maior que zero para gerar a etiqueta teste.',
+      );
       return;
     }
 
@@ -236,7 +243,10 @@ class _QuickWeightSaleScreenState extends State<QuickWeightSaleScreen> {
     _focusBarcodeField();
   }
 
-  void _addBarcodeToSale(List<Product> products, {bool silentWhenEmpty = false}) {
+  void _addBarcodeToSale(
+    List<Product> products, {
+    bool silentWhenEmpty = false,
+  }) {
     _barcodeDebounce?.cancel();
 
     final rawCode = _barcodeController.text.trim();
@@ -248,13 +258,12 @@ class _QuickWeightSaleScreenState extends State<QuickWeightSaleScreen> {
       return;
     }
 
-    final parsed = _parser.parse(
-      rawCode,
-      mode: _barcodeMode,
-    );
+    final parsed = _parser.parse(rawCode, mode: _barcodeMode);
 
     if (parsed == null) {
-      _showError('Código inválido. A etiqueta precisa ter 13 números e começar com 2.');
+      _showError(
+        'Código inválido. A etiqueta precisa ter 13 números e começar com 2.',
+      );
       return;
     }
 
@@ -348,10 +357,7 @@ class _QuickWeightSaleScreenState extends State<QuickWeightSaleScreen> {
     }
 
     return grouped.values.map((item) {
-      return SaleCartItem(
-        product: item.product,
-        quantity: item.quantity,
-      );
+      return SaleCartItem(product: item.product, quantity: item.quantity);
     }).toList();
   }
 
@@ -386,6 +392,8 @@ class _QuickWeightSaleScreenState extends State<QuickWeightSaleScreen> {
     }
 
     sales.registerExternalSale(sale);
+
+    syncSaleCashMovement(context, sale);
 
     final itemCount = _pendingItems.length;
     final total = sale.total;
@@ -437,10 +445,7 @@ class _QuickWeightSaleScreenState extends State<QuickWeightSaleScreen> {
     });
 
     ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(message),
-        backgroundColor: Colors.red,
-      ),
+      SnackBar(content: Text(message), backgroundColor: Colors.red),
     );
 
     _focusBarcodeField();
@@ -454,18 +459,17 @@ class _QuickWeightSaleScreenState extends State<QuickWeightSaleScreen> {
 
     final products = inventory.products;
     final selectedProduct =
-        _selectedProduct != null && products.any((p) => p.id == _selectedProduct!.id)
-            ? products.firstWhere((p) => p.id == _selectedProduct!.id)
-            : products.isNotEmpty
-                ? products.first
-                : null;
+        _selectedProduct != null &&
+            products.any((p) => p.id == _selectedProduct!.id)
+        ? products.firstWhere((p) => p.id == _selectedProduct!.id)
+        : products.isNotEmpty
+        ? products.first
+        : null;
 
     _selectedProduct = selectedProduct;
 
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Venda por etiqueta'),
-      ),
+      appBar: AppBar(title: const Text('Venda por etiqueta')),
       bottomNavigationBar: SafeArea(
         child: Container(
           padding: const EdgeInsets.all(12),
@@ -490,10 +494,8 @@ class _QuickWeightSaleScreenState extends State<QuickWeightSaleScreen> {
               ),
               const SizedBox(width: 12),
               FilledButton.icon(
-                onPressed: () => _finishSale(
-                  inventory: inventory,
-                  sales: sales,
-                ),
+                onPressed: () =>
+                    _finishSale(inventory: inventory, sales: sales),
                 icon: const Icon(Icons.check_circle),
                 label: const Text('Finalizar'),
               ),
@@ -567,7 +569,8 @@ class _QuickWeightSaleScreenState extends State<QuickWeightSaleScreen> {
             const _SectionTitle(
               icon: Icons.qr_code_scanner_rounded,
               title: 'Leitor USB',
-              subtitle: 'Passe a etiqueta da balança. Cada leitura entra na venda atual.',
+              subtitle:
+                  'Passe a etiqueta da balança. Cada leitura entra na venda atual.',
             ),
             const SizedBox(height: 16),
             _ScannerInfoBox(),
@@ -612,10 +615,8 @@ class _QuickWeightSaleScreenState extends State<QuickWeightSaleScreen> {
                 ),
               ),
               onChanged: (value) => _onBarcodeChanged(products, value),
-              onSubmitted: (_) => _addBarcodeToSale(
-                products,
-                silentWhenEmpty: true,
-              ),
+              onSubmitted: (_) =>
+                  _addBarcodeToSale(products, silentWhenEmpty: true),
             ),
             const SizedBox(height: 12),
             Wrap(
@@ -686,7 +687,9 @@ class _QuickWeightSaleScreenState extends State<QuickWeightSaleScreen> {
             const SizedBox(height: 12),
             TextField(
               controller: _weightController,
-              keyboardType: const TextInputType.numberWithOptions(decimal: true),
+              keyboardType: const TextInputType.numberWithOptions(
+                decimal: true,
+              ),
               decoration: InputDecoration(
                 labelText:
                     'Peso/quantidade em ${selectedProduct?.unit.label ?? 'kg'}',
@@ -753,10 +756,7 @@ class _QuickWeightSaleScreenState extends State<QuickWeightSaleScreen> {
                   onRemove: () => _removePendingItem(i),
                 ),
             const Divider(height: 28),
-            _TotalBigLine(
-              total: _pendingTotal,
-              formatMoney: _formatMoney,
-            ),
+            _TotalBigLine(total: _pendingTotal, formatMoney: _formatMoney),
             const SizedBox(height: 12),
             DropdownButtonFormField<PaymentMethod>(
               value: sales.paymentMethod,
@@ -778,10 +778,7 @@ class _QuickWeightSaleScreenState extends State<QuickWeightSaleScreen> {
             ),
             const SizedBox(height: 16),
             FilledButton.icon(
-              onPressed: () => _finishSale(
-                inventory: inventory,
-                sales: sales,
-              ),
+              onPressed: () => _finishSale(inventory: inventory, sales: sales),
               icon: const Icon(Icons.check_circle_rounded),
               label: const Text('Finalizar venda'),
             ),
@@ -791,7 +788,6 @@ class _QuickWeightSaleScreenState extends State<QuickWeightSaleScreen> {
     );
   }
 }
-
 
 class _ScannerInfoBox extends StatelessWidget {
   const _ScannerInfoBox();
@@ -863,10 +859,7 @@ class _HeaderPanel extends StatelessWidget {
               children: [
                 Text(
                   'Venda por etiqueta',
-                  style: TextStyle(
-                    fontSize: 24,
-                    fontWeight: FontWeight.w900,
-                  ),
+                  style: TextStyle(fontSize: 24, fontWeight: FontWeight.w900),
                 ),
                 SizedBox(height: 4),
                 Text('Tela preparada para leitor USB.'),
@@ -874,20 +867,11 @@ class _HeaderPanel extends StatelessWidget {
             ),
           ),
           const SizedBox(width: 12),
-          _HeaderMetric(
-            label: 'Itens',
-            value: '$itemCount',
-          ),
+          _HeaderMetric(label: 'Itens', value: '$itemCount'),
           const SizedBox(width: 8),
-          _HeaderMetric(
-            label: 'Pagamento',
-            value: paymentLabel,
-          ),
+          _HeaderMetric(label: 'Pagamento', value: paymentLabel),
           const SizedBox(width: 8),
-          _HeaderMetric(
-            label: 'Total',
-            value: 'R\$ ${formatMoney(total)}',
-          ),
+          _HeaderMetric(label: 'Total', value: 'R\$ ${formatMoney(total)}'),
         ],
       ),
     );
@@ -895,10 +879,7 @@ class _HeaderPanel extends StatelessWidget {
 }
 
 class _HeaderMetric extends StatelessWidget {
-  const _HeaderMetric({
-    required this.label,
-    required this.value,
-  });
+  const _HeaderMetric({required this.label, required this.value});
 
   final String label;
   final String value;
@@ -916,17 +897,9 @@ class _HeaderMetric extends StatelessWidget {
       ),
       child: Column(
         children: [
-          Text(
-            label,
-            style: const TextStyle(fontSize: 12),
-          ),
+          Text(label, style: const TextStyle(fontSize: 12)),
           const SizedBox(height: 3),
-          Text(
-            value,
-            style: const TextStyle(
-              fontWeight: FontWeight.w900,
-            ),
-          ),
+          Text(value, style: const TextStyle(fontWeight: FontWeight.w900)),
         ],
       ),
     );
@@ -1004,10 +977,7 @@ class _MessageBox extends StatelessWidget {
 }
 
 class _ManualTotalLine extends StatelessWidget {
-  const _ManualTotalLine({
-    required this.total,
-    required this.formatMoney,
-  });
+  const _ManualTotalLine({required this.total, required this.formatMoney});
 
   final double total;
   final String Function(double value) formatMoney;
@@ -1016,19 +986,13 @@ class _ManualTotalLine extends StatelessWidget {
   Widget build(BuildContext context) {
     return Text(
       'Total manual: R\$ ${formatMoney(total)}',
-      style: const TextStyle(
-        fontSize: 18,
-        fontWeight: FontWeight.w900,
-      ),
+      style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w900),
     );
   }
 }
 
 class _TotalBigLine extends StatelessWidget {
-  const _TotalBigLine({
-    required this.total,
-    required this.formatMoney,
-  });
+  const _TotalBigLine({required this.total, required this.formatMoney});
 
   final double total;
   final String Function(double value) formatMoney;
@@ -1037,10 +1001,7 @@ class _TotalBigLine extends StatelessWidget {
   Widget build(BuildContext context) {
     return Text(
       'Total da venda: R\$ ${formatMoney(total)}',
-      style: const TextStyle(
-        fontSize: 24,
-        fontWeight: FontWeight.w900,
-      ),
+      style: const TextStyle(fontSize: 24, fontWeight: FontWeight.w900),
     );
   }
 }
@@ -1060,10 +1021,7 @@ class _BottomTotal extends StatelessWidget {
   Widget build(BuildContext context) {
     return Text(
       '$itemCount item(ns) • R\$ ${formatMoney(total)}',
-      style: const TextStyle(
-        fontSize: 18,
-        fontWeight: FontWeight.w900,
-      ),
+      style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w900),
     );
   }
 }
@@ -1093,9 +1051,7 @@ class _PendingItemTile extends StatelessWidget {
       elevation: 0,
       margin: const EdgeInsets.only(bottom: 8),
       child: ListTile(
-        leading: CircleAvatar(
-          child: Text('${index + 1}'),
-        ),
+        leading: CircleAvatar(child: Text('${index + 1}')),
         title: Text(
           item.product.name,
           style: const TextStyle(fontWeight: FontWeight.w800),
@@ -1171,7 +1127,6 @@ class _EmptyProductsView extends StatelessWidget {
   }
 }
 
-
 class _DecodedLabel {
   const _DecodedLabel({
     required this.modeLabel,
@@ -1201,10 +1156,7 @@ class _LabelSaleItem {
 }
 
 class _GroupedItem {
-  const _GroupedItem({
-    required this.product,
-    required this.quantity,
-  });
+  const _GroupedItem({required this.product, required this.quantity});
 
   final Product product;
   final double quantity;

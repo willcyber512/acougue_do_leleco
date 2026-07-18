@@ -17,6 +17,7 @@ import '../../services/ramuza_barcode_parser.dart';
 import '../../widgets/leleco_logo.dart';
 import '../../widgets/quick_product_from_barcode_dialog.dart';
 import '../../widgets/sale_receipt_dialog.dart';
+import '../../services/cash_sale_sync.dart';
 
 class OperationModeScreen extends StatefulWidget {
   const OperationModeScreen({super.key});
@@ -109,11 +110,7 @@ class _OperationModeScreenState extends State<OperationModeScreen> {
 
     sales.setPaymentMethod(next);
 
-    _showMessage(
-      context,
-      'Pagamento: ${next.label}',
-      success: true,
-    );
+    _showMessage(context, 'Pagamento: ${next.label}', success: true);
 
     _refocusScanner();
   }
@@ -131,11 +128,7 @@ class _OperationModeScreenState extends State<OperationModeScreen> {
 
     sales.increaseQuantity(item.product.id);
 
-    _showMessage(
-      context,
-      '+ ${item.product.name}',
-      success: true,
-    );
+    _showMessage(context, '+ ${item.product.name}', success: true);
 
     _refocusScanner();
   }
@@ -153,11 +146,7 @@ class _OperationModeScreenState extends State<OperationModeScreen> {
 
     sales.decreaseQuantity(item.product.id);
 
-    _showMessage(
-      context,
-      '- ${item.product.name}',
-      success: true,
-    );
+    _showMessage(context, '- ${item.product.name}', success: true);
 
     _refocusScanner();
   }
@@ -217,78 +206,78 @@ class _OperationModeScreenState extends State<OperationModeScreen> {
       child: Scaffold(
         backgroundColor: isDark ? AppColors.darkBackground : AppColors.beige100,
         body: SafeArea(
-        child: GestureDetector(
-          behavior: HitTestBehavior.translucent,
-          onTap: _refocusScanner,
-          child: Padding(
-            padding: const EdgeInsets.all(18),
-            child: LayoutBuilder(
-              builder: (context, constraints) {
-                final compact = constraints.maxWidth < 1050;
+          child: GestureDetector(
+            behavior: HitTestBehavior.translucent,
+            onTap: _refocusScanner,
+            child: Padding(
+              padding: const EdgeInsets.all(18),
+              child: LayoutBuilder(
+                builder: (context, constraints) {
+                  final compact = constraints.maxWidth < 1050;
 
-                return Column(
-                  children: [
-                    _OperationHeader(
-                      controller: scannerController,
-                      focusNode: scannerFocus,
-                      searchTerm: searchTerm,
-                      compact: compact,
-                      onChanged: (value) {
-                        setState(() => searchTerm = value);
-                      },
-                      onSubmitted: _handleSubmitted,
-                      onExit: () => Navigator.of(context).pop(),
-                    ),
-                    const SizedBox(height: 14),
-                    Expanded(
-                      child: compact
-                          ? Column(
-                              children: [
-                                Expanded(
-                                  flex: 6,
-                                  child: _ProductsBoard(
-                                    searchTerm: searchTerm,
-                                    onProductTap: _addProduct,
-                                    compact: true,
+                  return Column(
+                    children: [
+                      _OperationHeader(
+                        controller: scannerController,
+                        focusNode: scannerFocus,
+                        searchTerm: searchTerm,
+                        compact: compact,
+                        onChanged: (value) {
+                          setState(() => searchTerm = value);
+                        },
+                        onSubmitted: _handleSubmitted,
+                        onExit: () => Navigator.of(context).pop(),
+                      ),
+                      const SizedBox(height: 14),
+                      Expanded(
+                        child: compact
+                            ? Column(
+                                children: [
+                                  Expanded(
+                                    flex: 6,
+                                    child: _ProductsBoard(
+                                      searchTerm: searchTerm,
+                                      onProductTap: _addProduct,
+                                      compact: true,
+                                    ),
                                   ),
-                                ),
-                                const SizedBox(height: 14),
-                                Expanded(
-                                  flex: 5,
-                                  child: _CartBoard(
-                                    onFinished: _refocusScanner,
-                                    compact: true,
+                                  const SizedBox(height: 14),
+                                  Expanded(
+                                    flex: 5,
+                                    child: _CartBoard(
+                                      onFinished: _refocusScanner,
+                                      compact: true,
+                                    ),
                                   ),
-                                ),
-                              ],
-                            )
-                          : Row(
-                              children: [
-                                Expanded(
-                                  flex: 7,
-                                  child: _ProductsBoard(
-                                    searchTerm: searchTerm,
-                                    onProductTap: _addProduct,
-                                    compact: false,
+                                ],
+                              )
+                            : Row(
+                                children: [
+                                  Expanded(
+                                    flex: 7,
+                                    child: _ProductsBoard(
+                                      searchTerm: searchTerm,
+                                      onProductTap: _addProduct,
+                                      compact: false,
+                                    ),
                                   ),
-                                ),
-                                const SizedBox(width: 16),
-                                Expanded(
-                                  flex: 4,
-                                  child: _CartBoard(
-                                    onFinished: _refocusScanner,
-                                    compact: false,
+                                  const SizedBox(width: 16),
+                                  Expanded(
+                                    flex: 4,
+                                    child: _CartBoard(
+                                      onFinished: _refocusScanner,
+                                      compact: false,
+                                    ),
                                   ),
-                                ),
-                              ],
-                            ),
-                    ),
-                  ],
-                );
-              },
+                                ],
+                              ),
+                      ),
+                    ],
+                  );
+                },
+              ),
             ),
           ),
-        ),
         ),
       ),
     );
@@ -431,10 +420,7 @@ class _OperationModeScreenState extends State<OperationModeScreen> {
 
     context.read<SalesProvider>().addProduct(product);
 
-    _showMessage(
-      context,
-      '${product.name} adicionado.',
-    );
+    _showMessage(context, '${product.name} adicionado.');
 
     _refocusScanner();
   }
@@ -473,8 +459,8 @@ class _OperationHeader extends StatelessWidget {
               Text(
                 'Modo Balcão',
                 style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                      fontWeight: FontWeight.w900,
-                    ),
+                  fontWeight: FontWeight.w900,
+                ),
               ),
               const SizedBox(width: 18),
             ],
@@ -485,9 +471,9 @@ class _OperationHeader extends StatelessWidget {
                 autofocus: true,
                 onChanged: onChanged,
                 onSubmitted: onSubmitted,
-                style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                      fontWeight: FontWeight.w900,
-                    ),
+                style: Theme.of(
+                  context,
+                ).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w900),
                 decoration: InputDecoration(
                   hintText: compact
                       ? 'Leia ou digite...'
@@ -565,20 +551,18 @@ class _ProductsBoard extends StatelessWidget {
                             parsed == null
                                 ? 'Nenhum produto encontrado.'
                                 : 'PLU ${parsed.productCode} não disponível no estoque.',
-                            style: const TextStyle(
-                              fontWeight: FontWeight.w900,
-                            ),
+                            style: const TextStyle(fontWeight: FontWeight.w900),
                           ),
                         )
                       : GridView.builder(
                           itemCount: products.length,
                           gridDelegate:
                               SliverGridDelegateWithMaxCrossAxisExtent(
-                            maxCrossAxisExtent: compact ? 210 : 235,
-                            mainAxisExtent: compact ? 150 : 165,
-                            crossAxisSpacing: 12,
-                            mainAxisSpacing: 12,
-                          ),
+                                maxCrossAxisExtent: compact ? 210 : 235,
+                                mainAxisExtent: compact ? 150 : 165,
+                                crossAxisSpacing: 12,
+                                mainAxisSpacing: 12,
+                              ),
                           itemBuilder: (context, index) {
                             return _FastProductCard(
                               product: products[index],
@@ -597,10 +581,7 @@ class _ProductsBoard extends StatelessWidget {
 }
 
 class _FastProductCard extends StatelessWidget {
-  const _FastProductCard({
-    required this.product,
-    required this.onTap,
-  });
+  const _FastProductCard({required this.product, required this.onTap});
 
   final Product product;
   final VoidCallback onTap;
@@ -684,10 +665,7 @@ class _FastProductCard extends StatelessWidget {
 }
 
 class _CartBoard extends StatelessWidget {
-  const _CartBoard({
-    required this.onFinished,
-    required this.compact,
-  });
+  const _CartBoard({required this.onFinished, required this.compact});
 
   final VoidCallback onFinished;
   final bool compact;
@@ -736,9 +714,7 @@ class _CartBoard extends StatelessWidget {
                 const SizedBox(height: 12),
                 DropdownButtonFormField<PaymentMethod>(
                   value: selectedMethod,
-                  decoration: const InputDecoration(
-                    labelText: 'Pagamento',
-                  ),
+                  decoration: const InputDecoration(labelText: 'Pagamento'),
                   items: methods.map((method) {
                     return DropdownMenuItem(
                       value: method,
@@ -875,9 +851,9 @@ class _BoardTitle extends StatelessWidget {
             title,
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
-            style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                  fontWeight: FontWeight.w900,
-                ),
+            style: Theme.of(
+              context,
+            ).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w900),
           ),
         ),
         const SizedBox(width: 10),
@@ -962,6 +938,8 @@ Future<void> _finishOperationSale(BuildContext context) async {
 
   sales.completeSale(sale);
 
+  syncSaleCashMovement(context, sale);
+
   _showMessage(context, 'Venda #${sale.shortId} finalizada.', success: true);
 
   await showSaleReceiptDialog(context, sale);
@@ -971,9 +949,7 @@ Future<void> _openCartQuantityDialog(
   BuildContext context,
   SaleCartItem item,
 ) async {
-  final controller = TextEditingController(
-    text: _formatNumber(item.quantity),
-  );
+  final controller = TextEditingController(text: _formatNumber(item.quantity));
 
   final quantity = await showDialog<double>(
     context: context,
@@ -989,9 +965,7 @@ Future<void> _openCartQuantityDialog(
             hintText: 'Ex: 1,250',
           ),
           onSubmitted: (_) {
-            Navigator.of(dialogContext).pop(
-              _parseNumber(controller.text),
-            );
+            Navigator.of(dialogContext).pop(_parseNumber(controller.text));
           },
         ),
         actions: [
@@ -1001,9 +975,7 @@ Future<void> _openCartQuantityDialog(
           ),
           FilledButton(
             onPressed: () {
-              Navigator.of(dialogContext).pop(
-                _parseNumber(controller.text),
-              );
+              Navigator.of(dialogContext).pop(_parseNumber(controller.text));
             },
             child: const Text('Salvar'),
           ),
@@ -1026,10 +998,7 @@ Future<void> _openCartQuantityDialog(
   context.read<SalesProvider>().updateQuantity(item.product.id, quantity);
 }
 
-Future<void> _openQuantityDialog(
-  BuildContext context,
-  Product product,
-) async {
+Future<void> _openQuantityDialog(BuildContext context, Product product) async {
   final controller = TextEditingController(
     text: product.unit == ProductUnit.kg ? '1,000' : '1',
   );
@@ -1048,9 +1017,7 @@ Future<void> _openQuantityDialog(
             hintText: product.unit == ProductUnit.kg ? 'Ex: 1,250' : 'Ex: 2',
           ),
           onSubmitted: (_) {
-            Navigator.of(dialogContext).pop(
-              _parseNumber(controller.text),
-            );
+            Navigator.of(dialogContext).pop(_parseNumber(controller.text));
           },
         ),
         actions: [
@@ -1060,9 +1027,7 @@ Future<void> _openQuantityDialog(
           ),
           FilledButton(
             onPressed: () {
-              Navigator.of(dialogContext).pop(
-                _parseNumber(controller.text),
-              );
+              Navigator.of(dialogContext).pop(_parseNumber(controller.text));
             },
             child: const Text('Adicionar'),
           ),
@@ -1187,20 +1152,20 @@ void _logRamuzaBarcodeRead({
   final now = DateTime.now();
 
   context.read<RamuzaBarcodeLogProvider>().addEvent(
-        RamuzaBarcodeEvent(
-          id: now.microsecondsSinceEpoch.toString(),
-          rawBarcode: parsed.raw,
-          digits: parsed.digits,
-          productCode: parsed.productCode,
-          productName: product?.name,
-          quantity: quantity,
-          totalPrice: parsed.totalPrice,
-          status: status,
-          message: message,
-          screen: 'Modo Balcão',
-          createdAt: now,
-        ),
-      );
+    RamuzaBarcodeEvent(
+      id: now.microsecondsSinceEpoch.toString(),
+      rawBarcode: parsed.raw,
+      digits: parsed.digits,
+      productCode: parsed.productCode,
+      productName: product?.name,
+      quantity: quantity,
+      totalPrice: parsed.totalPrice,
+      status: status,
+      message: message,
+      screen: 'Modo Balcão',
+      createdAt: now,
+    ),
+  );
 }
 
 String _normalizeNumericCode(String value) {
@@ -1251,8 +1216,8 @@ void _showMessage(
         backgroundColor: error
             ? AppColors.danger
             : success
-                ? AppColors.success
-                : null,
+            ? AppColors.success
+            : null,
       ),
     );
 }

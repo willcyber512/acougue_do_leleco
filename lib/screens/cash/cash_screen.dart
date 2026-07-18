@@ -10,6 +10,18 @@ import '../../providers/sales_provider.dart';
 import '../../providers/cash_movement_provider.dart';
 import '../../widgets/leleco_metric_card.dart';
 import '../../widgets/sale_receipt_dialog.dart';
+import '../../services/cash_sale_sync.dart';
+import '../../providers/customers_provider.dart';
+
+List<SaleRecord> _cashOnlySales(Iterable<SaleRecord> sales) {
+  final result = sales
+      .where((sale) => sale.paymentMethod != PaymentMethod.fiado)
+      .toList();
+
+  result.sort((a, b) => b.createdAt.compareTo(a.createdAt));
+
+  return result;
+}
 
 class CashScreen extends StatefulWidget {
   const CashScreen({super.key});
@@ -25,7 +37,9 @@ class _CashScreenState extends State<CashScreen> {
   Widget build(BuildContext context) {
     return Consumer<SalesProvider>(
       builder: (context, sales, _) {
-        final visibleSales = showOnlyToday ? sales.todaySales : sales.sales;
+        final visibleSales = showOnlyToday
+            ? _cashOnlySales(sales.todaySales)
+            : _cashOnlySales(sales.sales);
         final validSales = visibleSales
             .where((sale) => !sale.isCanceled)
             .toList();
@@ -132,6 +146,12 @@ class _CashScreenState extends State<CashScreen> {
       },
     );
   }
+}
+
+List<SaleRecord> _cashRegisterSales(List<SaleRecord> sales) {
+  return sales
+      .where((sale) => sale.paymentMethod != PaymentMethod.fiado)
+      .toList();
 }
 
 class _CashToolbar extends StatelessWidget {
@@ -409,7 +429,7 @@ class _EmptyCash extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return const Center(child: Text('Nenhuma venda encontrada.'));
+    return const Center(child: Text('Nenhuma venda recebida encontrada.'));
   }
 }
 
@@ -571,6 +591,7 @@ class _DetailBox extends StatelessWidget {
 Future<void> _cancelSaleFlow(BuildContext context, SaleRecord sale) async {
   final sales = context.read<SalesProvider>();
   final inventory = context.read<InventoryProvider>();
+  final customers = context.read<CustomersProvider>();
 
   final currentSale = sales.findSaleById(sale.id);
 
@@ -596,6 +617,14 @@ Future<void> _cancelSaleFlow(BuildContext context, SaleRecord sale) async {
   }
 
   final canceled = sales.cancelSale(currentSale.id, reason);
+
+  if (canceled) {
+    removeSaleCashMovement(context, currentSale);
+
+    if (currentSale.paymentMethod == PaymentMethod.fiado) {
+      customers.deleteEntriesBySaleId(currentSale.id);
+    }
+  }
 
   if (!canceled) {
     _showMessage(context, 'Não foi possível cancelar a venda.');

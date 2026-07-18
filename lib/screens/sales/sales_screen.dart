@@ -16,6 +16,7 @@ import '../../services/ramuza_barcode_parser.dart';
 import '../../widgets/sale_receipt_dialog.dart';
 import '../../widgets/quick_product_from_barcode_dialog.dart';
 import '../../models/ramuza_barcode_event.dart';
+import '../../services/cash_sale_sync.dart';
 
 class SalesScreen extends StatelessWidget {
   const SalesScreen({super.key});
@@ -300,7 +301,9 @@ class _ProductSaleCard extends StatelessWidget {
                   style: TextStyle(
                     fontWeight: FontWeight.w900,
                     fontSize: 21,
-                    color: Theme.of(context).brightness == Brightness.dark ? AppColors.beige100 : AppColors.wine700,
+                    color: Theme.of(context).brightness == Brightness.dark
+                        ? AppColors.beige100
+                        : AppColors.wine700,
                   ),
                 ),
                 const SizedBox(height: 8),
@@ -477,6 +480,8 @@ class _CartPanel extends StatelessWidget {
                                 }
 
                                 sales.completeSale(sale);
+
+                                syncSaleCashMovement(context, sale);
 
                                 if (sale.paymentMethod == PaymentMethod.fiado &&
                                     selectedCustomer != null) {
@@ -1074,10 +1079,7 @@ Future<void> _openCartQuantityDialog(
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              Text(
-                product.name,
-                style: TextStyle(fontWeight: FontWeight.w900),
-              ),
+              Text(product.name, style: TextStyle(fontWeight: FontWeight.w900)),
               const SizedBox(height: 8),
               Text(
                 'Estoque disponível: ${_formatQuantity(product.stockQuantity, product.unit)}',
@@ -1177,6 +1179,82 @@ String? _validateQuantity(Product product, double quantity) {
   return null;
 }
 
+Future<Customer?> _openQuickCustomerForFiadoDialog(BuildContext context) async {
+  final provider = context.read<CustomersProvider>();
+
+  final nameController = TextEditingController();
+  final phoneController = TextEditingController();
+  final notesController = TextEditingController();
+
+  return showDialog<Customer>(
+    context: context,
+    builder: (dialogContext) {
+      return AlertDialog(
+        title: const Text('Novo cliente fiado'),
+        content: SizedBox(
+          width: 520,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              TextField(
+                controller: nameController,
+                autofocus: true,
+                decoration: const InputDecoration(
+                  labelText: 'Nome do cliente',
+                  hintText: 'Ex: João Silva',
+                ),
+              ),
+              const SizedBox(height: 12),
+              TextField(
+                controller: phoneController,
+                decoration: const InputDecoration(
+                  labelText: 'Telefone',
+                  hintText: 'Opcional',
+                ),
+              ),
+              const SizedBox(height: 12),
+              TextField(
+                controller: notesController,
+                maxLines: 2,
+                decoration: const InputDecoration(
+                  labelText: 'Observação',
+                  hintText: 'Opcional',
+                ),
+              ),
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop(),
+            child: const Text('Cancelar'),
+          ),
+          FilledButton.icon(
+            icon: const Icon(Icons.person_add_alt_rounded),
+            onPressed: () {
+              final name = nameController.text.trim();
+
+              if (name.isEmpty) {
+                _showMessage(context, 'Informe o nome do cliente.');
+                return;
+              }
+
+              final customer = provider.addCustomer(
+                name: name,
+                phone: phoneController.text.trim(),
+                notes: notesController.text.trim(),
+              );
+
+              Navigator.of(dialogContext).pop(customer);
+            },
+            label: const Text('Criar e usar'),
+          ),
+        ],
+      );
+    },
+  );
+}
+
 Future<Customer?> _selectCustomerForFiado(BuildContext context) async {
   return showDialog<Customer>(
     context: context,
@@ -1225,9 +1303,7 @@ Future<Customer?> _selectCustomerForFiado(BuildContext context) async {
                             ),
                             title: Text(
                               customer.name,
-                              style: TextStyle(
-                                fontWeight: FontWeight.w900,
-                              ),
+                              style: TextStyle(fontWeight: FontWeight.w900),
                             ),
                             subtitle: Text(
                               customer.phone == null || customer.phone!.isEmpty
@@ -1236,9 +1312,7 @@ Future<Customer?> _selectCustomerForFiado(BuildContext context) async {
                             ),
                             trailing: Text(
                               _formatMoney(balance),
-                              style: TextStyle(
-                                fontWeight: FontWeight.w900,
-                              ),
+                              style: TextStyle(fontWeight: FontWeight.w900),
                             ),
                           ),
                         );
@@ -1246,6 +1320,20 @@ Future<Customer?> _selectCustomerForFiado(BuildContext context) async {
                     ),
             ),
             actions: [
+              TextButton.icon(
+                onPressed: () async {
+                  final customer = await _openQuickCustomerForFiadoDialog(
+                    context,
+                  );
+
+                  if (customer == null) return;
+                  if (!dialogContext.mounted) return;
+
+                  Navigator.of(dialogContext).pop(customer);
+                },
+                icon: const Icon(Icons.person_add_alt_rounded),
+                label: const Text('Novo cliente'),
+              ),
               TextButton(
                 onPressed: () => Navigator.of(dialogContext).pop(),
                 child: const Text('Cancelar'),

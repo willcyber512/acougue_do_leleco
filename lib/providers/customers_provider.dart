@@ -133,7 +133,7 @@ class CustomersProvider extends ChangeNotifier {
     return List.unmodifiable(result);
   }
 
-  void addCustomer({required String name, String? phone, String? notes}) {
+  Customer addCustomer({required String name, String? phone, String? notes}) {
     final now = DateTime.now();
 
     final customer = Customer(
@@ -147,6 +147,8 @@ class CustomersProvider extends ChangeNotifier {
 
     _customers.insert(0, customer);
     _saveAllAndNotify();
+
+    return customer;
   }
 
   void updateCustomer(Customer customer) {
@@ -208,6 +210,20 @@ class CustomersProvider extends ChangeNotifier {
     );
 
     _entries.insert(0, entry);
+    _saveAllAndNotify();
+  }
+
+  void deleteEntriesBySaleId(String saleId) {
+    final cleanSaleId = saleId.trim();
+
+    if (cleanSaleId.isEmpty) return;
+
+    final before = _entries.length;
+
+    _entries.removeWhere((entry) => entry.saleId == cleanSaleId);
+
+    if (_entries.length == before) return;
+
     _saveAllAndNotify();
   }
 

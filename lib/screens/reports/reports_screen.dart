@@ -2659,16 +2659,16 @@ Future<void> _exportReportsPdf({
 
     final cashPdfSummaryRows = <List<String>>[
       [
-        'Entradas manuais',
+        'Entradas no caixa',
         _formatMoney(cashPdfInputs),
         '$cashPdfInputCount lançamento(s)',
       ],
       [
-        'Saídas manuais',
+        'Saídas no caixa',
         _formatMoney(cashPdfOutputs),
         '$cashPdfOutputCount lançamento(s)',
       ],
-      ['Saldo manual', _formatMoney(cashPdfBalance), 'Entradas menos saídas'],
+      ['Saldo do caixa', _formatMoney(cashPdfBalance), 'Entradas menos saídas'],
       [
         'Total de lançamentos',
         '${cashPdfMovements.length}',
@@ -3012,24 +3012,24 @@ Future<void> _exportReportsPdf({
               pw.SizedBox(height: 8),
               sectionTitle(
                 'Controle do caixa',
-                'Resumo das entradas e saídas manuais do caixa.',
+                'Resumo das entradas e saídas do caixa do caixa.',
               ),
               pw.Wrap(
                 spacing: 8,
                 runSpacing: 8,
                 children: [
                   metricCard(
-                    'Entradas manuais',
+                    'Entradas no caixa',
                     _formatMoney(cashPdfInputs),
                     '$cashPdfInputCount lançamento(s)',
                   ),
                   metricCard(
-                    'Saídas manuais',
+                    'Saídas no caixa',
                     _formatMoney(cashPdfOutputs),
                     '$cashPdfOutputCount lançamento(s)',
                   ),
                   metricCard(
-                    'Saldo manual',
+                    'Saldo do caixa',
                     _formatMoney(cashPdfBalance),
                     'Entradas menos saídas',
                   ),
@@ -3039,13 +3039,13 @@ Future<void> _exportReportsPdf({
               dataTable(
                 headers: const ['Indicador', 'Valor', 'Observação'],
                 rows: cashPdfSummaryRows,
-                emptyText: 'Nenhuma movimentação manual no caixa.',
+                emptyText: 'Nenhuma movimentação no caixa no caixa.',
               ),
               pw.SizedBox(height: 7),
               dataTable(
                 headers: const ['Saídas agrupadas por motivo', 'Total', 'Qtd.'],
                 rows: cashPdfOutputTableRows,
-                emptyText: 'Nenhuma saída manual registrada hoje.',
+                emptyText: 'Nenhuma saída registrada hoje.',
               ),
               pw.SizedBox(height: 3),
               pw.Text(
@@ -3251,7 +3251,7 @@ class _CashFlowSummaryPanel extends StatelessWidget {
 
           final cards = [
             _CashReportMiniCard(
-              title: 'Entradas manuais',
+              title: 'Entradas no caixa',
               value: _formatMoney(inputs),
               icon: Icons.south_west_rounded,
               color: Colors.green.shade700,
@@ -3265,7 +3265,7 @@ class _CashFlowSummaryPanel extends StatelessWidget {
               detail: 'Compras, retiradas e despesas',
             ),
             _CashReportMiniCard(
-              title: 'Saldo manual',
+              title: 'Saldo do caixa',
               value: _formatMoney(balance),
               icon: Icons.account_balance_wallet_rounded,
               color: balance >= 0 ? Colors.green.shade700 : Colors.red.shade700,
@@ -3426,7 +3426,7 @@ class _CashMovementsReportPanel extends StatelessWidget {
               _PanelHeader(
                 title: 'Controle do caixa',
                 subtitle: 'Entradas e saídas manuais • $periodLabel',
-                totalLabel: 'Saldo manual',
+                totalLabel: 'Saldo do caixa',
                 totalValue: _formatMoney(balance),
               ),
               const SizedBox(height: 16),
@@ -3437,17 +3437,17 @@ class _CashMovementsReportPanel extends StatelessWidget {
                   final cards = [
                     _OverviewMetricData(
                       icon: Icons.south_west_rounded,
-                      label: 'Entradas manuais',
+                      label: 'Entradas no caixa',
                       value: _formatMoney(inputs),
                     ),
                     _OverviewMetricData(
                       icon: Icons.north_east_rounded,
-                      label: 'Saídas manuais',
+                      label: 'Saídas no caixa',
                       value: _formatMoney(outputs),
                     ),
                     _OverviewMetricData(
                       icon: Icons.account_balance_wallet_rounded,
-                      label: 'Saldo manual',
+                      label: 'Saldo do caixa',
                       value: _formatMoney(balance),
                     ),
                   ];
@@ -3512,7 +3512,7 @@ class _CashMovementsReportPanel extends StatelessWidget {
             'Valor',
           ],
           rows: movementRows,
-          emptyText: 'Nenhuma movimentação manual nesse período.',
+          emptyText: 'Nenhuma movimentação no caixa nesse período.',
         ),
       ],
     );

@@ -9,6 +9,9 @@ import '../../models/payment_method.dart';
 import '../../providers/cash_movement_provider.dart';
 import '../../providers/customers_provider.dart';
 import '../../widgets/leleco_metric_card.dart';
+import '../../providers/inventory_provider.dart';
+import '../../providers/sales_provider.dart';
+import '../../services/cash_sale_sync.dart';
 
 class CustomersScreen extends StatelessWidget {
   const CustomersScreen({super.key});
@@ -516,10 +519,135 @@ Future<void> _openCustomerHistoryDialog(
   );
 }
 
+Future<void> _cancelFiadoSaleFromCustomerHistory(
+  BuildContext context,
+  CreditEntry entry,
+) async {
+  if (entry.type != CreditEntryType.purchase) return;
+
+  if (entry.saleId == null || entry.saleId!.trim().isEmpty) {
+    _showMessage(
+      context,
+      'Essa compra fiada é antiga e não tem vínculo com a venda original.',
+    );
+    return;
+  }
+
+  final customers = context.read<CustomersProvider>();
+  final sales = context.read<SalesProvider>();
+  final inventory = context.read<InventoryProvider>();
+
+  final paymentsAfterThisPurchase = customers
+      .entriesForCustomer(entry.customerId)
+      .where(
+        (item) =>
+            item.type == CreditEntryType.payment &&
+            item.createdAt.isAfter(entry.createdAt),
+      )
+      .fold<double>(0, (total, item) => total + item.amount);
+
+  if (paymentsAfterThisPurchase > 0.009) {
+    _showMessage(
+      context,
+      'Essa compra já tem pagamento depois dela. Cancele apenas fiados ainda sem pagamento.',
+    );
+    return;
+  }
+
+  final sale = sales.findSaleById(entry.saleId!);
+
+  if (sale == null) {
+    _showMessage(context, 'Venda original não encontrada.');
+    return;
+  }
+
+  if (sale.isCanceled) {
+    customers.deleteEntriesBySaleId(sale.id);
+    _showMessage(context, 'Dívida removida do fiado.');
+    return;
+  }
+
+  final reason = await _askCreditCancelReason(
+    context,
+    title: 'Cancelar venda fiada #${sale.shortId}',
+  );
+
+  if (reason == null) return;
+  if (!context.mounted) return;
+
+  final restored = inventory.restoreSaleRecordStock(sale);
+
+  if (!restored) {
+    _showMessage(context, 'Não foi possível devolver o estoque dessa venda.');
+    return;
+  }
+
+  final canceled = sales.cancelSale(sale.id, reason);
+
+  if (!canceled) {
+    _showMessage(context, 'Não foi possível cancelar a venda fiada.');
+    return;
+  }
+
+  customers.deleteEntriesBySaleId(sale.id);
+  removeSaleCashMovement(context, sale);
+
+  _showMessage(
+    context,
+    'Venda fiada cancelada, dívida removida e estoque devolvido.',
+  );
+}
+
+Future<String?> _askCreditCancelReason(
+  BuildContext context, {
+  required String title,
+}) async {
+  final controller = TextEditingController();
+
+  return showDialog<String>(
+    context: context,
+    builder: (dialogContext) {
+      return AlertDialog(
+        title: Text(title),
+        content: TextField(
+          controller: controller,
+          autofocus: true,
+          maxLines: 3,
+          decoration: const InputDecoration(
+            labelText: 'Motivo do cancelamento',
+            hintText: 'Ex: venda lançada errado',
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop(),
+            child: const Text('Voltar'),
+          ),
+          FilledButton.icon(
+            icon: const Icon(Icons.cancel_outlined),
+            onPressed: () {
+              final reason = controller.text.trim();
+
+              if (reason.isEmpty) {
+                _showMessage(context, 'Informe o motivo do cancelamento.');
+                return;
+              }
+
+              Navigator.of(dialogContext).pop(reason);
+            },
+            label: const Text('Cancelar venda'),
+          ),
+        ],
+      );
+    },
+  );
+}
+
 class _CreditEntryCard extends StatelessWidget {
-  const _CreditEntryCard({required this.entry});
+  const _CreditEntryCard({required this.entry, this.onCancelFiado});
 
   final CreditEntry entry;
+  final VoidCallback? onCancelFiado;
 
   @override
   Widget build(BuildContext context) {
@@ -569,9 +697,29 @@ class _CreditEntryCard extends StatelessWidget {
                 ],
               ),
             ),
-            Text(
-              '${isPurchase ? '+' : '-'} ${_formatMoney(entry.amount)}',
-              style: TextStyle(color: color, fontWeight: FontWeight.w900),
+            const SizedBox(width: 8),
+            Wrap(
+              crossAxisAlignment: WrapCrossAlignment.center,
+              spacing: 8,
+              children: [
+                if (isPurchase)
+                  TextButton.icon(
+                    onPressed:
+                        onCancelFiado ??
+                        () =>
+                            _cancelFiadoSaleFromCustomerHistory(context, entry),
+                    icon: const Icon(Icons.cancel_outlined, size: 18),
+                    label: const Text('Cancelar'),
+                    style: TextButton.styleFrom(
+                      foregroundColor: AppColors.warning,
+                      visualDensity: VisualDensity.compact,
+                    ),
+                  ),
+                Text(
+                  '${isPurchase ? '+' : '-'} ${_formatMoney(entry.amount)}',
+                  style: TextStyle(color: color, fontWeight: FontWeight.w900),
+                ),
+              ],
             ),
           ],
         ),
