@@ -12,6 +12,8 @@ import '../../widgets/leleco_metric_card.dart';
 import '../../widgets/sale_receipt_dialog.dart';
 import '../../services/cash_sale_sync.dart';
 import '../../providers/customers_provider.dart';
+import '../../models/cash_closure.dart';
+import '../../providers/cash_closure_provider.dart';
 
 List<SaleRecord> _cashOnlySales(Iterable<SaleRecord> sales) {
   final result = sales
@@ -123,6 +125,8 @@ class _CashScreenState extends State<CashScreen> {
                   ),
                   const SizedBox(height: 16),
                   const _CashMovementsPanel(),
+                  const SizedBox(height: 14),
+                  const _CashClosurePanel(),
                   const SizedBox(height: 14),
                   _PaymentSummary(sales: validSales),
                   const SizedBox(height: 16),
@@ -714,6 +718,533 @@ String _formatDateTime(DateTime value) {
 
 String _two(int value) {
   return value.toString().padLeft(2, '0');
+}
+
+class _CashClosurePanel extends StatelessWidget {
+  const _CashClosurePanel();
+
+  @override
+  Widget build(BuildContext context) {
+    final cash = context.watch<CashMovementProvider>();
+    final closures = context.watch<CashClosureProvider>();
+    final todayClosure = closures.closureForDay(DateTime.now());
+
+    final opening = todayClosure?.openingAmount ?? 0;
+    final expected = todayClosure?.expectedCash ?? cash.todayBalance + opening;
+    final counted = todayClosure?.countedAmount;
+    final difference = todayClosure?.difference;
+
+    final isClosed = todayClosure != null;
+    final statusColor = difference == null
+        ? Theme.of(context).colorScheme.primary
+        : difference.abs() < 0.01
+        ? Colors.green.shade700
+        : difference > 0
+        ? Colors.orange.shade800
+        : Colors.red.shade700;
+
+    final recentClosures = closures.closures.take(5).toList();
+
+    return Card(
+      elevation: 0,
+      clipBehavior: Clip.antiAlias,
+      child: Container(
+        decoration: BoxDecoration(
+          border: Border.all(
+            color: Theme.of(context).colorScheme.outlineVariant,
+          ),
+          borderRadius: BorderRadius.circular(16),
+        ),
+        child: Padding(
+          padding: const EdgeInsets.all(18),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  CircleAvatar(
+                    backgroundColor: Theme.of(
+                      context,
+                    ).colorScheme.secondaryContainer,
+                    child: Icon(
+                      Icons.lock_clock_rounded,
+                      color: Theme.of(context).colorScheme.onSecondaryContainer,
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'Fechamento do caixa',
+                          style: Theme.of(context).textTheme.titleLarge
+                              ?.copyWith(fontWeight: FontWeight.w900),
+                        ),
+                        const SizedBox(height: 2),
+                        Text(
+                          'Confere entradas, saídas, saldo esperado e valor contado.',
+                          style: Theme.of(context).textTheme.bodyMedium
+                              ?.copyWith(
+                                color: Theme.of(
+                                  context,
+                                ).colorScheme.onSurfaceVariant,
+                              ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  FilledButton.icon(
+                    onPressed: () =>
+                        _showCashClosureDialog(context, existing: todayClosure),
+                    icon: Icon(
+                      isClosed
+                          ? Icons.edit_note_rounded
+                          : Icons.fact_check_rounded,
+                    ),
+                    label: Text(
+                      isClosed ? 'Editar fechamento' : 'Fechar caixa',
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 16),
+              Wrap(
+                spacing: 12,
+                runSpacing: 12,
+                children: [
+                  _CashClosureMetricCard(
+                    title: 'Saldo inicial',
+                    value: _formatMoney(opening),
+                    icon: Icons.start_rounded,
+                    color: Theme.of(context).colorScheme.primary,
+                  ),
+                  _CashClosureMetricCard(
+                    title: 'Entradas do dia',
+                    value: _formatMoney(cash.todayInputs),
+                    icon: Icons.south_west_rounded,
+                    color: Colors.green.shade700,
+                  ),
+                  _CashClosureMetricCard(
+                    title: 'Saídas do dia',
+                    value: _formatMoney(cash.todayOutputs),
+                    icon: Icons.north_east_rounded,
+                    color: Colors.red.shade700,
+                  ),
+                  _CashClosureMetricCard(
+                    title: 'Saldo esperado',
+                    value: _formatMoney(expected),
+                    icon: Icons.calculate_rounded,
+                    color: Theme.of(context).colorScheme.primary,
+                  ),
+                  _CashClosureMetricCard(
+                    title: 'Valor contado',
+                    value: counted == null
+                        ? 'Não fechado'
+                        : _formatMoney(counted),
+                    icon: Icons.payments_rounded,
+                    color: statusColor,
+                  ),
+                  _CashClosureMetricCard(
+                    title: 'Diferença',
+                    value: difference == null
+                        ? 'Não fechado'
+                        : _formatMoney(difference),
+                    icon: Icons.compare_arrows_rounded,
+                    color: statusColor,
+                  ),
+                ],
+              ),
+              if (todayClosure != null) ...[
+                const SizedBox(height: 14),
+                Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.all(14),
+                  decoration: BoxDecoration(
+                    color: statusColor.withOpacity(0.08),
+                    borderRadius: BorderRadius.circular(14),
+                    border: Border.all(color: statusColor.withOpacity(0.22)),
+                  ),
+                  child: Row(
+                    children: [
+                      Icon(Icons.verified_rounded, color: statusColor),
+                      const SizedBox(width: 10),
+                      Expanded(
+                        child: Text(
+                          '${todayClosure.statusLabel} • fechado em ${_formatDateTime(todayClosure.createdAt)}',
+                          style: TextStyle(
+                            color: statusColor,
+                            fontWeight: FontWeight.w900,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                if (todayClosure.notes.trim().isNotEmpty) ...[
+                  const SizedBox(height: 8),
+                  Text(
+                    'Observação: ${todayClosure.notes}',
+                    style: Theme.of(context).textTheme.bodyMedium,
+                  ),
+                ],
+              ],
+              if (recentClosures.isNotEmpty) ...[
+                const Divider(height: 28),
+                Text(
+                  'Últimos fechamentos',
+                  style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                    fontWeight: FontWeight.w900,
+                  ),
+                ),
+                const SizedBox(height: 8),
+                ...recentClosures.map(
+                  (closure) => _CashClosureHistoryTile(closure: closure),
+                ),
+              ],
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _CashClosureMetricCard extends StatelessWidget {
+  const _CashClosureMetricCard({
+    required this.title,
+    required this.value,
+    required this.icon,
+    required this.color,
+  });
+
+  final String title;
+  final String value;
+  final IconData icon;
+  final Color color;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: 230,
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: color.withOpacity(0.08),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: color.withOpacity(0.20)),
+      ),
+      child: Row(
+        children: [
+          CircleAvatar(
+            backgroundColor: color.withOpacity(0.12),
+            child: Icon(icon, color: color),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  title,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: Theme.of(
+                    context,
+                  ).textTheme.bodySmall?.copyWith(fontWeight: FontWeight.w700),
+                ),
+                const SizedBox(height: 3),
+                Text(
+                  value,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                    fontWeight: FontWeight.w900,
+                    color: color,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _CashClosureHistoryTile extends StatelessWidget {
+  const _CashClosureHistoryTile({required this.closure});
+
+  final CashClosure closure;
+
+  @override
+  Widget build(BuildContext context) {
+    final color = closure.isBalanced
+        ? Colors.green.shade700
+        : closure.difference > 0
+        ? Colors.orange.shade800
+        : Colors.red.shade700;
+
+    return Container(
+      margin: const EdgeInsets.only(bottom: 8),
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: Theme.of(context).colorScheme.surface,
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: Theme.of(context).colorScheme.outlineVariant),
+      ),
+      child: Row(
+        children: [
+          Icon(Icons.event_available_rounded, color: color),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Text(
+              '${closure.dayKey} • ${closure.statusLabel}',
+              style: const TextStyle(fontWeight: FontWeight.w800),
+            ),
+          ),
+          Text(
+            'Dif.: ${_formatMoney(closure.difference)}',
+            style: TextStyle(color: color, fontWeight: FontWeight.w900),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+Future<void> _showCashClosureDialog(
+  BuildContext context, {
+  CashClosure? existing,
+}) async {
+  final cash = context.read<CashMovementProvider>();
+  final closures = context.read<CashClosureProvider>();
+  final sales = context.read<SalesProvider>();
+
+  final inputsByMethod = <PaymentMethod, double>{};
+
+  for (final movement in cash.todayMovements) {
+    if (movement.type != CashMovementType.input) continue;
+
+    inputsByMethod[movement.paymentMethod] =
+        (inputsByMethod[movement.paymentMethod] ?? 0) + movement.amount;
+  }
+
+  final outputs = cash.todayOutputs;
+  final inputs = cash.todayInputs;
+
+  final validCashSales = _cashOnlySales(
+    sales.todaySales,
+  ).where((sale) => !sale.isCanceled).toList();
+
+  final canceledCashSalesTotal = _cashOnlySales(sales.todaySales)
+      .where((sale) => sale.isCanceled)
+      .fold<double>(0, (total, sale) => total + sale.total);
+
+  final openingController = TextEditingController(
+    text: _moneyInput(existing?.openingAmount ?? 0),
+  );
+
+  final initialExpected = (existing?.openingAmount ?? 0) + inputs - outputs;
+
+  final countedController = TextEditingController(
+    text: _moneyInput(existing?.countedAmount ?? initialExpected),
+  );
+
+  final notesController = TextEditingController(text: existing?.notes ?? '');
+
+  await showDialog<void>(
+    context: context,
+    builder: (dialogContext) {
+      return StatefulBuilder(
+        builder: (dialogContext, setDialogState) {
+          final opening = _parseMoneyInput(openingController.text);
+          final counted = _parseMoneyInput(countedController.text);
+          final expected = opening + inputs - outputs;
+          final difference = counted - expected;
+
+          final color = difference.abs() < 0.01
+              ? Colors.green.shade700
+              : difference > 0
+              ? Colors.orange.shade800
+              : Colors.red.shade700;
+
+          return AlertDialog(
+            title: Text(
+              existing == null
+                  ? 'Fechar caixa do dia'
+                  : 'Editar fechamento do caixa',
+            ),
+            content: SizedBox(
+              width: 620,
+              child: SingleChildScrollView(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Wrap(
+                      spacing: 10,
+                      runSpacing: 10,
+                      children: [
+                        _CashClosureDialogInfo(
+                          label: 'Entradas do dia',
+                          value: _formatMoney(inputs),
+                          color: Colors.green.shade700,
+                        ),
+                        _CashClosureDialogInfo(
+                          label: 'Saídas do dia',
+                          value: _formatMoney(outputs),
+                          color: Colors.red.shade700,
+                        ),
+                        _CashClosureDialogInfo(
+                          label: 'Saldo esperado',
+                          value: _formatMoney(expected),
+                          color: Theme.of(context).colorScheme.primary,
+                        ),
+                        _CashClosureDialogInfo(
+                          label: 'Diferença',
+                          value: _formatMoney(difference),
+                          color: color,
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 16),
+                    TextField(
+                      controller: openingController,
+                      keyboardType: TextInputType.number,
+                      decoration: const InputDecoration(
+                        labelText: 'Saldo inicial do caixa',
+                        prefixText: 'R\$ ',
+                        helperText:
+                            'Troco inicial ou dinheiro que já começou no caixa.',
+                      ),
+                      onChanged: (_) => setDialogState(() {}),
+                    ),
+                    const SizedBox(height: 12),
+                    TextField(
+                      controller: countedController,
+                      keyboardType: TextInputType.number,
+                      decoration: const InputDecoration(
+                        labelText: 'Valor contado/conferido',
+                        prefixText: 'R\$ ',
+                        helperText: 'Valor que a dona conferiu no fim do dia.',
+                      ),
+                      onChanged: (_) => setDialogState(() {}),
+                    ),
+                    const SizedBox(height: 12),
+                    TextField(
+                      controller: notesController,
+                      maxLines: 3,
+                      decoration: const InputDecoration(
+                        labelText: 'Observação',
+                        hintText:
+                            'Ex: faltou troco, pix conferido, retirada da dona...',
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.of(dialogContext).pop(),
+                child: const Text('Cancelar'),
+              ),
+              FilledButton.icon(
+                icon: const Icon(Icons.fact_check_rounded),
+                onPressed: () {
+                  final now = DateTime.now();
+
+                  final closure = CashClosure(
+                    id: existing?.id ?? now.microsecondsSinceEpoch.toString(),
+                    dayKey: cashClosureDayKey(now),
+                    openingAmount: opening,
+                    countedAmount: counted,
+                    moneySales: inputsByMethod[PaymentMethod.dinheiro] ?? 0,
+                    pixSales: inputsByMethod[PaymentMethod.pix] ?? 0,
+                    debitSales: inputsByMethod[PaymentMethod.debito] ?? 0,
+                    creditSales: inputsByMethod[PaymentMethod.credito] ?? 0,
+                    fiadoSales: 0,
+                    canceledSales: canceledCashSalesTotal,
+                    salesCount: validCashSales.length,
+                    notes: notesController.text.trim(),
+                    createdAt: now,
+                    cashInAmount: 0,
+                    cashOutAmount: outputs,
+                  );
+
+                  closures.saveClosure(closure);
+
+                  Navigator.of(dialogContext).pop();
+
+                  _showMessage(
+                    context,
+                    difference.abs() < 0.01
+                        ? 'Caixa fechado batendo certinho.'
+                        : 'Caixa fechado com diferença registrada.',
+                  );
+                },
+                label: Text(
+                  existing == null ? 'Fechar caixa' : 'Salvar ajuste',
+                ),
+              ),
+            ],
+          );
+        },
+      );
+    },
+  );
+}
+
+class _CashClosureDialogInfo extends StatelessWidget {
+  const _CashClosureDialogInfo({
+    required this.label,
+    required this.value,
+    required this.color,
+  });
+
+  final String label;
+  final String value;
+  final Color color;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: 136,
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: color.withOpacity(0.08),
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: color.withOpacity(0.18)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(label, style: Theme.of(context).textTheme.bodySmall),
+          const SizedBox(height: 4),
+          Text(
+            value,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: TextStyle(color: color, fontWeight: FontWeight.w900),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+String _moneyInput(double value) {
+  return value.toStringAsFixed(2).replaceAll('.', ',');
+}
+
+double _parseMoneyInput(String value) {
+  final normalized = value
+      .trim()
+      .replaceAll(r'R$', '')
+      .replaceAll('.', '')
+      .replaceAll(',', '.')
+      .replaceAll(RegExp(r'[^0-9\.\-]'), '');
+
+  return double.tryParse(normalized) ?? 0;
 }
 
 class _CashMovementsPanel extends StatefulWidget {
@@ -1429,14 +1960,4 @@ Future<void> _showCashMovementDialog(
     reason: draft.reason,
     description: draft.description,
   );
-}
-
-double _parseMoneyInput(String value) {
-  final cleaned = value
-      .replaceAll('R\$', '')
-      .replaceAll('.', '')
-      .replaceAll(',', '.')
-      .trim();
-
-  return double.tryParse(cleaned) ?? 0;
 }

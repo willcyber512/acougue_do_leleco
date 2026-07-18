@@ -41,8 +41,12 @@ class CashClosure {
     return moneySales + pixSales + debitSales + creditSales + fiadoSales;
   }
 
+  double get receivedAmount {
+    return moneySales + pixSales + debitSales + creditSales + cashInAmount;
+  }
+
   double get expectedCash {
-    return openingAmount + moneySales + cashInAmount - cashOutAmount;
+    return openingAmount + receivedAmount - cashOutAmount;
   }
 
   double get difference {
