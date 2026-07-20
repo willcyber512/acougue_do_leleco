@@ -112,6 +112,21 @@ class _ReportsScreenState extends State<ReportsScreen> {
               selectedPeriod,
             );
 
+            final creditPaymentsTotal = creditEntries
+                .where((entry) => entry.type == CreditEntryType.payment)
+                .fold<double>(0, (total, entry) => total + entry.amount);
+
+            final debtorsCount = _creditDebtorRows(
+              customers.customers,
+              customers.entries,
+            ).length;
+
+            final canceledSales = _canceledSalesFrom(sales);
+            final canceledSalesTotal = canceledSales.fold<double>(
+              0,
+              (total, sale) => total + _reportsSafeDouble(() => sale.total),
+            );
+
             final cashClosuresProvider = context.watch<CashClosureProvider>();
             final cashClosures = _filterCashClosuresByPeriod(
               cashClosuresProvider.closures,
@@ -172,6 +187,18 @@ class _ReportsScreenState extends State<ReportsScreen> {
                     ),
                     const SizedBox(height: 14),
                     _CashClosureReportPanel(closures: cashClosures),
+                    const SizedBox(height: 14),
+                    _ReportsQuickCheckPanel(
+                      periodLabel: _periodLabel(selectedPeriod),
+                      cashInputs: manualCashInputs,
+                      cashOutputs: manualCashOutputs,
+                      cashBalance: manualCashBalance,
+                      creditPayments: creditPaymentsTotal,
+                      openCredit: customers.totalOpenCredit,
+                      debtorsCount: debtorsCount,
+                      canceledSalesCount: canceledSales.length,
+                      canceledSalesTotal: canceledSalesTotal,
+                    ),
                     const SizedBox(height: 14),
                     _ReportMenu(
                       selected: selectedSection,
@@ -675,6 +702,225 @@ class _CashClosureReportMetric extends StatelessWidget {
               color: color,
               fontWeight: FontWeight.w900,
               fontSize: 16,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _ReportsQuickCheckPanel extends StatelessWidget {
+  const _ReportsQuickCheckPanel({
+    required this.periodLabel,
+    required this.cashInputs,
+    required this.cashOutputs,
+    required this.cashBalance,
+    required this.creditPayments,
+    required this.openCredit,
+    required this.debtorsCount,
+    required this.canceledSalesCount,
+    required this.canceledSalesTotal,
+  });
+
+  final String periodLabel;
+  final double cashInputs;
+  final double cashOutputs;
+  final double cashBalance;
+  final double creditPayments;
+  final double openCredit;
+  final int debtorsCount;
+  final int canceledSalesCount;
+  final double canceledSalesTotal;
+
+  @override
+  Widget build(BuildContext context) {
+    final cards = [
+      _QuickCheckData(
+        title: 'Recebido no caixa',
+        value: _formatMoney(cashInputs),
+        subtitle: 'Entradas do período',
+        icon: Icons.south_west_rounded,
+        color: Colors.green.shade700,
+      ),
+      _QuickCheckData(
+        title: 'Saídas do caixa',
+        value: _formatMoney(cashOutputs),
+        subtitle: 'Despesas e pagamentos',
+        icon: Icons.north_east_rounded,
+        color: Colors.red.shade700,
+      ),
+      _QuickCheckData(
+        title: 'Saldo do caixa',
+        value: _formatMoney(cashBalance),
+        subtitle: 'Entradas menos saídas',
+        icon: Icons.account_balance_wallet_rounded,
+        color: AppColors.wine700,
+      ),
+      _QuickCheckData(
+        title: 'Fiado recebido',
+        value: _formatMoney(creditPayments),
+        subtitle: 'Pagamentos de clientes',
+        icon: Icons.payments_rounded,
+        color: Colors.blue.shade700,
+      ),
+      _QuickCheckData(
+        title: 'Clientes devendo',
+        value: debtorsCount.toString(),
+        subtitle: _formatMoney(openCredit),
+        icon: Icons.people_alt_rounded,
+        color: Colors.orange.shade800,
+      ),
+      _QuickCheckData(
+        title: 'Canceladas',
+        value: canceledSalesCount.toString(),
+        subtitle: _formatMoney(canceledSalesTotal),
+        icon: Icons.cancel_rounded,
+        color: Colors.deepOrange.shade700,
+      ),
+    ];
+
+    return _LelecoPanel(
+      padding: const EdgeInsets.all(18),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              _IconBadge(icon: Icons.fact_check_rounded),
+              const SizedBox(width: 14),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Conferência rápida',
+                      style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                        color: _titleColor(context),
+                        fontWeight: FontWeight.w900,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      'Resumo fácil para conferir o período: $periodLabel',
+                      style: TextStyle(
+                        color: _mutedColor(context),
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 14),
+          LayoutBuilder(
+            builder: (context, constraints) {
+              final width = constraints.maxWidth;
+              final columns = width >= 1050
+                  ? 3
+                  : width >= 680
+                  ? 2
+                  : 1;
+              const gap = 10.0;
+              final cardWidth = (width - gap * (columns - 1)) / columns;
+
+              return Wrap(
+                spacing: gap,
+                runSpacing: gap,
+                children: cards.map((card) {
+                  return SizedBox(
+                    width: cardWidth,
+                    child: _QuickCheckCard(data: card),
+                  );
+                }).toList(),
+              );
+            },
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _QuickCheckData {
+  const _QuickCheckData({
+    required this.title,
+    required this.value,
+    required this.subtitle,
+    required this.icon,
+    required this.color,
+  });
+
+  final String title;
+  final String value;
+  final String subtitle;
+  final IconData icon;
+  final Color color;
+}
+
+class _QuickCheckCard extends StatelessWidget {
+  const _QuickCheckCard({required this.data});
+
+  final _QuickCheckData data;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      height: 118,
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+      decoration: BoxDecoration(
+        color: data.color.withOpacity(0.09),
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(color: data.color.withOpacity(0.18)),
+      ),
+      child: Row(
+        children: [
+          CircleAvatar(
+            radius: 20,
+            backgroundColor: data.color,
+            child: Icon(data.icon, color: Colors.white, size: 20),
+          ),
+          const SizedBox(width: 11),
+          Expanded(
+            child: DefaultTextStyle.merge(
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    data.value,
+                    style: TextStyle(
+                      color: _titleColor(context),
+                      fontWeight: FontWeight.w900,
+                      fontSize: 16,
+                      height: 1.05,
+                    ),
+                  ),
+                  const SizedBox(height: 5),
+                  Text(
+                    data.title,
+                    style: TextStyle(
+                      color: _titleColor(context),
+                      fontWeight: FontWeight.w900,
+                      fontSize: 13,
+                      height: 1.05,
+                    ),
+                  ),
+                  const SizedBox(height: 5),
+                  Text(
+                    data.subtitle,
+                    style: TextStyle(
+                      color: _mutedColor(context),
+                      fontWeight: FontWeight.w700,
+                      fontSize: 11,
+                      height: 1.05,
+                    ),
+                  ),
+                ],
+              ),
             ),
           ),
         ],
