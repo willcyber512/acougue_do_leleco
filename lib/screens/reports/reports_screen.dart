@@ -3005,6 +3005,7 @@ class _PdfReportOptions {
   const _PdfReportOptions({
     required this.template,
     required this.includeSummary,
+    required this.includeQuickCheck,
     required this.includePayments,
     required this.includeProducts,
     required this.includeCategories,
@@ -3017,6 +3018,7 @@ class _PdfReportOptions {
 
   final _PdfReportTemplate template;
   final bool includeSummary;
+  final bool includeQuickCheck;
   final bool includePayments;
   final bool includeProducts;
   final bool includeCategories;
@@ -3046,6 +3048,7 @@ Future<void> _showReportsPdfOptionsDialog({
   var template = _PdfReportTemplate.professional;
 
   var includeSummary = true;
+  var includeQuickCheck = true;
   var includePayments = true;
   var includeProducts = true;
   var includeCategories = true;
@@ -3061,6 +3064,7 @@ Future<void> _showReportsPdfOptionsDialog({
     switch (selected) {
       case _PdfReportTemplate.professional:
         includeSummary = true;
+        includeQuickCheck = true;
         includePayments = true;
         includeProducts = true;
         includeCategories = true;
@@ -3072,6 +3076,7 @@ Future<void> _showReportsPdfOptionsDialog({
         break;
       case _PdfReportTemplate.complete:
         includeSummary = true;
+        includeQuickCheck = true;
         includePayments = true;
         includeProducts = true;
         includeCategories = true;
@@ -3083,6 +3088,7 @@ Future<void> _showReportsPdfOptionsDialog({
         break;
       case _PdfReportTemplate.simple:
         includeSummary = true;
+        includeQuickCheck = true;
         includePayments = true;
         includeProducts = true;
         includeCategories = false;
@@ -3142,6 +3148,16 @@ Future<void> _showReportsPdfOptionsDialog({
                       title: const Text('Resumo geral'),
                       subtitle: const Text(
                         'Vendas, faturamento, ticket médio e estoque baixo',
+                      ),
+                    ),
+                    CheckboxListTile(
+                      value: includeQuickCheck,
+                      onChanged: (value) {
+                        setDialogState(() => includeQuickCheck = value ?? true);
+                      },
+                      title: const Text('Conferência rápida'),
+                      subtitle: const Text(
+                        'Resumo fácil com caixa, fiado e canceladas',
                       ),
                     ),
                     CheckboxListTile(
@@ -3223,6 +3239,7 @@ Future<void> _showReportsPdfOptionsDialog({
                     _PdfReportOptions(
                       template: template,
                       includeSummary: includeSummary,
+                      includeQuickCheck: includeQuickCheck,
                       includePayments: includePayments,
                       includeProducts: includeProducts,
                       includeCategories: includeCategories,
@@ -3385,6 +3402,11 @@ Future<void> _exportReportsPdf({
           ];
         })
         .toList();
+
+    final creditPdfDebtorRows = _creditDebtorRows(
+      context.read<CustomersProvider>().customers,
+      context.read<CustomersProvider>().entries,
+    ).take(options.compactTables ? 8 : 40).toList();
 
     // PDF_CAIXA_OK_DADOS_START
     final cashPdfProvider = context.read<CashMovementProvider>();
@@ -3596,6 +3618,31 @@ Future<void> _exportReportsPdf({
       ]);
     }
 
+    final quickCheckPdfRows = <List<String>>[
+      ['Recebido no caixa', _formatMoney(cashPdfInputs), 'Entradas do período'],
+      [
+        'Saídas do caixa',
+        _formatMoney(cashPdfOutputs),
+        'Despesas e pagamentos',
+      ],
+      ['Saldo do caixa', _formatMoney(cashPdfBalance), 'Entradas menos saídas'],
+      [
+        'Fiado recebido',
+        _formatMoney(creditPdfPaymentsTotal),
+        'Pagamentos de clientes',
+      ],
+      [
+        'Clientes devendo',
+        creditPdfDebtorRows.length.toString(),
+        _formatMoney(openCredit),
+      ],
+      [
+        'Vendas canceladas',
+        canceledSales.length.toString(),
+        _formatMoney(canceledSalesTotal),
+      ],
+    ];
+
     pw.Widget metricCard(String title, String value, String subtitle) {
       return pw.Container(
         width: options.compactTables ? 103 : 150,
@@ -3786,6 +3833,20 @@ Future<void> _exportReportsPdf({
             ),
             pw.SizedBox(height: 8),
           ];
+
+          if (options.includeQuickCheck) {
+            widgets.addAll([
+              sectionTitle(
+                'Conferência rápida',
+                'Resumo fácil para conferir o período selecionado.',
+              ),
+              dataTable(
+                headers: const ['Indicador', 'Valor', 'Observação'],
+                rows: quickCheckPdfRows,
+                emptyText: 'Nenhum dado para conferência rápida.',
+              ),
+            ]);
+          }
 
           if (options.includeSummary) {
             widgets.addAll([
