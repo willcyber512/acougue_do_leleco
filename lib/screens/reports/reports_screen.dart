@@ -3001,13 +3001,28 @@ Future<void> _exportReportsPdf({
 
     // PDF_CAIXA_OK_DADOS_START
     final cashPdfProvider = context.read<CashMovementProvider>();
-    final cashPdfMovements = cashPdfProvider.todayMovements.toList();
-    final cashPdfInputs = cashPdfProvider.todayInputs;
-    final cashPdfOutputs = cashPdfProvider.todayOutputs;
-    final cashPdfBalance = cashPdfProvider.todayBalance;
+    final cashPdfMovements = _filterCashMovementsByPeriod(
+      cashPdfProvider.movements,
+      selectedPeriod,
+    );
+    final cashPdfInputs = _cashMovementTotal(
+      cashPdfMovements,
+      CashMovementType.input,
+    );
+    final cashPdfOutputs = _cashMovementTotal(
+      cashPdfMovements,
+      CashMovementType.output,
+    );
+    final cashPdfBalance = cashPdfInputs - cashPdfOutputs;
 
     final cashPdfClosureProvider = context.read<CashClosureProvider>();
-    final cashPdfClosure = cashPdfClosureProvider.closureForDay(DateTime.now());
+    final cashPdfClosures = _filterCashClosuresByPeriod(
+      cashPdfClosureProvider.closures,
+      selectedPeriod,
+    );
+    final CashClosure? cashPdfClosure = cashPdfClosures.isEmpty
+        ? null
+        : cashPdfClosures.first;
 
     final cashPdfInputCount = cashPdfMovements
         .where((movement) => movement.type == CashMovementType.input)
@@ -3064,8 +3079,17 @@ Future<void> _exportReportsPdf({
 
     final cashPdfClosureRows = <List<String>>[
       if (cashPdfClosure == null) ...[
-        ['Status', 'Caixa ainda não fechado', 'Feche pela aba Caixa'],
+        [
+          'Status',
+          'Caixa ainda não fechado no período',
+          'Feche pela aba Caixa',
+        ],
       ] else ...[
+        [
+          'Fechamentos no período',
+          cashPdfClosures.length.toString(),
+          'Último fechamento: ${cashPdfClosure.dayKey}',
+        ],
         [
           'Status',
           cashPdfClosure.statusLabel,
@@ -3480,11 +3504,11 @@ Future<void> _exportReportsPdf({
               dataTable(
                 headers: const ['Saídas agrupadas por motivo', 'Total', 'Qtd.'],
                 rows: cashPdfOutputTableRows,
-                emptyText: 'Nenhuma saída registrada hoje.',
+                emptyText: 'Nenhuma saída registrada no período.',
               ),
               pw.SizedBox(height: 3),
               pw.Text(
-                'O PDF mostra o resumo do caixa para não ficar grande. O histórico completo fica na tela Caixa.',
+                'O PDF mostra o resumo do caixa do período selecionado. O histórico completo fica na tela Caixa.',
                 style: pw.TextStyle(fontSize: 7, color: textMuted),
               ),
             ]);
