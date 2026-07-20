@@ -17,6 +17,7 @@ import '../../widgets/sale_receipt_dialog.dart';
 import '../../widgets/quick_product_from_barcode_dialog.dart';
 import '../../models/ramuza_barcode_event.dart';
 import '../../services/cash_sale_sync.dart';
+import '../../widgets/easy_help_card.dart';
 
 class SalesScreen extends StatelessWidget {
   const SalesScreen({super.key});
@@ -31,6 +32,36 @@ class SalesScreen extends StatelessWidget {
           return SingleChildScrollView(
             child: Column(
               children: const [
+                EasyHelpCard(
+                  title: 'Venda fácil',
+                  subtitle: 'Passe o produto, confira o carrinho e finalize.',
+                  icon: Icons.point_of_sale_rounded,
+                  steps: [
+                    EasyHelpStep(
+                      title: 'Passe no leitor',
+                      description: 'Leia o código ou digite o produto.',
+                      icon: Icons.qr_code_scanner_rounded,
+                    ),
+                    EasyHelpStep(
+                      title: 'Confira o carrinho',
+                      description: 'Veja quantidade, peso e total.',
+                      icon: Icons.shopping_cart_checkout_rounded,
+                    ),
+                    EasyHelpStep(
+                      title: 'Escolha pagamento',
+                      description: 'Dinheiro, Pix, cartão ou fiado.',
+                      icon: Icons.payments_rounded,
+                    ),
+                    EasyHelpStep(
+                      title: 'Finalize',
+                      description: 'Baixa estoque e registra no caixa.',
+                      icon: Icons.check_circle_rounded,
+                    ),
+                  ],
+                  footer:
+                      'Fiado não entra no caixa na hora. Ele fica na aba Fiado e só entra no caixa quando o cliente pagar.',
+                ),
+                SizedBox(height: 14),
                 SizedBox(height: 560, child: _ProductsPanel()),
                 SizedBox(height: 14),
                 SizedBox(height: 520, child: _CartPanel()),
@@ -39,11 +70,47 @@ class SalesScreen extends StatelessWidget {
           );
         }
 
-        return const Row(
+        return const Column(
           children: [
-            Expanded(flex: 7, child: _ProductsPanel()),
-            SizedBox(width: 18),
-            Expanded(flex: 4, child: _CartPanel()),
+            EasyHelpCard(
+              title: 'Venda fácil',
+              subtitle: 'Passe o produto, confira o carrinho e finalize.',
+              icon: Icons.point_of_sale_rounded,
+              steps: [
+                EasyHelpStep(
+                  title: 'Passe no leitor',
+                  description: 'Leia o código ou digite o produto.',
+                  icon: Icons.qr_code_scanner_rounded,
+                ),
+                EasyHelpStep(
+                  title: 'Confira o carrinho',
+                  description: 'Veja quantidade, peso e total.',
+                  icon: Icons.shopping_cart_checkout_rounded,
+                ),
+                EasyHelpStep(
+                  title: 'Escolha pagamento',
+                  description: 'Dinheiro, Pix, cartão ou fiado.',
+                  icon: Icons.payments_rounded,
+                ),
+                EasyHelpStep(
+                  title: 'Finalize',
+                  description: 'Baixa estoque e registra no caixa.',
+                  icon: Icons.check_circle_rounded,
+                ),
+              ],
+              footer:
+                  'Fiado não entra no caixa na hora. Ele fica na aba Fiado e só entra no caixa quando o cliente pagar.',
+            ),
+            SizedBox(height: 14),
+            Expanded(
+              child: Row(
+                children: [
+                  Expanded(flex: 7, child: _ProductsPanel()),
+                  SizedBox(width: 18),
+                  Expanded(flex: 4, child: _CartPanel()),
+                ],
+              ),
+            ),
           ],
         );
       },
@@ -196,7 +263,7 @@ class _BarcodeSearchFieldState extends State<_BarcodeSearchField> {
             });
           },
           decoration: InputDecoration(
-            hintText: 'Digite ou leia o código do produto...',
+            hintText: 'Passe o leitor aqui ou digite o produto...',
             prefixIcon: const Icon(Icons.qr_code_scanner_rounded),
             suffixIcon: const Icon(Icons.keyboard_return_rounded),
             filled: true,
@@ -503,7 +570,7 @@ class _CartPanel extends StatelessWidget {
                             : null,
                         icon: const Icon(Icons.check_circle_rounded),
                         label: const Text(
-                          'Finalizar',
+                          'Finalizar venda',
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
                         ),

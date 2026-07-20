@@ -12,6 +12,7 @@ import '../../widgets/leleco_metric_card.dart';
 import '../../providers/inventory_provider.dart';
 import '../../providers/sales_provider.dart';
 import '../../services/cash_sale_sync.dart';
+import '../../widgets/easy_help_card.dart';
 
 class CustomersScreen extends StatelessWidget {
   const CustomersScreen({super.key});
@@ -67,7 +68,37 @@ class CustomersScreen extends StatelessWidget {
                 ),
               ],
             ),
-            const SizedBox(height: 20),
+            const SizedBox(height: 14),
+            const EasyHelpCard(
+              title: 'Fiado fácil',
+              subtitle: 'Controle quem deve, quem pagou e corrija lançamentos.',
+              icon: Icons.people_alt_rounded,
+              steps: [
+                EasyHelpStep(
+                  title: 'Cadastre cliente',
+                  description: 'Nome e telefone já bastam.',
+                  icon: Icons.person_add_alt_rounded,
+                ),
+                EasyHelpStep(
+                  title: 'Venda no fiado',
+                  description: 'Na venda, escolha Fiado e o cliente.',
+                  icon: Icons.shopping_bag_rounded,
+                ),
+                EasyHelpStep(
+                  title: 'Receba pagamento',
+                  description: 'O valor entra no caixa automaticamente.',
+                  icon: Icons.payments_rounded,
+                ),
+                EasyHelpStep(
+                  title: 'Corrija erro',
+                  description: 'Use Histórico para cancelar ou estornar.',
+                  icon: Icons.undo_rounded,
+                ),
+              ],
+              footer:
+                  'Pagamento recebido no fiado aparece no Caixa. Compra fiada só aparece como dívida até ser paga.',
+            ),
+            const SizedBox(height: 16),
             _CustomersToolbar(provider: provider),
             const SizedBox(height: 16),
             Expanded(
@@ -193,14 +224,14 @@ class _CustomerCard extends StatelessWidget {
             ),
             const SizedBox(width: 8),
             IconButton(
-              tooltip: 'Receber pagamento',
+              tooltip: 'Receber pagamento do fiado',
               onPressed: hasDebt
                   ? () => _openPaymentDialog(context, customer)
                   : null,
               icon: const Icon(Icons.payments_rounded),
             ),
             IconButton(
-              tooltip: 'Histórico',
+              tooltip: 'Ver histórico do cliente',
               onPressed: () => _openCustomerHistoryDialog(context, customer),
               icon: const Icon(Icons.history_rounded),
             ),

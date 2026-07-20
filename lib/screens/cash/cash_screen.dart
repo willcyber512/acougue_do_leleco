@@ -14,6 +14,7 @@ import '../../services/cash_sale_sync.dart';
 import '../../providers/customers_provider.dart';
 import '../../models/cash_closure.dart';
 import '../../providers/cash_closure_provider.dart';
+import '../../widgets/easy_help_card.dart';
 
 List<SaleRecord> _cashOnlySales(Iterable<SaleRecord> sales) {
   final result = sales
@@ -91,8 +92,8 @@ class _CashScreenState extends State<CashScreen> {
                         child: LelecoMetricCard(
                           icon: Icons.receipt_long_rounded,
                           title: showOnlyToday
-                              ? 'Vendas válidas hoje'
-                              : 'Vendas válidas',
+                              ? 'Vendas recebidas hoje'
+                              : 'Vendas recebidas',
                           value: validSales.length.toString(),
                         ),
                       ),
@@ -122,6 +123,37 @@ class _CashScreenState extends State<CashScreen> {
                     onChanged: (value) {
                       setState(() => showOnlyToday = value);
                     },
+                  ),
+                  const SizedBox(height: 14),
+                  const EasyHelpCard(
+                    title: 'Caixa fácil',
+                    subtitle: 'Veja o dinheiro que entrou, saiu e feche o dia.',
+                    icon: Icons.account_balance_wallet_rounded,
+                    steps: [
+                      EasyHelpStep(
+                        title: 'Entradas automáticas',
+                        description: 'Vendas e fiado pago entram sozinhos.',
+                        icon: Icons.south_west_rounded,
+                      ),
+                      EasyHelpStep(
+                        title: 'Registre saídas',
+                        description:
+                            'Fornecedor, mercado, retirada ou despesa.',
+                        icon: Icons.north_east_rounded,
+                      ),
+                      EasyHelpStep(
+                        title: 'Confira histórico',
+                        description: 'Automático não deve ser apagado aqui.',
+                        icon: Icons.receipt_long_rounded,
+                      ),
+                      EasyHelpStep(
+                        title: 'Feche o caixa',
+                        description: 'Informe contado e veja sobra ou falta.',
+                        icon: Icons.fact_check_rounded,
+                      ),
+                    ],
+                    footer:
+                        'Venda fiada não aparece como dinheiro recebido. Ela só entra no caixa quando o cliente pagar.',
                   ),
                   const SizedBox(height: 16),
                   const _CashMovementsPanel(),
