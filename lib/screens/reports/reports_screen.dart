@@ -193,6 +193,7 @@ class _ReportsScreenState extends State<ReportsScreen> {
                       totalSupplierPurchases: totalSupplierPurchases,
                       lowStock: lowStock,
                       openCredit: customers.totalOpenCredit,
+                      creditCustomers: customers.customers,
                       creditEntries: creditEntries,
                       cashMovements: cashMovements,
                       manualCashInputs: manualCashInputs,
@@ -831,6 +832,7 @@ class _ReportBody extends StatelessWidget {
     required this.totalSupplierPurchases,
     required this.lowStock,
     required this.openCredit,
+    required this.creditCustomers,
     required this.creditEntries,
     required this.cashMovements,
     required this.manualCashInputs,
@@ -852,6 +854,7 @@ class _ReportBody extends StatelessWidget {
   final double totalSupplierPurchases;
   final List<Product> lowStock;
   final double openCredit;
+  final List<dynamic> creditCustomers;
   final List<CreditEntry> creditEntries;
   final List<CashMovement> cashMovements;
   final double manualCashInputs;
@@ -981,6 +984,7 @@ class _ReportBody extends StatelessWidget {
         return _CreditReportPanel(
           periodLabel: periodLabel,
           openCredit: openCredit,
+          customers: creditCustomers,
           entries: creditEntries,
         );
 
@@ -1020,11 +1024,13 @@ class _CreditReportPanel extends StatelessWidget {
   const _CreditReportPanel({
     required this.periodLabel,
     required this.openCredit,
+    required this.customers,
     required this.entries,
   });
 
   final String periodLabel;
   final double openCredit;
+  final List<dynamic> customers;
   final List<CreditEntry> entries;
 
   @override
@@ -1068,6 +1074,8 @@ class _CreditReportPanel extends StatelessWidget {
       ];
     }).toList();
 
+    final debtorRows = _creditDebtorRows(customers, entries);
+
     return Column(
       children: [
         _PanelWithTable(
@@ -1086,6 +1094,16 @@ class _CreditReportPanel extends StatelessWidget {
             ],
           ],
           emptyText: 'Nenhum movimento de fiado nesse período.',
+        ),
+        const SizedBox(height: 14),
+        _PanelWithTable(
+          title: 'Clientes que ainda devem',
+          subtitle: 'Lista de cobrança com saldo em aberto',
+          totalLabel: 'Aberto',
+          totalValue: _formatMoney(openCredit),
+          headers: const ['Cliente', 'Telefone', 'Valor em aberto'],
+          rows: debtorRows,
+          emptyText: 'Nenhum cliente devendo no momento.',
         ),
         const SizedBox(height: 14),
         _PanelWithTable(
@@ -3980,6 +3998,58 @@ List<CashClosure> _filterCashClosuresByPeriod(
     final createdAt = closure.createdAt;
     return !createdAt.isBefore(start) && createdAt.isBefore(end);
   }).toList();
+}
+
+List<List<String>> _creditDebtorRows(
+  List<dynamic> customers,
+  List<CreditEntry> allEntries,
+) {
+  final rows = <List<String>>[];
+
+  for (final customer in customers) {
+    final dynamic c = customer;
+    final id = c.id?.toString() ?? '';
+
+    if (id.trim().isEmpty) continue;
+
+    final balance = allEntries
+        .where((entry) => entry.customerId == id)
+        .fold<double>(0, (total, entry) {
+          if (entry.type == CreditEntryType.purchase) {
+            return total + entry.amount;
+          }
+
+          return total - entry.amount;
+        });
+
+    if (balance <= 0.009) continue;
+
+    rows.add([
+      c.name?.toString() ?? 'Cliente',
+      (c.phone?.toString().trim().isEmpty ?? true)
+          ? 'Sem telefone'
+          : c.phone.toString(),
+      _formatMoney(balance),
+    ]);
+  }
+
+  rows.sort((a, b) {
+    final av = _moneyTextToDouble(a[2]);
+    final bv = _moneyTextToDouble(b[2]);
+    return bv.compareTo(av);
+  });
+
+  return rows;
+}
+
+double _moneyTextToDouble(String value) {
+  final normalized = value
+      .replaceAll('R\$', '')
+      .replaceAll('.', '')
+      .replaceAll(',', '.')
+      .replaceAll(RegExp(r'[^0-9\.\-]'), '');
+
+  return double.tryParse(normalized) ?? 0;
 }
 
 List<CreditEntry> _filterCreditEntriesByPeriod(
