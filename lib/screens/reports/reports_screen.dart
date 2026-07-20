@@ -20,6 +20,7 @@ import '../../providers/sales_provider.dart';
 import '../../providers/suppliers_provider.dart';
 import '../../models/cash_closure.dart';
 import '../../providers/cash_closure_provider.dart';
+import '../../models/credit_entry.dart';
 
 enum _ReportSection {
   overview,
@@ -105,6 +106,11 @@ class _ReportsScreenState extends State<ReportsScreen> {
               cashMovements,
             );
 
+            final creditEntries = _filterCreditEntriesByPeriod(
+              customers.entries,
+              selectedPeriod,
+            );
+
             final cashClosuresProvider = context.watch<CashClosureProvider>();
             final cashClosures = _filterCashClosuresByPeriod(
               cashClosuresProvider.closures,
@@ -133,6 +139,7 @@ class _ReportsScreenState extends State<ReportsScreen> {
                     _ReportsPdfActionPanel(
                       onPressed: () => _showReportsPdfOptionsDialog(
                         context: context,
+                        selectedPeriod: selectedPeriod,
                         periodLabel: _periodLabel(selectedPeriod),
                         sales: sales,
                         revenue: revenue,
@@ -186,6 +193,7 @@ class _ReportsScreenState extends State<ReportsScreen> {
                       totalSupplierPurchases: totalSupplierPurchases,
                       lowStock: lowStock,
                       openCredit: customers.totalOpenCredit,
+                      creditEntries: creditEntries,
                       cashMovements: cashMovements,
                       manualCashInputs: manualCashInputs,
                       manualCashOutputs: manualCashOutputs,
@@ -823,6 +831,7 @@ class _ReportBody extends StatelessWidget {
     required this.totalSupplierPurchases,
     required this.lowStock,
     required this.openCredit,
+    required this.creditEntries,
     required this.cashMovements,
     required this.manualCashInputs,
     required this.manualCashOutputs,
@@ -843,6 +852,7 @@ class _ReportBody extends StatelessWidget {
   final double totalSupplierPurchases;
   final List<Product> lowStock;
   final double openCredit;
+  final List<CreditEntry> creditEntries;
   final List<CashMovement> cashMovements;
   final double manualCashInputs;
   final double manualCashOutputs;
@@ -968,17 +978,10 @@ class _ReportBody extends StatelessWidget {
           outputCategoryTotals: cashOutputCategoryTotals,
         );
       case _ReportSection.credit:
-        return _PanelWithTable(
-          title: 'Fiado',
-          subtitle: 'Resumo atual',
-          totalLabel: 'Fiado aberto',
-          totalValue: _formatMoney(openCredit),
-          headers: const ['Resumo', 'Valor'],
-          rows: [
-            ['Total em aberto no fiado', _formatMoney(openCredit)],
-            ['Detalhamento', 'Abra a aba Fiado para ver cliente por cliente'],
-          ],
-          emptyText: 'Nenhum fiado em aberto.',
+        return _CreditReportPanel(
+          periodLabel: periodLabel,
+          openCredit: openCredit,
+          entries: creditEntries,
         );
 
       case _ReportSection.detailed:
@@ -1010,6 +1013,109 @@ class _ReportBody extends StatelessWidget {
           emptyText: 'Nenhuma venda nesse período.',
         );
     }
+  }
+}
+
+class _CreditReportPanel extends StatelessWidget {
+  const _CreditReportPanel({
+    required this.periodLabel,
+    required this.openCredit,
+    required this.entries,
+  });
+
+  final String periodLabel;
+  final double openCredit;
+  final List<CreditEntry> entries;
+
+  @override
+  Widget build(BuildContext context) {
+    final purchases = entries
+        .where((entry) => entry.type == CreditEntryType.purchase)
+        .toList();
+
+    final payments = entries
+        .where((entry) => entry.type == CreditEntryType.payment)
+        .toList();
+
+    final totalPurchases = purchases.fold<double>(
+      0,
+      (total, entry) => total + entry.amount,
+    );
+
+    final totalPayments = payments.fold<double>(
+      0,
+      (total, entry) => total + entry.amount,
+    );
+
+    final paymentRows = payments.take(30).map((entry) {
+      return [
+        _formatDate(entry.createdAt),
+        _formatTime(entry.createdAt),
+        entry.customerName,
+        entry.paymentMethod.label,
+        _formatMoney(entry.amount),
+        entry.description,
+      ];
+    }).toList();
+
+    final purchaseRows = purchases.take(30).map((entry) {
+      return [
+        _formatDate(entry.createdAt),
+        _formatTime(entry.createdAt),
+        entry.customerName,
+        _formatMoney(entry.amount),
+        entry.description,
+      ];
+    }).toList();
+
+    return Column(
+      children: [
+        _PanelWithTable(
+          title: 'Fiado',
+          subtitle: 'Resumo do fiado no período: $periodLabel',
+          totalLabel: 'Fiado aberto agora',
+          totalValue: _formatMoney(openCredit),
+          headers: const ['Resumo', 'Valor'],
+          rows: [
+            ['Fiado em aberto agora', _formatMoney(openCredit)],
+            ['Compras fiadas no período', _formatMoney(totalPurchases)],
+            ['Pagamentos recebidos no período', _formatMoney(totalPayments)],
+            [
+              'Movimento líquido do período',
+              _formatMoney(totalPurchases - totalPayments),
+            ],
+          ],
+          emptyText: 'Nenhum movimento de fiado nesse período.',
+        ),
+        const SizedBox(height: 14),
+        _PanelWithTable(
+          title: 'Pagamentos de fiado recebidos',
+          subtitle: 'Clientes que pagaram fiado no período',
+          totalLabel: 'Recebido',
+          totalValue: _formatMoney(totalPayments),
+          headers: const [
+            'Data',
+            'Hora',
+            'Cliente',
+            'Forma',
+            'Valor',
+            'Observação',
+          ],
+          rows: paymentRows,
+          emptyText: 'Nenhum pagamento de fiado recebido nesse período.',
+        ),
+        const SizedBox(height: 14),
+        _PanelWithTable(
+          title: 'Compras lançadas no fiado',
+          subtitle: 'Vendas fiadas criadas no período',
+          totalLabel: 'Lançado',
+          totalValue: _formatMoney(totalPurchases),
+          headers: const ['Data', 'Hora', 'Cliente', 'Valor', 'Descrição'],
+          rows: purchaseRows,
+          emptyText: 'Nenhuma compra fiada lançada nesse período.',
+        ),
+      ],
+    );
   }
 }
 
@@ -2518,6 +2624,7 @@ class _PdfReportOptions {
 
 Future<void> _showReportsPdfOptionsDialog({
   required BuildContext context,
+  required _ReportPeriod selectedPeriod,
   required String periodLabel,
   required List sales,
   required double revenue,
@@ -2736,6 +2843,7 @@ Future<void> _showReportsPdfOptionsDialog({
 
   await _exportReportsPdf(
     context: context,
+    selectedPeriod: selectedPeriod,
     periodLabel: periodLabel,
     sales: sales,
     revenue: revenue,
@@ -2754,6 +2862,7 @@ Future<void> _showReportsPdfOptionsDialog({
 
 Future<void> _exportReportsPdf({
   required BuildContext context,
+  required _ReportPeriod selectedPeriod,
   required String periodLabel,
   required List sales,
   required double revenue,
@@ -2812,6 +2921,65 @@ Future<void> _exportReportsPdf({
       final value = ((paymentTotals[method] ?? 0) as num).toDouble();
       paymentRows.add([method.label, _formatMoney(value)]);
     }
+
+    final creditPdfEntries = _filterCreditEntriesByPeriod(
+      context.read<CustomersProvider>().entries,
+      selectedPeriod,
+    );
+
+    final creditPdfPurchases = creditPdfEntries
+        .where((entry) => entry.type == CreditEntryType.purchase)
+        .toList();
+
+    final creditPdfPayments = creditPdfEntries
+        .where((entry) => entry.type == CreditEntryType.payment)
+        .toList();
+
+    final creditPdfPurchasesTotal = creditPdfPurchases.fold<double>(
+      0,
+      (total, entry) => total + entry.amount,
+    );
+
+    final creditPdfPaymentsTotal = creditPdfPayments.fold<double>(
+      0,
+      (total, entry) => total + entry.amount,
+    );
+
+    final creditPdfSummaryRows = <List<String>>[
+      [
+        'Fiado em aberto agora',
+        _formatMoney(openCredit),
+        'Saldo atual dos clientes',
+      ],
+      [
+        'Compras fiadas no período',
+        _formatMoney(creditPdfPurchasesTotal),
+        '${creditPdfPurchases.length} lançamento(s)',
+      ],
+      [
+        'Pagamentos recebidos no período',
+        _formatMoney(creditPdfPaymentsTotal),
+        '${creditPdfPayments.length} recebimento(s)',
+      ],
+      [
+        'Movimento líquido do fiado',
+        _formatMoney(creditPdfPurchasesTotal - creditPdfPaymentsTotal),
+        'Compras - pagamentos',
+      ],
+    ];
+
+    final creditPdfPaymentRows = creditPdfPayments
+        .take(options.compactTables ? 8 : 40)
+        .map<List<String>>((entry) {
+          return [
+            '${_formatDate(entry.createdAt)} ${_formatTime(entry.createdAt)}',
+            entry.customerName,
+            entry.paymentMethod.label,
+            _formatMoney(entry.amount),
+            entry.description,
+          ];
+        })
+        .toList();
 
     // PDF_CAIXA_OK_DADOS_START
     final cashPdfProvider = context.read<CashMovementProvider>();
@@ -3223,6 +3391,28 @@ Future<void> _exportReportsPdf({
                 headers: const ['Forma', 'Total'],
                 rows: paymentRows,
                 emptyText: 'Nenhum pagamento registrado no período.',
+              ),
+              pw.SizedBox(height: 7),
+              sectionTitle(
+                'Fiado e pagamentos recebidos',
+                'Mostra quem pagou fiado e quanto entrou no período.',
+              ),
+              dataTable(
+                headers: const ['Resumo', 'Valor', 'Observação'],
+                rows: creditPdfSummaryRows,
+                emptyText: 'Nenhum movimento de fiado no período.',
+              ),
+              pw.SizedBox(height: 7),
+              dataTable(
+                headers: const [
+                  'Data/Hora',
+                  'Cliente',
+                  'Forma',
+                  'Valor',
+                  'Observação',
+                ],
+                rows: creditPdfPaymentRows,
+                emptyText: 'Nenhum pagamento de fiado recebido no período.',
               ),
             ]);
           }
@@ -3789,6 +3979,51 @@ List<CashClosure> _filterCashClosuresByPeriod(
   return closures.where((closure) {
     final createdAt = closure.createdAt;
     return !createdAt.isBefore(start) && createdAt.isBefore(end);
+  }).toList();
+}
+
+List<CreditEntry> _filterCreditEntriesByPeriod(
+  List<CreditEntry> entries,
+  _ReportPeriod period,
+) {
+  if (period == _ReportPeriod.all) {
+    return List.unmodifiable(entries);
+  }
+
+  final now = DateTime.now();
+  late final DateTime start;
+
+  switch (period) {
+    case _ReportPeriod.today:
+      start = DateTime(now.year, now.month, now.day);
+      break;
+    case _ReportPeriod.sevenDays:
+      start = DateTime(
+        now.year,
+        now.month,
+        now.day,
+      ).subtract(const Duration(days: 6));
+      break;
+    case _ReportPeriod.thirtyDays:
+      start = DateTime(
+        now.year,
+        now.month,
+        now.day,
+      ).subtract(const Duration(days: 29));
+      break;
+    case _ReportPeriod.all:
+      start = DateTime.fromMillisecondsSinceEpoch(0);
+      break;
+  }
+
+  final end = DateTime(
+    now.year,
+    now.month,
+    now.day,
+  ).add(const Duration(days: 1));
+
+  return entries.where((entry) {
+    return !entry.createdAt.isBefore(start) && entry.createdAt.isBefore(end);
   }).toList();
 }
 
