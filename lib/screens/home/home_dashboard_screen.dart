@@ -17,6 +17,8 @@ import '../../providers/inventory_provider.dart';
 import '../../providers/sales_provider.dart';
 import '../../providers/shortcuts_provider.dart';
 import '../../providers/suppliers_provider.dart';
+import '../../widgets/daily_report_pdf_dialog.dart';
+import '../../widgets/end_day_backup_dialog.dart';
 
 enum _TodaySection {
   summary,
@@ -173,6 +175,12 @@ class _HomeDashboardScreenState extends State<HomeDashboardScreen> {
             alertsCount: lowStockProducts.length + openSupplierPurchases.length,
             onCustomize: _openCustomizeDialog,
             onNavigate: widget.onNavigate,
+          ),
+          const SizedBox(height: 16),
+          _TodayActionCenter(
+            onNavigate: widget.onNavigate,
+            onBackup: () => showEndDayBackupDialog(context),
+            onPdf: () => showDailyReportPdfDialog(context),
           ),
           const SizedBox(height: 16),
           if (_isVisible(_TodaySection.summary))
@@ -353,6 +361,268 @@ class _HomeDashboardScreenState extends State<HomeDashboardScreen> {
   }
 }
 
+class _TodayActionCenter extends StatelessWidget {
+  const _TodayActionCenter({
+    required this.onNavigate,
+    required this.onBackup,
+    required this.onPdf,
+  });
+
+  final ValueChanged<int> onNavigate;
+  final VoidCallback onBackup;
+  final VoidCallback onPdf;
+
+  @override
+  Widget build(BuildContext context) {
+    final mainActions = [
+      _TodayActionData(
+        title: 'Nova venda',
+        subtitle: 'Abrir o PDV normal',
+        icon: Icons.point_of_sale_rounded,
+        color: AppColors.wine700,
+        onTap: () => onNavigate(1),
+      ),
+      _TodayActionData(
+        title: 'Venda por etiqueta',
+        subtitle: 'Leitor USB / balança',
+        icon: Icons.qr_code_scanner_rounded,
+        color: Colors.indigo.shade700,
+        onTap: () => onNavigate(8),
+      ),
+      _TodayActionData(
+        title: 'Receber fiado',
+        subtitle: 'Cliente pagando dívida',
+        icon: Icons.people_alt_rounded,
+        color: Colors.green.shade700,
+        onTap: () => onNavigate(3),
+      ),
+      _TodayActionData(
+        title: 'Abrir caixa',
+        subtitle: 'Entradas, saídas e fechamento',
+        icon: Icons.account_balance_wallet_rounded,
+        color: Colors.orange.shade800,
+        onTap: () => onNavigate(4),
+      ),
+    ];
+
+    final endDayActions = [
+      _TodayActionData(
+        title: 'Fechar caixa',
+        subtitle: 'Conferir sobra ou falta',
+        icon: Icons.fact_check_rounded,
+        color: Colors.teal.shade700,
+        onTap: () => onNavigate(4),
+      ),
+      _TodayActionData(
+        title: 'Relatório PDF',
+        subtitle: 'Gerar resumo do dia',
+        icon: Icons.picture_as_pdf_rounded,
+        color: Colors.red.shade700,
+        onTap: onPdf,
+      ),
+      _TodayActionData(
+        title: 'Backup',
+        subtitle: 'Salvar dados do sistema',
+        icon: Icons.backup_rounded,
+        color: Colors.blueGrey.shade700,
+        onTap: onBackup,
+      ),
+      _TodayActionData(
+        title: 'Alertas',
+        subtitle: 'Ver pendências',
+        icon: Icons.notifications_active_rounded,
+        color: Colors.deepOrange.shade700,
+        onTap: () => onNavigate(7),
+      ),
+    ];
+
+    return _Panel(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              _IconBox(icon: Icons.touch_app_rounded),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'O que você quer fazer agora?',
+                      style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                        color: _titleColor(context),
+                        fontWeight: FontWeight.w900,
+                      ),
+                    ),
+                    const SizedBox(height: 3),
+                    Text(
+                      'Botões grandes para a dona usar sem procurar no menu.',
+                      style: TextStyle(
+                        color: _mutedColor(context),
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 14),
+          LayoutBuilder(
+            builder: (context, constraints) {
+              final width = constraints.maxWidth;
+              final itemWidth = width >= 980
+                  ? (width - 30) / 4
+                  : width >= 680
+                  ? (width - 10) / 2
+                  : width;
+
+              return Wrap(
+                spacing: 10,
+                runSpacing: 10,
+                children: mainActions.map((action) {
+                  return SizedBox(
+                    width: itemWidth,
+                    child: _TodayActionButton(action: action),
+                  );
+                }).toList(),
+              );
+            },
+          ),
+          const SizedBox(height: 16),
+          Row(
+            children: [
+              Icon(
+                Icons.nightlight_round,
+                color: _mutedColor(context),
+                size: 19,
+              ),
+              const SizedBox(width: 8),
+              Text(
+                'Fim do dia',
+                style: TextStyle(
+                  color: _titleColor(context),
+                  fontWeight: FontWeight.w900,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 10),
+          LayoutBuilder(
+            builder: (context, constraints) {
+              final width = constraints.maxWidth;
+              final itemWidth = width >= 980
+                  ? (width - 30) / 4
+                  : width >= 680
+                  ? (width - 10) / 2
+                  : width;
+
+              return Wrap(
+                spacing: 10,
+                runSpacing: 10,
+                children: endDayActions.map((action) {
+                  return SizedBox(
+                    width: itemWidth,
+                    child: _TodayActionButton(action: action, compact: true),
+                  );
+                }).toList(),
+              );
+            },
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _TodayActionData {
+  const _TodayActionData({
+    required this.title,
+    required this.subtitle,
+    required this.icon,
+    required this.color,
+    required this.onTap,
+  });
+
+  final String title;
+  final String subtitle;
+  final IconData icon;
+  final Color color;
+  final VoidCallback onTap;
+}
+
+class _TodayActionButton extends StatelessWidget {
+  const _TodayActionButton({required this.action, this.compact = false});
+
+  final _TodayActionData action;
+  final bool compact;
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: action.color.withOpacity(0.10),
+      borderRadius: BorderRadius.circular(18),
+      child: InkWell(
+        onTap: action.onTap,
+        borderRadius: BorderRadius.circular(18),
+        child: Container(
+          height: compact ? 78 : 92,
+          padding: const EdgeInsets.all(13),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(18),
+            border: Border.all(color: action.color.withOpacity(0.20)),
+          ),
+          child: Row(
+            children: [
+              CircleAvatar(
+                radius: compact ? 20 : 23,
+                backgroundColor: action.color,
+                child: Icon(
+                  action.icon,
+                  color: Colors.white,
+                  size: compact ? 20 : 23,
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      action.title,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                        color: _titleColor(context),
+                        fontWeight: FontWeight.w900,
+                        fontSize: compact ? 14 : 16,
+                      ),
+                    ),
+                    const SizedBox(height: 3),
+                    Text(
+                      action.subtitle,
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                        color: _mutedColor(context),
+                        fontWeight: FontWeight.w700,
+                        fontSize: compact ? 11 : 12,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              Icon(Icons.chevron_right_rounded, color: action.color),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
 class _TodayHero extends StatelessWidget {
   const _TodayHero({
     required this.todayRevenue,
@@ -440,7 +710,7 @@ class _TodayHero extends StatelessWidget {
             children: [
               _HeroButton(
                 icon: Icons.point_of_sale_rounded,
-                label: 'Venda',
+                label: 'Vender',
                 onTap: () => onNavigate(1),
               ),
               _HeroButton(
