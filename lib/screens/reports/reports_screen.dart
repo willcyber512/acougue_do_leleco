@@ -32,6 +32,7 @@ enum _ReportSection {
   cash,
   credit,
   detailed,
+  canceled,
 }
 
 enum _ReportPeriod { today, sevenDays, thirtyDays, all }
@@ -723,6 +724,11 @@ class _ReportMenu extends StatelessWidget {
         'Vendas',
         Icons.receipt_long_rounded,
       ),
+      _ReportOption(
+        _ReportSection.canceled,
+        'Canceladas',
+        Icons.cancel_rounded,
+      ),
     ];
   }
 
@@ -992,6 +998,12 @@ class _ReportBody extends StatelessWidget {
           allEntries: creditAllEntries,
         );
 
+      case _ReportSection.canceled:
+        return _CanceledSalesReportPanel(
+          sales: sales,
+          periodLabel: periodLabel,
+        );
+
       case _ReportSection.detailed:
         return _PanelWithTable(
           title: 'Vendas detalhadas',
@@ -1021,6 +1033,57 @@ class _ReportBody extends StatelessWidget {
           emptyText: 'Nenhuma venda nesse período.',
         );
     }
+  }
+}
+
+class _CanceledSalesReportPanel extends StatelessWidget {
+  const _CanceledSalesReportPanel({
+    required this.sales,
+    required this.periodLabel,
+  });
+
+  final List<dynamic> sales;
+  final String periodLabel;
+
+  @override
+  Widget build(BuildContext context) {
+    final canceledSales = _canceledSalesFrom(sales);
+
+    final canceledTotal = canceledSales.fold<double>(
+      0,
+      (total, sale) => total + _reportsSafeDouble(() => sale.total),
+    );
+
+    final rows = canceledSales.take(80).map((sale) {
+      return [
+        _reportsSafeText(() => sale.shortId, 'Venda'),
+        _reportsSafeDateTimeText(
+          _reportsSafeDate(() => sale.canceledAt) ??
+              _reportsSafeDate(() => sale.createdAt),
+        ),
+        _reportsSafeText(() => sale.paymentMethod.label),
+        _reportsSafeText(() => sale.totalItems),
+        _formatMoney(_reportsSafeDouble(() => sale.total)),
+        _reportsSafeText(() => sale.cancelReason, 'Sem motivo informado'),
+      ];
+    }).toList();
+
+    return _PanelWithTable(
+      title: 'Vendas canceladas',
+      subtitle: 'Auditoria das vendas canceladas no período: $periodLabel',
+      totalLabel: 'Total cancelado',
+      totalValue: _formatMoney(canceledTotal),
+      headers: const [
+        'Venda',
+        'Cancelada em',
+        'Pagamento',
+        'Itens',
+        'Valor',
+        'Motivo',
+      ],
+      rows: rows,
+      emptyText: 'Nenhuma venda cancelada nesse período.',
+    );
   }
 }
 
@@ -2214,6 +2277,78 @@ class _MiniRow {
   final String value;
 }
 
+List<dynamic> _canceledSalesFrom(List<dynamic> sales) {
+  final result = sales.where((sale) {
+    try {
+      return sale.isCanceled == true;
+    } catch (_) {
+      return false;
+    }
+  }).toList();
+
+  result.sort((a, b) {
+    final aDate =
+        _reportsSafeDate(() => a.canceledAt) ??
+        _reportsSafeDate(() => a.createdAt) ??
+        DateTime.fromMillisecondsSinceEpoch(0);
+
+    final bDate =
+        _reportsSafeDate(() => b.canceledAt) ??
+        _reportsSafeDate(() => b.createdAt) ??
+        DateTime.fromMillisecondsSinceEpoch(0);
+
+    return bDate.compareTo(aDate);
+  });
+
+  return result;
+}
+
+String _reportsSafeText(Object? Function() read, [String fallback = '-']) {
+  try {
+    final value = read();
+
+    if (value == null) return fallback;
+
+    final text = value.toString().trim();
+
+    return text.isEmpty ? fallback : text;
+  } catch (_) {
+    return fallback;
+  }
+}
+
+double _reportsSafeDouble(Object? Function() read) {
+  try {
+    final value = read();
+
+    if (value is num) return value.toDouble();
+
+    return double.tryParse(value.toString().replaceAll(',', '.')) ?? 0;
+  } catch (_) {
+    return 0;
+  }
+}
+
+DateTime? _reportsSafeDate(Object? Function() read) {
+  try {
+    final value = read();
+
+    if (value is DateTime) return value;
+
+    if (value == null) return null;
+
+    return DateTime.tryParse(value.toString());
+  } catch (_) {
+    return null;
+  }
+}
+
+String _reportsSafeDateTimeText(DateTime? value) {
+  if (value == null) return '-';
+
+  return '${_formatDate(value)} ${_formatTime(value)}';
+}
+
 List<dynamic> _filterSalesByPeriod(List<dynamic> sales, _ReportPeriod period) {
   final now = DateTime.now();
   final todayStart = DateTime(now.year, now.month, now.day);
@@ -3190,6 +3325,28 @@ Future<void> _exportReportsPdf({
         safeText(() => sale.paymentMethod.label),
         safeText(() => sale.totalItems),
         _formatMoney(safeDouble(() => sale.total)),
+        safeText(() => sale.isCanceled == true ? 'Cancelada' : 'Finalizada'),
+      ]);
+    }
+
+    final canceledSales = _canceledSalesFrom(sales);
+
+    final canceledSalesTotal = canceledSales.fold<double>(
+      0,
+      (total, sale) => total + _reportsSafeDouble(() => sale.total),
+    );
+
+    final canceledSaleRows = <List<String>>[];
+    for (final sale in canceledSales.take(options.compactTables ? 8 : 60)) {
+      canceledSaleRows.add([
+        _reportsSafeText(() => sale.shortId, 'Venda'),
+        _reportsSafeDateTimeText(
+          _reportsSafeDate(() => sale.canceledAt) ??
+              _reportsSafeDate(() => sale.createdAt),
+        ),
+        _reportsSafeText(() => sale.paymentMethod.label),
+        _formatMoney(_reportsSafeDouble(() => sale.total)),
+        _reportsSafeText(() => sale.cancelReason, 'Sem motivo informado'),
       ]);
     }
 
@@ -3604,6 +3761,7 @@ Future<void> _exportReportsPdf({
                   'Pagamento',
                   'Itens',
                   'Total',
+                  'Status',
                 ],
                 rows: saleRows,
                 emptyText: 'Nenhuma venda registrada no período.',
