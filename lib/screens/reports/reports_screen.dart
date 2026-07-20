@@ -195,6 +195,7 @@ class _ReportsScreenState extends State<ReportsScreen> {
                       openCredit: customers.totalOpenCredit,
                       creditCustomers: customers.customers,
                       creditEntries: creditEntries,
+                      creditAllEntries: customers.entries,
                       cashMovements: cashMovements,
                       manualCashInputs: manualCashInputs,
                       manualCashOutputs: manualCashOutputs,
@@ -834,6 +835,7 @@ class _ReportBody extends StatelessWidget {
     required this.openCredit,
     required this.creditCustomers,
     required this.creditEntries,
+    required this.creditAllEntries,
     required this.cashMovements,
     required this.manualCashInputs,
     required this.manualCashOutputs,
@@ -856,6 +858,7 @@ class _ReportBody extends StatelessWidget {
   final double openCredit;
   final List<dynamic> creditCustomers;
   final List<CreditEntry> creditEntries;
+  final List<CreditEntry> creditAllEntries;
   final List<CashMovement> cashMovements;
   final double manualCashInputs;
   final double manualCashOutputs;
@@ -986,6 +989,7 @@ class _ReportBody extends StatelessWidget {
           openCredit: openCredit,
           customers: creditCustomers,
           entries: creditEntries,
+          allEntries: creditAllEntries,
         );
 
       case _ReportSection.detailed:
@@ -1026,12 +1030,14 @@ class _CreditReportPanel extends StatelessWidget {
     required this.openCredit,
     required this.customers,
     required this.entries,
+    required this.allEntries,
   });
 
   final String periodLabel;
   final double openCredit;
   final List<dynamic> customers;
   final List<CreditEntry> entries;
+  final List<CreditEntry> allEntries;
 
   @override
   Widget build(BuildContext context) {
@@ -1074,7 +1080,7 @@ class _CreditReportPanel extends StatelessWidget {
       ];
     }).toList();
 
-    final debtorRows = _creditDebtorRows(customers, entries);
+    final debtorRows = _creditDebtorRows(customers, allEntries);
 
     return Column(
       children: [
@@ -1098,7 +1104,7 @@ class _CreditReportPanel extends StatelessWidget {
         const SizedBox(height: 14),
         _PanelWithTable(
           title: 'Clientes que ainda devem',
-          subtitle: 'Lista de cobrança com saldo em aberto',
+          subtitle: 'Saldo atual dos clientes, mesmo que a compra seja antiga',
           totalLabel: 'Aberto',
           totalValue: _formatMoney(openCredit),
           headers: const ['Cliente', 'Telefone', 'Valor em aberto'],
