@@ -7,10 +7,7 @@ import '../sales/quick_weight_sale_screen.dart';
 import 'usb_scanner_test_screen.dart';
 
 class HardwareCenterScreen extends StatelessWidget {
-  const HardwareCenterScreen({
-    super.key,
-    this.showAppBar = true,
-  });
+  const HardwareCenterScreen({super.key, this.showAppBar = true});
 
   final bool showAppBar;
 
@@ -23,9 +20,7 @@ class HardwareCenterScreen extends StatelessWidget {
 
     return Scaffold(
       appBar: showAppBar
-          ? AppBar(
-              title: const Text('Leitor USB e etiquetas'),
-            )
+          ? AppBar(title: const Text('Leitor USB e etiquetas'))
           : null,
       body: ListView(
         padding: const EdgeInsets.all(16),
@@ -93,9 +88,7 @@ class HardwareCenterScreen extends StatelessWidget {
             buttonText: 'Testar leitor',
             onTap: () {
               Navigator.of(context).push(
-                MaterialPageRoute(
-                  builder: (_) => const UsbScannerTestScreen(),
-                ),
+                MaterialPageRoute(builder: (_) => const UsbScannerTestScreen()),
               );
             },
           ),
@@ -177,9 +170,7 @@ class _MainActionCard extends StatelessWidget {
 }
 
 class _DiagnosticsCard extends StatelessWidget {
-  const _DiagnosticsCard({
-    required this.diagnostics,
-  });
+  const _DiagnosticsCard({required this.diagnostics});
 
   final _UsbProductsDiagnostics diagnostics;
 
@@ -198,11 +189,14 @@ class _DiagnosticsCard extends StatelessWidget {
             Row(
               children: [
                 CircleAvatar(
-                  backgroundColor:
-                      allOk ? Colors.green.withOpacity(0.14) : colorScheme.errorContainer,
+                  backgroundColor: allOk
+                      ? Colors.green.withOpacity(0.14)
+                      : colorScheme.errorContainer,
                   child: Icon(
                     allOk ? Icons.check_rounded : Icons.warning_amber_rounded,
-                    color: allOk ? Colors.green.shade800 : colorScheme.onErrorContainer,
+                    color: allOk
+                        ? Colors.green.shade800
+                        : colorScheme.onErrorContainer,
                   ),
                 ),
                 const SizedBox(width: 12),
@@ -280,10 +274,7 @@ class _DiagnosticsCard extends StatelessWidget {
               for (final issue in diagnostics.issues)
                 Padding(
                   padding: const EdgeInsets.only(bottom: 8),
-                  child: _StatusBox(
-                    icon: issue.icon,
-                    text: issue.message,
-                  ),
+                  child: _StatusBox(icon: issue.icon, text: issue.message),
                 ),
             ],
           ],
@@ -319,14 +310,8 @@ class _MetricChip extends StatelessWidget {
         children: [
           Icon(icon, size: 18),
           const SizedBox(width: 8),
-          Text(
-            '$label: ',
-            style: const TextStyle(fontWeight: FontWeight.w700),
-          ),
-          Text(
-            value,
-            style: const TextStyle(fontWeight: FontWeight.w900),
-          ),
+          Text('$label: ', style: const TextStyle(fontWeight: FontWeight.w700)),
+          Text(value, style: const TextStyle(fontWeight: FontWeight.w900)),
         ],
       ),
     );
@@ -334,10 +319,7 @@ class _MetricChip extends StatelessWidget {
 }
 
 class _StatusBox extends StatelessWidget {
-  const _StatusBox({
-    required this.icon,
-    required this.text,
-  });
+  const _StatusBox({required this.icon, required this.text});
 
   final IconData icon;
   final String text;
@@ -386,10 +368,7 @@ class _FlowCard extends StatelessWidget {
           children: [
             const Text(
               'Fluxo correto',
-              style: TextStyle(
-                fontSize: 18,
-                fontWeight: FontWeight.w900,
-              ),
+              style: TextStyle(fontSize: 18, fontWeight: FontWeight.w900),
             ),
             const SizedBox(height: 12),
             for (var i = 0; i < steps.length; i++)
@@ -398,10 +377,7 @@ class _FlowCard extends StatelessWidget {
                 child: Row(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    CircleAvatar(
-                      radius: 13,
-                      child: Text('${i + 1}'),
-                    ),
+                    CircleAvatar(radius: 13, child: Text('${i + 1}')),
                     const SizedBox(width: 10),
                     Expanded(child: Text(steps[i])),
                   ],
@@ -430,7 +406,7 @@ class _TipsCard extends StatelessWidget {
             SizedBox(width: 12),
             Expanded(
               child: Text(
-                'O leitor USB ideal é o comum que funciona como teclado (USB HID Keyboard), lê EAN-13 e envia Enter no final. Para testar agora, use "Teste do leitor USB" ou "Gerar etiqueta teste" na venda.',
+                'Use um leitor USB comum: ele digita os números da etiqueta sozinho e aperta Enter no final. Para testar, abra "Teste do leitor USB" ou "Gerar etiqueta teste" na venda.',
               ),
             ),
           ],
@@ -534,7 +510,8 @@ class _UsbProductsDiagnostics {
 
     final readyCount = products.where((product) {
       final normalizedCode = _normalizeProductCode(product.code);
-      final duplicated = normalizedCode.isNotEmpty &&
+      final duplicated =
+          normalizedCode.isNotEmpty &&
           (codeMap[normalizedCode]?.length ?? 0) > 1;
 
       return normalizedCode.isNotEmpty &&
@@ -568,10 +545,7 @@ class _UsbProductsDiagnostics {
 }
 
 class _DiagnosticIssue {
-  const _DiagnosticIssue({
-    required this.icon,
-    required this.message,
-  });
+  const _DiagnosticIssue({required this.icon, required this.message});
 
   final IconData icon;
   final String message;

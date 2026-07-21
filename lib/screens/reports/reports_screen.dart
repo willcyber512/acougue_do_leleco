@@ -4110,9 +4110,6 @@ Future<void> _exportReportsPdf({
       );
     }
   } catch (error, stackTrace) {
-    debugPrint('ERRO AO GERAR PDF: $error');
-    debugPrintStack(stackTrace: stackTrace);
-
     if (context.mounted) {
       await showDialog<void>(
         context: context,

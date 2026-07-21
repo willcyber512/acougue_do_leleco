@@ -809,7 +809,7 @@ class _ScannerInfoBox extends StatelessWidget {
           SizedBox(width: 10),
           Expanded(
             child: Text(
-              'Modo leitor USB: a balança gera a etiqueta e o leitor envia o código para o sistema. O sistema encontra o produto pelo código/PLU e tenta detectar automaticamente se a etiqueta trouxe preço total ou peso.',
+              'Modo leitor USB: a balança imprime a etiqueta, o leitor envia o código e o sistema coloca o produto na venda. Confira peso e valor antes de finalizar.',
             ),
           ),
         ],

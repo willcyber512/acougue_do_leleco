@@ -71,8 +71,9 @@ class _DesktopShellScreenState extends State<DesktopShellScreen> {
           ),
           Expanded(
             child: Container(
-              color:
-                  isDark ? AppColors.darkBackground : const Color(0xFFFBF6F0),
+              color: isDark
+                  ? AppColors.darkBackground
+                  : const Color(0xFFFBF6F0),
               child: Column(
                 children: [
                   LelecoTopBar(
@@ -140,10 +141,7 @@ class _DesktopShellScreenState extends State<DesktopShellScreen> {
 }
 
 class _ModulePage extends StatelessWidget {
-  const _ModulePage({
-    required this.title,
-    required this.icon,
-  });
+  const _ModulePage({required this.title, required this.icon});
 
   final String title;
   final IconData icon;
@@ -163,12 +161,12 @@ class _ModulePage extends StatelessWidget {
               Text(
                 title,
                 style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                      fontWeight: FontWeight.w900,
-                    ),
+                  fontWeight: FontWeight.w900,
+                ),
               ),
               const SizedBox(height: 10),
               Text(
-                'Este módulo será construído na próxima etapa do sistema.',
+                'Módulo não disponível nesta versão.',
                 textAlign: TextAlign.center,
                 style: Theme.of(context).textTheme.bodyLarge,
               ),
