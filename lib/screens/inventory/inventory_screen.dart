@@ -630,7 +630,7 @@ Future<void> _openProductDialog(
                             controller: salePriceController,
                             keyboardType: TextInputType.number,
                             decoration: const InputDecoration(
-                              labelText: 'Preço de venda',
+                              labelText: 'Preço de venda ao cliente',
                               hintText: 'Ex: 39,90',
                             ),
                           ),
@@ -641,7 +641,7 @@ Future<void> _openProductDialog(
                             controller: costPriceController,
                             keyboardType: TextInputType.number,
                             decoration: const InputDecoration(
-                              labelText: 'Preço de custo',
+                              labelText: 'Preço de custo do açougue',
                               hintText: 'Ex: 29,00',
                             ),
                           ),
@@ -667,7 +667,7 @@ Future<void> _openProductDialog(
                             controller: minStockController,
                             keyboardType: TextInputType.number,
                             decoration: const InputDecoration(
-                              labelText: 'Estoque mínimo',
+                              labelText: 'Estoque mínimo para aviso',
                               hintText: 'Ex: 5',
                             ),
                           ),

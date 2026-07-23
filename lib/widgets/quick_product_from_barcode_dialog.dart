@@ -115,9 +115,7 @@ class _QuickProductFromBarcodeDialogState
                 Expanded(
                   child: DropdownButtonFormField<ProductCategory>(
                     value: category,
-                    decoration: const InputDecoration(
-                      labelText: 'Categoria',
-                    ),
+                    decoration: const InputDecoration(labelText: 'Categoria'),
                     items: ProductCategory.values.map((item) {
                       return DropdownMenuItem(
                         value: item,
@@ -134,9 +132,7 @@ class _QuickProductFromBarcodeDialogState
                 Expanded(
                   child: DropdownButtonFormField<ProductUnit>(
                     value: unit,
-                    decoration: const InputDecoration(
-                      labelText: 'Unidade',
-                    ),
+                    decoration: const InputDecoration(labelText: 'Unidade'),
                     items: ProductUnit.values.map((item) {
                       return DropdownMenuItem(
                         value: item,
@@ -159,7 +155,7 @@ class _QuickProductFromBarcodeDialogState
                     controller: salePriceController,
                     keyboardType: TextInputType.number,
                     decoration: const InputDecoration(
-                      labelText: 'Preço de venda',
+                      labelText: 'Preço de venda ao cliente',
                       prefixText: 'R\$ ',
                       hintText: 'Ex: 49,90',
                     ),
@@ -188,7 +184,9 @@ class _QuickProductFromBarcodeDialogState
                     keyboardType: TextInputType.number,
                     decoration: InputDecoration(
                       labelText: 'Estoque inicial (${unit.label})',
-                      hintText: unit == ProductUnit.kg ? 'Ex: 10,000' : 'Ex: 10',
+                      hintText: unit == ProductUnit.kg
+                          ? 'Ex: 10,000'
+                          : 'Ex: 10',
                     ),
                   ),
                 ),
@@ -198,7 +196,7 @@ class _QuickProductFromBarcodeDialogState
                     controller: minStockController,
                     keyboardType: TextInputType.number,
                     decoration: InputDecoration(
-                      labelText: 'Estoque mínimo (${unit.label})',
+                      labelText: 'Estoque mínimo para aviso (${unit.label})',
                       hintText: unit == ProductUnit.kg ? 'Ex: 1,000' : 'Ex: 1',
                     ),
                   ),
@@ -283,9 +281,7 @@ class _QuickProductFromBarcodeDialogState
   void _showMessage(String message) {
     ScaffoldMessenger.of(context)
       ..clearSnackBars()
-      ..showSnackBar(
-        SnackBar(content: Text(message)),
-      );
+      ..showSnackBar(SnackBar(content: Text(message)));
   }
 }
 

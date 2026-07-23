@@ -278,6 +278,17 @@ class _BarcodeSearchFieldState extends State<_BarcodeSearchField> {
   }
 }
 
+String? _productSaleIssue(Product product) {
+  if (product.isDeleted) return 'Produto está na lixeira.';
+  if (product.salePrice <= 0) {
+    return 'Sem preço de venda. Preencha no Estoque.';
+  }
+  if (product.stockQuantity <= 0) {
+    return 'Sem estoque. Reponha antes de vender.';
+  }
+  return null;
+}
+
 class _ProductSaleCard extends StatelessWidget {
   const _ProductSaleCard({required this.product});
 
@@ -287,8 +298,15 @@ class _ProductSaleCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final sales = context.read<SalesProvider>();
     final isLow = product.isLowStock;
+    final saleIssue = _productSaleIssue(product);
+    final canSell = saleIssue == null;
 
     void addOne() {
+      if (!canSell) {
+        _showMessage(context, saleIssue);
+        return;
+      }
+
       sales.addProduct(product);
       _showMessage(
         context,
@@ -299,7 +317,7 @@ class _ProductSaleCard extends StatelessWidget {
     return Card(
       clipBehavior: Clip.antiAlias,
       child: InkWell(
-        onTap: addOne,
+        onTap: canSell ? addOne : () => _showMessage(context, saleIssue),
         child: SingleChildScrollView(
           physics: const NeverScrollableScrollPhysics(),
           child: Padding(
@@ -360,6 +378,19 @@ class _ProductSaleCard extends StatelessWidget {
                     fontSize: 12,
                   ),
                 ),
+                if (saleIssue != null) ...[
+                  const SizedBox(height: 6),
+                  Text(
+                    saleIssue,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(
+                      color: AppColors.warning,
+                      fontWeight: FontWeight.w900,
+                      fontSize: 12,
+                    ),
+                  ),
+                ],
                 const SizedBox(height: 10),
                 Text(
                   _formatMoney(product.salePrice),
@@ -380,8 +411,9 @@ class _ProductSaleCard extends StatelessWidget {
                       child: SizedBox(
                         height: 32,
                         child: OutlinedButton(
-                          onPressed: () =>
-                              _openQuantityDialog(context, product),
+                          onPressed: canSell
+                              ? () => _openQuantityDialog(context, product)
+                              : null,
                           style: OutlinedButton.styleFrom(
                             padding: EdgeInsets.zero,
                           ),
@@ -398,7 +430,7 @@ class _ProductSaleCard extends StatelessWidget {
                       child: SizedBox(
                         height: 32,
                         child: FilledButton(
-                          onPressed: addOne,
+                          onPressed: canSell ? addOne : null,
                           style: FilledButton.styleFrom(
                             padding: EdgeInsets.zero,
                           ),
@@ -1162,6 +1194,14 @@ Future<void> _handleSalesInput(BuildContext context, String value) async {
     return;
   }
 
+  final issue = _productSaleIssue(product);
+
+  if (issue != null) {
+    _showMessage(context, '${product.name}: $issue');
+    sales.setSearchTerm('');
+    return;
+  }
+
   sales.addProduct(product);
   sales.setSearchTerm('');
 
@@ -1298,6 +1338,13 @@ void _confirmAddQuantity({
   required SalesProvider sales,
   required String text,
 }) {
+  final issue = _productSaleIssue(product);
+
+  if (issue != null) {
+    _showMessage(context, issue);
+    return;
+  }
+
   final quantity = _parseDouble(text);
 
   final error = _validateQuantity(product, quantity);
@@ -1610,18 +1657,19 @@ Future<Customer?> _selectCustomerForFiado(BuildContext context) async {
 List<Product> _filterProducts(List<Product> products, String searchTerm) {
   final term = searchTerm.trim().toLowerCase();
 
-  final availableProducts = products.where((product) {
-    return !product.isDeleted && product.stockQuantity > 0;
+  final activeProducts = products.where((product) {
+    return !product.isDeleted;
   }).toList();
 
   if (term.isEmpty) {
-    return availableProducts;
+    return activeProducts;
   }
 
-  return availableProducts.where((product) {
+  return activeProducts.where((product) {
     return product.name.toLowerCase().contains(term) ||
         product.code.toLowerCase().contains(term) ||
-        product.category.label.toLowerCase().contains(term);
+        product.category.label.toLowerCase().contains(term) ||
+        product.unit.label.toLowerCase().contains(term);
   }).toList();
 }
 
@@ -1632,9 +1680,10 @@ List<Product> _filterProductsForRamuzaCode(
   final normalizedCode = _normalizeNumericCode(code);
 
   return products.where((product) {
-    if (product.isDeleted || product.stockQuantity <= 0) return false;
+    if (product.isDeleted) return false;
 
-    return _normalizeNumericCode(product.code) == normalizedCode;
+    final productCode = _normalizeNumericCode(product.code);
+    return productCode == normalizedCode;
   }).toList();
 }
 

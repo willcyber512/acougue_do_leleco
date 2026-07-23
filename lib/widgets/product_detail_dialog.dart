@@ -25,10 +25,7 @@ Future<void> showProductDetailDialog(
 }
 
 class ProductDetailDialog extends StatelessWidget {
-  const ProductDetailDialog({
-    super.key,
-    required this.product,
-  });
+  const ProductDetailDialog({super.key, required this.product});
 
   final Product product;
 
@@ -64,7 +61,10 @@ class ProductDetailDialog extends StatelessWidget {
                             label: 'Categoria',
                             value: product.category.label,
                           ),
-                          _InfoLine(label: 'Unidade', value: product.unit.label),
+                          _InfoLine(
+                            label: 'Unidade',
+                            value: product.unit.label,
+                          ),
                           _InfoLine(
                             label: 'Favorito',
                             value: product.favorite ? 'Sim' : 'Não',
@@ -79,11 +79,11 @@ class ProductDetailDialog extends StatelessWidget {
                         icon: Icons.inventory_2_rounded,
                         children: [
                           _InfoLine(
-                            label: 'Venda',
+                            label: 'Venda ao cliente',
                             value: _formatMoney(product.salePrice),
                           ),
                           _InfoLine(
-                            label: 'Custo',
+                            label: 'Custo do açougue',
                             value: _formatMoney(product.costPrice),
                           ),
                           _InfoLine(
@@ -94,7 +94,7 @@ class ProductDetailDialog extends StatelessWidget {
                             ),
                           ),
                           _InfoLine(
-                            label: 'Mínimo',
+                            label: 'Mínimo para aviso',
                             value: _formatQuantity(
                               product.minStock,
                               product.unit,
@@ -115,20 +115,13 @@ class ProductDetailDialog extends StatelessWidget {
                 const SizedBox(height: 14),
                 Row(
                   children: [
-                    Expanded(
-                      child: _HistoryPanel(events: events),
-                    ),
+                    Expanded(child: _HistoryPanel(events: events)),
                     const SizedBox(width: 14),
-                    Expanded(
-                      child: _LossPanel(losses: losses),
-                    ),
+                    Expanded(child: _LossPanel(losses: losses)),
                   ],
                 ),
                 const SizedBox(height: 14),
-                _SalesPanel(
-                  sales: relatedSales,
-                  productId: product.id,
-                ),
+                _SalesPanel(sales: relatedSales, productId: product.id),
               ],
             ),
           ),
@@ -166,8 +159,8 @@ class _ProductHeader extends StatelessWidget {
                   Text(
                     product.name,
                     style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                          fontWeight: FontWeight.w900,
-                        ),
+                      fontWeight: FontWeight.w900,
+                    ),
                   ),
                   const SizedBox(height: 6),
                   Text(
@@ -262,20 +255,13 @@ class _ImagePlaceholder extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return const Center(
-      child: Icon(
-        Icons.set_meal_rounded,
-        size: 58,
-        color: AppColors.wine700,
-      ),
+      child: Icon(Icons.set_meal_rounded, size: 58, color: AppColors.wine700),
     );
   }
 }
 
 class _Badge extends StatelessWidget {
-  const _Badge({
-    required this.text,
-    required this.color,
-  });
+  const _Badge({required this.text, required this.color});
 
   final String text;
   final Color color;
@@ -290,10 +276,7 @@ class _Badge extends StatelessWidget {
       ),
       child: Text(
         text,
-        style: TextStyle(
-          color: color,
-          fontWeight: FontWeight.w900,
-        ),
+        style: TextStyle(color: color, fontWeight: FontWeight.w900),
       ),
     );
   }
@@ -325,8 +308,8 @@ class _InfoPanel extends StatelessWidget {
                 Text(
                   title,
                   style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                        fontWeight: FontWeight.w900,
-                      ),
+                    fontWeight: FontWeight.w900,
+                  ),
                 ),
               ],
             ),
@@ -340,11 +323,7 @@ class _InfoPanel extends StatelessWidget {
 }
 
 class _InfoLine extends StatelessWidget {
-  const _InfoLine({
-    required this.label,
-    required this.value,
-    this.valueColor,
-  });
+  const _InfoLine({required this.label, required this.value, this.valueColor});
 
   final String label;
   final String value;
@@ -356,17 +335,11 @@ class _InfoLine extends StatelessWidget {
       padding: const EdgeInsets.only(bottom: 9),
       child: Row(
         children: [
-          SizedBox(
-            width: 92,
-            child: Text(label),
-          ),
+          SizedBox(width: 92, child: Text(label)),
           Expanded(
             child: Text(
               value,
-              style: TextStyle(
-                color: valueColor,
-                fontWeight: FontWeight.w900,
-              ),
+              style: TextStyle(color: valueColor, fontWeight: FontWeight.w900),
             ),
           ),
         ],
@@ -395,7 +368,9 @@ class _HistoryPanel extends StatelessWidget {
           color: AppColors.wine900,
           title: event.type.label,
           subtitle: '${event.description}\n${_formatDateTime(event.createdAt)}',
-          trailing: event.quantity == null ? null : _formatNumber(event.quantity!),
+          trailing: event.quantity == null
+              ? null
+              : _formatNumber(event.quantity!),
         );
       },
     );
@@ -431,10 +406,7 @@ class _LossPanel extends StatelessWidget {
 }
 
 class _SalesPanel extends StatelessWidget {
-  const _SalesPanel({
-    required this.sales,
-    required this.productId,
-  });
+  const _SalesPanel({required this.sales, required this.productId});
 
   final List<SaleRecord> sales;
   final String productId;
@@ -511,8 +483,8 @@ class _ListPanel extends StatelessWidget {
                 Text(
                   title,
                   style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                        fontWeight: FontWeight.w900,
-                      ),
+                    fontWeight: FontWeight.w900,
+                  ),
                 ),
                 const Spacer(),
                 Text(
