@@ -132,49 +132,43 @@ class _SidebarItemTile extends StatelessWidget {
         ? AppColors.beige100.withOpacity(0.00)
         : Colors.transparent;
 
-    return Tooltip(
-      message: label,
-      waitDuration: const Duration(milliseconds: 500),
-      child: Material(
-        color: background,
+    return Material(
+      color: background,
+      borderRadius: BorderRadius.circular(18),
+      child: InkWell(
+        onTap: onTap,
         borderRadius: BorderRadius.circular(18),
-        child: InkWell(
-          onTap: onTap,
-          borderRadius: BorderRadius.circular(18),
-          child: AnimatedContainer(
-            duration: const Duration(milliseconds: 160),
-            height: 52,
-            padding: EdgeInsets.symmetric(horizontal: compact ? 0 : 16),
-            decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(18),
-              border: selected
-                  ? Border.all(color: AppColors.beige100.withOpacity(0.08))
-                  : null,
-            ),
-            child: Row(
-              mainAxisAlignment: compact
-                  ? MainAxisAlignment.center
-                  : MainAxisAlignment.start,
-              children: [
-                Icon(icon, color: foreground, size: 23),
-                if (!compact) ...[
-                  const SizedBox(width: 14),
-                  Expanded(
-                    child: Text(
-                      label,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: TextStyle(
-                        color: foreground,
-                        fontWeight: selected
-                            ? FontWeight.w900
-                            : FontWeight.w700,
-                      ),
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 160),
+          height: 52,
+          padding: EdgeInsets.symmetric(horizontal: compact ? 0 : 16),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(18),
+            border: selected
+                ? Border.all(color: AppColors.beige100.withOpacity(0.08))
+                : null,
+          ),
+          child: Row(
+            mainAxisAlignment: compact
+                ? MainAxisAlignment.center
+                : MainAxisAlignment.start,
+            children: [
+              Icon(icon, color: foreground, size: 23),
+              if (!compact) ...[
+                const SizedBox(width: 14),
+                Expanded(
+                  child: Text(
+                    label,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
+                      color: foreground,
+                      fontWeight: selected ? FontWeight.w900 : FontWeight.w700,
                     ),
                   ),
-                ],
+                ),
               ],
-            ),
+            ],
           ),
         ),
       ),

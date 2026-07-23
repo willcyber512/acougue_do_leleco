@@ -6,11 +6,7 @@ import '../providers/theme_provider.dart';
 import 'leleco_logo.dart';
 
 class LelecoTopBar extends StatelessWidget {
-  const LelecoTopBar({
-    super.key,
-    required this.title,
-    this.onNavigate,
-  });
+  const LelecoTopBar({super.key, required this.title, this.onNavigate});
 
   final String title;
   final ValueChanged<int>? onNavigate;
@@ -43,9 +39,9 @@ class LelecoTopBar extends StatelessWidget {
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
               style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                    fontWeight: FontWeight.w900,
-                    color: isDark ? AppColors.beige100 : AppColors.wine900,
-                  ),
+                fontWeight: FontWeight.w900,
+                color: isDark ? AppColors.beige100 : AppColors.wine900,
+              ),
             ),
           ),
           const SizedBox(width: 12),
@@ -93,17 +89,14 @@ class _TopActionButton extends StatelessWidget {
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
 
-    return Tooltip(
-      message: tooltip,
-      child: IconButton.filledTonal(
-        onPressed: onPressed,
-        icon: Icon(icon),
-        style: IconButton.styleFrom(
-          backgroundColor: isDark
-              ? AppColors.beige100.withOpacity(0.10)
-              : AppColors.wine700.withOpacity(0.10),
-          foregroundColor: isDark ? AppColors.beige100 : AppColors.wine700,
-        ),
+    return IconButton.filledTonal(
+      onPressed: onPressed,
+      icon: Icon(icon),
+      style: IconButton.styleFrom(
+        backgroundColor: isDark
+            ? AppColors.beige100.withOpacity(0.10)
+            : AppColors.wine700.withOpacity(0.10),
+        foregroundColor: isDark ? AppColors.beige100 : AppColors.wine700,
       ),
     );
   }

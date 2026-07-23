@@ -923,9 +923,19 @@ Future<void> _openDiscountDialog(BuildContext context) async {
 
   final discount = await showDialog<double>(
     context: context,
+    barrierDismissible: true,
     builder: (dialogContext) {
       return AlertDialog(
-        title: const Text('Desconto na venda'),
+        title: Row(
+          children: [
+            const Expanded(child: Text('Desconto na venda')),
+            IconButton(
+              tooltip: 'Fechar',
+              onPressed: () => Navigator.of(dialogContext).pop(),
+              icon: const Icon(Icons.close_rounded),
+            ),
+          ],
+        ),
         content: SizedBox(
           width: 380,
           child: Column(
@@ -939,6 +949,7 @@ Future<void> _openDiscountDialog(BuildContext context) async {
               TextField(
                 controller: controller,
                 autofocus: true,
+                textInputAction: TextInputAction.done,
                 keyboardType: TextInputType.number,
                 decoration: const InputDecoration(
                   labelText: 'Desconto em R\$',
@@ -981,8 +992,6 @@ Future<void> _openDiscountDialog(BuildContext context) async {
       );
     },
   );
-
-  controller.dispose();
 
   if (discount == null) return;
 
