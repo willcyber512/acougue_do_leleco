@@ -50,6 +50,7 @@ class SaleRecord {
     required this.items,
     required this.paymentMethod,
     required this.total,
+    this.discountAmount = 0,
     required this.createdAt,
     this.customerId,
     this.customerName,
@@ -61,6 +62,7 @@ class SaleRecord {
   final List<SaleRecordItem> items;
   final PaymentMethod paymentMethod;
   final double total;
+  final double discountAmount;
   final DateTime createdAt;
   final String? customerId;
   final String? customerName;
@@ -69,16 +71,23 @@ class SaleRecord {
 
   bool get isCanceled => canceledAt != null;
 
+  double get grossTotal {
+    return items.fold(0.0, (sum, item) => sum + item.subtotal);
+  }
+
+  double get safeDiscountAmount {
+    return _clampDiscount(discountAmount, grossTotal);
+  }
+
+  bool get hasDiscount => safeDiscountAmount > 0.004;
+
   String get shortId {
     if (id.length <= 6) return id;
     return id.substring(id.length - 6);
   }
 
   int get totalItems {
-    return items.fold(
-      0,
-      (total, item) => total + item.quantity.round(),
-    );
+    return items.fold(0, (total, item) => total + item.quantity.round());
   }
 
   SaleRecord copyWith({
@@ -86,6 +95,7 @@ class SaleRecord {
     List<SaleRecordItem>? items,
     PaymentMethod? paymentMethod,
     double? total,
+    double? discountAmount,
     DateTime? createdAt,
     String? customerId,
     String? customerName,
@@ -97,6 +107,7 @@ class SaleRecord {
       items: items ?? this.items,
       paymentMethod: paymentMethod ?? this.paymentMethod,
       total: total ?? this.total,
+      discountAmount: discountAmount ?? this.discountAmount,
       createdAt: createdAt ?? this.createdAt,
       customerId: customerId ?? this.customerId,
       customerName: customerName ?? this.customerName,
@@ -111,6 +122,7 @@ class SaleRecord {
       'items': items.map((item) => item.toMap()).toList(),
       'paymentMethod': paymentMethod.name,
       'total': total,
+      'discountAmount': discountAmount,
       'createdAt': createdAt.toIso8601String(),
       'customerId': customerId,
       'customerName': customerName,
@@ -126,16 +138,16 @@ class SaleRecord {
       id: map['id']?.toString() ?? '',
       items: rawItems is List
           ? rawItems
-              .whereType<Map>()
-              .map(
-                (item) => SaleRecordItem.fromMap(
-                  Map<String, dynamic>.from(item),
-                ),
-              )
-              .toList()
+                .whereType<Map>()
+                .map(
+                  (item) =>
+                      SaleRecordItem.fromMap(Map<String, dynamic>.from(item)),
+                )
+                .toList()
           : [],
       paymentMethod: paymentMethodFromName(map['paymentMethod']?.toString()),
       total: _toDouble(map['total']),
+      discountAmount: _toDouble(map['discountAmount']),
       createdAt: _toDate(map['createdAt']),
       customerId: map['customerId']?.toString(),
       customerName: map['customerName']?.toString(),
@@ -148,6 +160,7 @@ class SaleRecord {
     required List<SaleCartItem> cartItems,
     required PaymentMethod paymentMethod,
     required DateTime createdAt,
+    double discountAmount = 0,
     String? customerId,
     String? customerName,
   }) {
@@ -162,16 +175,17 @@ class SaleRecord {
       );
     }).toList();
 
-    final total = items.fold(
-      0.0,
-      (sum, item) => sum + item.subtotal,
-    );
+    final grossTotal = items.fold(0.0, (sum, item) => sum + item.subtotal);
+
+    final safeDiscount = _clampDiscount(discountAmount, grossTotal);
+    final total = grossTotal - safeDiscount;
 
     return SaleRecord(
       id: createdAt.microsecondsSinceEpoch.toString(),
       items: items,
       paymentMethod: paymentMethod,
       total: total,
+      discountAmount: safeDiscount,
       createdAt: createdAt,
       customerId: customerId,
       customerName: customerName,
@@ -198,4 +212,10 @@ DateTime? _toNullableDate(dynamic value) {
   }
 
   return DateTime.tryParse(text);
+}
+
+double _clampDiscount(double value, double subtotal) {
+  if (value <= 0 || subtotal <= 0) return 0;
+  if (value > subtotal) return subtotal;
+  return value;
 }

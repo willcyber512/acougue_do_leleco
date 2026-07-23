@@ -119,6 +119,20 @@ class ReceiptPdfService {
               child: pw.Column(
                 crossAxisAlignment: pw.CrossAxisAlignment.start,
                 children: [
+                  if (sale.hasDiscount) ...[
+                    _pdfTotalLine(
+                      'Subtotal',
+                      _formatMoney(sale.grossTotal),
+                      beige,
+                    ),
+                    pw.SizedBox(height: 4),
+                    _pdfTotalLine(
+                      'Desconto',
+                      '- ${_formatMoney(sale.safeDiscountAmount)}',
+                      beige,
+                    ),
+                    pw.SizedBox(height: 8),
+                  ],
                   pw.Text(
                     'Total',
                     style: pw.TextStyle(
@@ -158,6 +172,31 @@ class ReceiptPdfService {
     );
 
     return document.save();
+  }
+
+  static pw.Widget _pdfTotalLine(String label, String value, PdfColor color) {
+    return pw.Row(
+      children: [
+        pw.Expanded(
+          child: pw.Text(
+            label,
+            style: pw.TextStyle(
+              color: color,
+              fontSize: 10,
+              fontWeight: pw.FontWeight.bold,
+            ),
+          ),
+        ),
+        pw.Text(
+          value,
+          style: pw.TextStyle(
+            color: color,
+            fontSize: 10,
+            fontWeight: pw.FontWeight.bold,
+          ),
+        ),
+      ],
+    );
   }
 
   static Future<pw.MemoryImage?> _loadLogo() async {
@@ -225,9 +264,7 @@ class ReceiptPdfService {
       },
       children: [
         pw.TableRow(
-          decoration: pw.BoxDecoration(
-            color: PdfColor.fromInt(0xFFF3E8DF),
-          ),
+          decoration: pw.BoxDecoration(color: PdfColor.fromInt(0xFFF3E8DF)),
           children: [
             _tableCell('Produto', bold: true),
             _tableCell('Qtd', bold: true),

@@ -10,6 +10,7 @@ import '../../models/product_unit.dart';
 import '../../providers/inventory_provider.dart';
 import '../../widgets/leleco_metric_card.dart';
 import '../../widgets/product_detail_dialog.dart';
+import '../../widgets/easy_help_card.dart';
 
 class InventoryScreen extends StatelessWidget {
   const InventoryScreen({super.key});
@@ -77,6 +78,41 @@ class InventoryScreen extends StatelessWidget {
                     ],
                   ),
                   const SizedBox(height: 20),
+                  const EasyHelpCard(
+                    title: 'Estoque fácil',
+                    subtitle:
+                        'Use para cadastrar produtos, preços, códigos e estoque mínimo.',
+                    icon: Icons.inventory_2_rounded,
+                    steps: [
+                      EasyHelpStep(
+                        title: 'Cadastre o produto',
+                        description:
+                            'Clique em Novo produto e coloque nome, categoria e unidade.',
+                        icon: Icons.add_box_rounded,
+                      ),
+                      EasyHelpStep(
+                        title: 'Preencha o código',
+                        description:
+                            'Use o mesmo código/PLU da etiqueta quando tiver balança.',
+                        icon: Icons.qr_code_rounded,
+                      ),
+                      EasyHelpStep(
+                        title: 'Confira preço e estoque',
+                        description:
+                            'Coloque preço de venda, estoque atual e estoque mínimo.',
+                        icon: Icons.price_check_rounded,
+                      ),
+                      EasyHelpStep(
+                        title: 'Acompanhe avisos',
+                        description:
+                            'Produtos com estoque baixo aparecem em destaque.',
+                        icon: Icons.warning_rounded,
+                      ),
+                    ],
+                    footer:
+                        'Dica: para vender por etiqueta, o produto precisa ter o mesmo código/PLU usado na balança.',
+                  ),
+                  const SizedBox(height: 16),
                   _InventoryToolbar(inventory: inventory),
                   if (inventory.lowStockCount > 0) ...[
                     const SizedBox(height: 16),

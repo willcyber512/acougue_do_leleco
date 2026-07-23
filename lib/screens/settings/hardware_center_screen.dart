@@ -5,6 +5,7 @@ import '../../models/product.dart';
 import '../../providers/inventory_provider.dart';
 import '../sales/quick_weight_sale_screen.dart';
 import 'usb_scanner_test_screen.dart';
+import '../../widgets/easy_help_card.dart';
 
 class HardwareCenterScreen extends StatelessWidget {
   const HardwareCenterScreen({super.key, this.showAppBar = true});
@@ -63,6 +64,39 @@ class HardwareCenterScreen extends StatelessWidget {
                 ),
               ],
             ),
+          ),
+          const SizedBox(height: 16),
+          const EasyHelpCard(
+            title: 'Leitor USB fácil',
+            subtitle:
+                'Use quando a balança imprimir etiqueta e o leitor passar o código.',
+            icon: Icons.qr_code_scanner_rounded,
+            steps: [
+              EasyHelpStep(
+                title: 'Cadastre o produto',
+                description:
+                    'No Estoque, coloque o mesmo código/PLU usado na balança.',
+                icon: Icons.inventory_rounded,
+              ),
+              EasyHelpStep(
+                title: 'Teste o leitor',
+                description: 'Abra Teste do leitor USB e passe uma etiqueta.',
+                icon: Icons.usb_rounded,
+              ),
+              EasyHelpStep(
+                title: 'Venda por etiqueta',
+                description:
+                    'Abra Venda por etiqueta e passe o leitor na etiqueta.',
+                icon: Icons.point_of_sale_rounded,
+              ),
+              EasyHelpStep(
+                title: 'Confira antes de finalizar',
+                description: 'Veja produto, peso, valor e forma de pagamento.',
+                icon: Icons.check_circle_rounded,
+              ),
+            ],
+            footer:
+                'Dica: se não encontrar o produto, confira se o código/PLU do estoque está igual ao da balança.',
           ),
           const SizedBox(height: 16),
           _MainActionCard(

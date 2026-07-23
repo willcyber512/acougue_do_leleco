@@ -475,7 +475,17 @@ class _CartPanel extends StatelessWidget {
                   onChanged: sales.setPaymentMethod,
                 ),
                 const SizedBox(height: 12),
-                _TotalBox(total: sales.total),
+                _TotalBox(
+                  subtotal: sales.subtotal,
+                  discount: sales.discountAmount,
+                  total: sales.total,
+                  onDiscountTap: sales.hasItems
+                      ? () => _openDiscountDialog(context)
+                      : null,
+                  onClearDiscount: sales.hasDiscount
+                      ? sales.clearDiscount
+                      : null,
+                ),
                 const SizedBox(height: 10),
                 Row(
                   children: [
@@ -765,12 +775,24 @@ class _PaymentSelector extends StatelessWidget {
 }
 
 class _TotalBox extends StatelessWidget {
-  const _TotalBox({required this.total});
+  const _TotalBox({
+    required this.subtotal,
+    required this.discount,
+    required this.total,
+    required this.onDiscountTap,
+    required this.onClearDiscount,
+  });
 
+  final double subtotal;
+  final double discount;
   final double total;
+  final VoidCallback? onDiscountTap;
+  final VoidCallback? onClearDiscount;
 
   @override
   Widget build(BuildContext context) {
+    final hasDiscount = discount > 0.004;
+
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.all(18),
@@ -781,6 +803,12 @@ class _TotalBox extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
+          if (hasDiscount) ...[
+            _TotalLine(label: 'Subtotal', value: _formatMoney(subtotal)),
+            const SizedBox(height: 4),
+            _TotalLine(label: 'Desconto', value: '- ${_formatMoney(discount)}'),
+            const SizedBox(height: 8),
+          ],
           const Text(
             'Total da venda',
             style: TextStyle(
@@ -796,8 +824,64 @@ class _TotalBox extends StatelessWidget {
               fontWeight: FontWeight.w900,
             ),
           ),
+          const SizedBox(height: 10),
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: [
+              OutlinedButton.icon(
+                onPressed: onDiscountTap,
+                style: OutlinedButton.styleFrom(
+                  foregroundColor: AppColors.beige100,
+                  side: const BorderSide(color: AppColors.beige100),
+                ),
+                icon: const Icon(Icons.percent_rounded),
+                label: Text(hasDiscount ? 'Alterar desconto' : 'Dar desconto'),
+              ),
+              if (hasDiscount)
+                TextButton.icon(
+                  onPressed: onClearDiscount,
+                  style: TextButton.styleFrom(
+                    foregroundColor: AppColors.beige100,
+                  ),
+                  icon: const Icon(Icons.close_rounded),
+                  label: const Text('Remover'),
+                ),
+            ],
+          ),
         ],
       ),
+    );
+  }
+}
+
+class _TotalLine extends StatelessWidget {
+  const _TotalLine({required this.label, required this.value});
+
+  final String label;
+  final String value;
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      children: [
+        Expanded(
+          child: Text(
+            label,
+            style: const TextStyle(
+              color: AppColors.beige100,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+        ),
+        Text(
+          value,
+          style: const TextStyle(
+            color: AppColors.beige100,
+            fontWeight: FontWeight.w900,
+          ),
+        ),
+      ],
     );
   }
 }
@@ -820,6 +904,107 @@ class _EmptyProducts extends StatelessWidget {
   Widget build(BuildContext context) {
     return Center(child: Text(message));
   }
+}
+
+Future<void> _openDiscountDialog(BuildContext context) async {
+  final sales = context.read<SalesProvider>();
+  final subtotal = sales.subtotal;
+
+  if (subtotal <= 0) {
+    _showMessage(context, 'Adicione produtos antes de dar desconto.');
+    return;
+  }
+
+  final controller = TextEditingController(
+    text: sales.discountAmount > 0
+        ? sales.discountAmount.toStringAsFixed(2).replaceAll('.', ',')
+        : '',
+  );
+
+  final discount = await showDialog<double>(
+    context: context,
+    builder: (dialogContext) {
+      return AlertDialog(
+        title: const Text('Desconto na venda'),
+        content: SizedBox(
+          width: 380,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(
+                'Subtotal: ${_formatMoney(subtotal)}',
+                style: const TextStyle(fontWeight: FontWeight.w900),
+              ),
+              const SizedBox(height: 12),
+              TextField(
+                controller: controller,
+                autofocus: true,
+                keyboardType: TextInputType.number,
+                decoration: const InputDecoration(
+                  labelText: 'Desconto em R\$',
+                  hintText: 'Ex: 5,00',
+                  prefixText: 'R\$ ',
+                ),
+                onSubmitted: (_) {
+                  Navigator.of(
+                    dialogContext,
+                  ).pop(_parseMoneyInput(controller.text));
+                },
+              ),
+              const SizedBox(height: 8),
+              Text(
+                'O desconto não pode ser maior que o subtotal.',
+                style: Theme.of(dialogContext).textTheme.bodySmall,
+              ),
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop(),
+            child: const Text('Cancelar'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop(0),
+            child: const Text('Remover desconto'),
+          ),
+          FilledButton.icon(
+            onPressed: () {
+              Navigator.of(
+                dialogContext,
+              ).pop(_parseMoneyInput(controller.text));
+            },
+            icon: const Icon(Icons.check_rounded),
+            label: const Text('Aplicar'),
+          ),
+        ],
+      );
+    },
+  );
+
+  controller.dispose();
+
+  if (discount == null) return;
+
+  sales.setDiscountAmount(discount);
+
+  _showMessage(
+    context,
+    sales.hasDiscount
+        ? 'Desconto aplicado: ${_formatMoney(sales.discountAmount)}.'
+        : 'Desconto removido.',
+  );
+}
+
+double _parseMoneyInput(String value) {
+  final normalized = value
+      .trim()
+      .replaceAll('R\$', '')
+      .replaceAll(' ', '')
+      .replaceAll('.', '')
+      .replaceAll(',', '.');
+
+  return double.tryParse(normalized) ?? 0;
 }
 
 Future<void> _handleSalesInput(BuildContext context, String value) async {

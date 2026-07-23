@@ -21,6 +21,7 @@ import '../../providers/suppliers_provider.dart';
 import '../../models/cash_closure.dart';
 import '../../providers/cash_closure_provider.dart';
 import '../../models/credit_entry.dart';
+import '../../widgets/easy_help_card.dart';
 
 enum _ReportSection {
   overview,
@@ -57,184 +58,209 @@ class _ReportsScreenState extends State<ReportsScreen> {
       SuppliersProvider,
       CashMovementProvider
     >(
-      builder:
-          (
-            context,
-            salesProvider,
-            inventory,
-            customers,
-            suppliers,
-            cashMovementsProvider,
-            _,
-          ) {
-            final sales = _filterSalesByPeriod(
-              salesProvider.sales,
-              selectedPeriod,
-            );
+      builder: (context, salesProvider, inventory, customers, suppliers, cashMovementsProvider, _) {
+        final sales = _filterSalesByPeriod(salesProvider.sales, selectedPeriod);
 
-            final purchases = _filterPurchasesByPeriod(
-              suppliers.purchases,
-              selectedPeriod,
-            );
+        final purchases = _filterPurchasesByPeriod(
+          suppliers.purchases,
+          selectedPeriod,
+        );
 
-            final revenue = _salesRevenue(sales);
-            final averageTicket = sales.isEmpty ? 0.0 : revenue / sales.length;
+        final revenue = _salesRevenue(sales);
+        final discountTotal = _salesDiscountTotal(sales);
+        final averageTicket = sales.isEmpty ? 0.0 : revenue / sales.length;
 
-            final paymentTotals = _paymentTotals(sales);
-            final productTotals = _productTotals(sales);
-            final categoryTotals = _categoryTotals(sales, inventory.products);
-            final supplierTotals = _supplierTotals(purchases);
+        final paymentTotals = _paymentTotals(sales);
+        final productTotals = _productTotals(sales);
+        final categoryTotals = _categoryTotals(sales, inventory.products);
+        final supplierTotals = _supplierTotals(purchases);
 
-            final totalSupplierPurchases = purchases.fold<double>(
-              0,
-              (total, purchase) => total + purchase.totalCost,
-            );
+        final totalSupplierPurchases = purchases.fold<double>(
+          0,
+          (total, purchase) => total + purchase.totalCost,
+        );
 
-            final cashMovements = _filterCashMovementsByPeriod(
-              cashMovementsProvider.movements,
-              selectedPeriod,
-            );
-            final manualCashInputs = _cashMovementTotal(
-              cashMovements,
-              CashMovementType.input,
-            );
-            final manualCashOutputs = _cashMovementTotal(
-              cashMovements,
-              CashMovementType.output,
-            );
-            final manualCashBalance = manualCashInputs - manualCashOutputs;
-            final cashOutputCategoryTotals = _cashOutputTotalsByCategory(
-              cashMovements,
-            );
+        final cashMovements = _filterCashMovementsByPeriod(
+          cashMovementsProvider.movements,
+          selectedPeriod,
+        );
+        final manualCashInputs = _cashMovementTotal(
+          cashMovements,
+          CashMovementType.input,
+        );
+        final manualCashOutputs = _cashMovementTotal(
+          cashMovements,
+          CashMovementType.output,
+        );
+        final manualCashBalance = manualCashInputs - manualCashOutputs;
+        final cashOutputCategoryTotals = _cashOutputTotalsByCategory(
+          cashMovements,
+        );
 
-            final creditEntries = _filterCreditEntriesByPeriod(
-              customers.entries,
-              selectedPeriod,
-            );
+        final creditEntries = _filterCreditEntriesByPeriod(
+          customers.entries,
+          selectedPeriod,
+        );
 
-            final creditPaymentsTotal = creditEntries
-                .where((entry) => entry.type == CreditEntryType.payment)
-                .fold<double>(0, (total, entry) => total + entry.amount);
+        final creditPaymentsTotal = creditEntries
+            .where((entry) => entry.type == CreditEntryType.payment)
+            .fold<double>(0, (total, entry) => total + entry.amount);
 
-            final debtorsCount = _creditDebtorRows(
-              customers.customers,
-              customers.entries,
-            ).length;
+        final debtorsCount = _creditDebtorRows(
+          customers.customers,
+          customers.entries,
+        ).length;
 
-            final canceledSales = _canceledSalesFrom(sales);
-            final canceledSalesTotal = canceledSales.fold<double>(
-              0,
-              (total, sale) => total + _reportsSafeDouble(() => sale.total),
-            );
+        final canceledSales = _canceledSalesFrom(sales);
+        final canceledSalesTotal = canceledSales.fold<double>(
+          0,
+          (total, sale) => total + _reportsSafeDouble(() => sale.total),
+        );
 
-            final cashClosuresProvider = context.watch<CashClosureProvider>();
-            final cashClosures = _filterCashClosuresByPeriod(
-              cashClosuresProvider.closures,
-              selectedPeriod,
-            );
+        final cashClosuresProvider = context.watch<CashClosureProvider>();
+        final cashClosures = _filterCashClosuresByPeriod(
+          cashClosuresProvider.closures,
+          selectedPeriod,
+        );
 
-            final lowStock = inventory.products.where((product) {
-              return !product.isDeleted && product.isLowStock;
-            }).toList();
+        final lowStock = inventory.products.where((product) {
+          return !product.isDeleted && product.isLowStock;
+        }).toList();
 
-            return Container(
-              color: _pageBackground(context),
-              child: SingleChildScrollView(
-                padding: const EdgeInsets.only(bottom: 24),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    _ReportsHeader(
-                      selectedPeriod: selectedPeriod,
-                      periodLabel: _periodLabel(selectedPeriod),
-                      onPeriodChanged: (period) {
-                        setState(() => selectedPeriod = period);
-                      },
+        return Container(
+          color: _pageBackground(context),
+          child: SingleChildScrollView(
+            padding: const EdgeInsets.only(bottom: 24),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                _ReportsHeader(
+                  selectedPeriod: selectedPeriod,
+                  periodLabel: _periodLabel(selectedPeriod),
+                  onPeriodChanged: (period) {
+                    setState(() => selectedPeriod = period);
+                  },
+                ),
+                const SizedBox(height: 14),
+                _ReportsPdfActionPanel(
+                  onPressed: () => _showReportsPdfOptionsDialog(
+                    context: context,
+                    selectedPeriod: selectedPeriod,
+                    periodLabel: _periodLabel(selectedPeriod),
+                    sales: sales,
+                    revenue: revenue,
+                    averageTicket: averageTicket,
+                    openCredit: customers.totalOpenCredit,
+                    supplierPurchases: totalSupplierPurchases,
+                    lowStockCount: lowStock.length,
+                    paymentTotals: paymentTotals,
+                    productTotals: productTotals,
+                    categoryTotals: categoryTotals,
+                    purchases: purchases,
+                    lowStock: lowStock,
+                  ),
+                ),
+                const SizedBox(height: 14),
+                const EasyHelpCard(
+                  title: 'Relatórios fácil',
+                  subtitle:
+                      'Use para conferir vendas, caixa, fiado, estoque e gerar PDF.',
+                  icon: Icons.assessment_rounded,
+                  steps: [
+                    EasyHelpStep(
+                      title: 'Escolha o período',
+                      description:
+                          'Use Hoje, 7 dias, 30 dias ou Tudo no topo da tela.',
+                      icon: Icons.date_range_rounded,
                     ),
-                    const SizedBox(height: 14),
-                    _ReportsPdfActionPanel(
-                      onPressed: () => _showReportsPdfOptionsDialog(
-                        context: context,
-                        selectedPeriod: selectedPeriod,
-                        periodLabel: _periodLabel(selectedPeriod),
-                        sales: sales,
-                        revenue: revenue,
-                        averageTicket: averageTicket,
-                        openCredit: customers.totalOpenCredit,
-                        supplierPurchases: totalSupplierPurchases,
-                        lowStockCount: lowStock.length,
-                        paymentTotals: paymentTotals,
-                        productTotals: productTotals,
-                        categoryTotals: categoryTotals,
-                        purchases: purchases,
-                        lowStock: lowStock,
-                      ),
+                    EasyHelpStep(
+                      title: 'Confira os números',
+                      description:
+                          'Veja faturamento, caixa, fiado, canceladas e fornecedores.',
+                      icon: Icons.fact_check_rounded,
                     ),
-                    const SizedBox(height: 14),
-                    _KpiGrid(
-                      salesCount: sales.length,
-                      revenue: revenue,
-                      averageTicket: averageTicket,
-                      openCredit: customers.totalOpenCredit,
-                      supplierPurchases: totalSupplierPurchases,
-                      lowStockCount: lowStock.length,
+                    EasyHelpStep(
+                      title: 'Abra uma aba',
+                      description:
+                          'Clique em Caixa, Fiado, Vendas ou Canceladas para detalhes.',
+                      icon: Icons.touch_app_rounded,
                     ),
-                    const SizedBox(height: 14),
-                    _CashFlowSummaryPanel(
-                      inputs: manualCashInputs,
-                      outputs: manualCashOutputs,
-                      balance: manualCashBalance,
-                    ),
-                    const SizedBox(height: 14),
-                    _CashClosureReportPanel(closures: cashClosures),
-                    const SizedBox(height: 14),
-                    _ReportsQuickCheckPanel(
-                      periodLabel: _periodLabel(selectedPeriod),
-                      cashInputs: manualCashInputs,
-                      cashOutputs: manualCashOutputs,
-                      cashBalance: manualCashBalance,
-                      creditPayments: creditPaymentsTotal,
-                      openCredit: customers.totalOpenCredit,
-                      debtorsCount: debtorsCount,
-                      canceledSalesCount: canceledSales.length,
-                      canceledSalesTotal: canceledSalesTotal,
-                    ),
-                    const SizedBox(height: 14),
-                    _ReportMenu(
-                      selected: selectedSection,
-                      onChanged: (section) {
-                        setState(() => selectedSection = section);
-                      },
-                    ),
-                    const SizedBox(height: 14),
-                    _ReportBody(
-                      section: selectedSection,
-                      periodLabel: _periodLabel(selectedPeriod),
-                      sales: sales,
-                      revenue: revenue,
-                      averageTicket: averageTicket,
-                      paymentTotals: paymentTotals,
-                      productTotals: productTotals,
-                      categoryTotals: categoryTotals,
-                      purchases: purchases,
-                      supplierTotals: supplierTotals,
-                      totalSupplierPurchases: totalSupplierPurchases,
-                      lowStock: lowStock,
-                      openCredit: customers.totalOpenCredit,
-                      creditCustomers: customers.customers,
-                      creditEntries: creditEntries,
-                      creditAllEntries: customers.entries,
-                      cashMovements: cashMovements,
-                      manualCashInputs: manualCashInputs,
-                      manualCashOutputs: manualCashOutputs,
-                      manualCashBalance: manualCashBalance,
-                      cashOutputCategoryTotals: cashOutputCategoryTotals,
+                    EasyHelpStep(
+                      title: 'Gere o PDF',
+                      description:
+                          'Clique em Configurar PDF e marque o que deseja imprimir.',
+                      icon: Icons.picture_as_pdf_rounded,
                     ),
                   ],
+                  footer:
+                      'Dica: no fechamento do dia, confira primeiro a Conferência rápida.',
                 ),
-              ),
-            );
-          },
+                const SizedBox(height: 14),
+                _KpiGrid(
+                  salesCount: sales.length,
+                  revenue: revenue,
+                  discountTotal: discountTotal,
+                  averageTicket: averageTicket,
+                  openCredit: customers.totalOpenCredit,
+                  supplierPurchases: totalSupplierPurchases,
+                  lowStockCount: lowStock.length,
+                ),
+                const SizedBox(height: 14),
+                _CashFlowSummaryPanel(
+                  inputs: manualCashInputs,
+                  outputs: manualCashOutputs,
+                  balance: manualCashBalance,
+                ),
+                const SizedBox(height: 14),
+                _CashClosureReportPanel(closures: cashClosures),
+                const SizedBox(height: 14),
+                _ReportsQuickCheckPanel(
+                  periodLabel: _periodLabel(selectedPeriod),
+                  cashInputs: manualCashInputs,
+                  cashOutputs: manualCashOutputs,
+                  cashBalance: manualCashBalance,
+                  creditPayments: creditPaymentsTotal,
+                  openCredit: customers.totalOpenCredit,
+                  debtorsCount: debtorsCount,
+                  canceledSalesCount: canceledSales.length,
+                  canceledSalesTotal: canceledSalesTotal,
+                ),
+                const SizedBox(height: 14),
+                _ReportMenu(
+                  selected: selectedSection,
+                  onChanged: (section) {
+                    setState(() => selectedSection = section);
+                  },
+                ),
+                const SizedBox(height: 14),
+                _ReportBody(
+                  section: selectedSection,
+                  periodLabel: _periodLabel(selectedPeriod),
+                  sales: sales,
+                  revenue: revenue,
+                  averageTicket: averageTicket,
+                  paymentTotals: paymentTotals,
+                  productTotals: productTotals,
+                  categoryTotals: categoryTotals,
+                  purchases: purchases,
+                  supplierTotals: supplierTotals,
+                  totalSupplierPurchases: totalSupplierPurchases,
+                  lowStock: lowStock,
+                  openCredit: customers.totalOpenCredit,
+                  creditCustomers: customers.customers,
+                  creditEntries: creditEntries,
+                  creditAllEntries: customers.entries,
+                  cashMovements: cashMovements,
+                  manualCashInputs: manualCashInputs,
+                  manualCashOutputs: manualCashOutputs,
+                  manualCashBalance: manualCashBalance,
+                  cashOutputCategoryTotals: cashOutputCategoryTotals,
+                ),
+              ],
+            ),
+          ),
+        );
+      },
     );
   }
 }
@@ -352,6 +378,7 @@ class _KpiGrid extends StatelessWidget {
   const _KpiGrid({
     required this.salesCount,
     required this.revenue,
+    required this.discountTotal,
     required this.averageTicket,
     required this.openCredit,
     required this.supplierPurchases,
@@ -360,6 +387,7 @@ class _KpiGrid extends StatelessWidget {
 
   final int salesCount;
   final double revenue;
+  final double discountTotal;
   final double averageTicket;
   final double openCredit;
   final double supplierPurchases;
@@ -391,6 +419,14 @@ class _KpiGrid extends StatelessWidget {
         icon: Icons.receipt_long_rounded,
         tag: 'média',
         values: const [4, 4, 5, 6, 6, 7, 6, 8],
+      ),
+      _KpiCard(
+        title: 'Descontos',
+        value: _formatMoney(discountTotal),
+        detail: 'Concedidos no período',
+        icon: Icons.percent_rounded,
+        tag: 'abatimento',
+        values: const [1, 2, 1, 3, 2, 2, 4, 3],
       ),
       _KpiCard(
         title: 'Fornecedores',
@@ -2655,6 +2691,26 @@ List<SupplierPurchase> _filterPurchasesByPeriod(
   return filtered;
 }
 
+double _salesDiscountTotal(List<dynamic> sales) {
+  return sales
+      .where((sale) {
+        try {
+          return sale.isCanceled != true;
+        } catch (_) {
+          return true;
+        }
+      })
+      .fold(0.0, (total, sale) {
+        try {
+          final value = sale.discountAmount;
+          if (value is num) return total + value.toDouble();
+          return total + (double.tryParse(value.toString()) ?? 0);
+        } catch (_) {
+          return total;
+        }
+      });
+}
+
 double _salesRevenue(List<dynamic> sales) {
   return sales.fold<double>(0, (sum, sale) => sum + (sale.total as double));
 }
@@ -3338,6 +3394,8 @@ Future<void> _exportReportsPdf({
 
     final document = pw.Document();
 
+    final pdfDiscountTotal = _salesDiscountTotal(sales);
+
     final paymentRows = <List<String>>[];
     for (final method in PaymentMethod.values) {
       final value = ((paymentTotals[method] ?? 0) as num).toDouble();
@@ -3592,6 +3650,7 @@ Future<void> _exportReportsPdf({
         }),
         safeText(() => sale.paymentMethod.label),
         safeText(() => sale.totalItems),
+        _formatMoney(safeDouble(() => sale.discountAmount)),
         _formatMoney(safeDouble(() => sale.total)),
         safeText(() => sale.isCanceled == true ? 'Cancelada' : 'Finalizada'),
       ]);
@@ -3874,6 +3933,11 @@ Future<void> _exportReportsPdf({
                     'Média por venda',
                   ),
                   metricCard(
+                    'Descontos',
+                    _formatMoney(pdfDiscountTotal),
+                    'Concedidos no período',
+                  ),
+                  metricCard(
                     'Fiado aberto',
                     _formatMoney(openCredit),
                     'Clientes em aberto',
@@ -4067,6 +4131,7 @@ Future<void> _exportReportsPdf({
                   'Data/Hora',
                   'Pagamento',
                   'Itens',
+                  'Desconto',
                   'Total',
                   'Status',
                 ],

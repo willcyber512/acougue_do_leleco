@@ -19,10 +19,7 @@ Future<void> showSaleReceiptDialog(
 }
 
 class SaleReceiptDialog extends StatelessWidget {
-  const SaleReceiptDialog({
-    super.key,
-    required this.sale,
-  });
+  const SaleReceiptDialog({super.key, required this.sale});
 
   final SaleRecord sale;
 
@@ -45,13 +42,11 @@ class SaleReceiptDialog extends StatelessWidget {
                 Text(
                   'Itens da venda',
                   style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                        fontWeight: FontWeight.w900,
-                      ),
+                    fontWeight: FontWeight.w900,
+                  ),
                 ),
                 const SizedBox(height: 10),
-                ...sale.items.map(
-                  (item) => _ReceiptItemTile(item: item),
-                ),
+                ...sale.items.map((item) => _ReceiptItemTile(item: item)),
                 const SizedBox(height: 12),
                 const Divider(),
                 const SizedBox(height: 12),
@@ -73,9 +68,7 @@ class SaleReceiptDialog extends StatelessWidget {
             ScaffoldMessenger.of(context)
               ..clearSnackBars()
               ..showSnackBar(
-                const SnackBar(
-                  content: Text('Comprovante copiado.'),
-                ),
+                const SnackBar(content: Text('Comprovante copiado.')),
               );
           },
           icon: const Icon(Icons.copy_rounded),
@@ -140,9 +133,9 @@ class _ReceiptHeader extends StatelessWidget {
               const SizedBox(height: 10),
               Text(
                 'Açougue do Leleco',
-                style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                      fontWeight: FontWeight.w900,
-                    ),
+                style: Theme.of(
+                  context,
+                ).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w900),
               ),
               const SizedBox(height: 4),
               Text('Venda #${sale.shortId}'),
@@ -233,6 +226,18 @@ class _ReceiptTotal extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
+          if (sale.hasDiscount) ...[
+            _ReceiptTotalLine(
+              label: 'Subtotal',
+              value: _formatMoney(sale.grossTotal),
+            ),
+            const SizedBox(height: 4),
+            _ReceiptTotalLine(
+              label: 'Desconto',
+              value: '- ${_formatMoney(sale.safeDiscountAmount)}',
+            ),
+            const SizedBox(height: 8),
+          ],
           const Text(
             'Total',
             style: TextStyle(
@@ -244,11 +249,10 @@ class _ReceiptTotal extends StatelessWidget {
           Text(
             _formatMoney(sale.total),
             style: Theme.of(context).textTheme.headlineMedium?.copyWith(
-                  color: AppColors.beige100,
-                  fontWeight: FontWeight.w900,
-                  decoration:
-                      sale.isCanceled ? TextDecoration.lineThrough : null,
-                ),
+              color: AppColors.beige100,
+              fontWeight: FontWeight.w900,
+              decoration: sale.isCanceled ? TextDecoration.lineThrough : null,
+            ),
           ),
         ],
       ),
@@ -256,12 +260,39 @@ class _ReceiptTotal extends StatelessWidget {
   }
 }
 
+class _ReceiptTotalLine extends StatelessWidget {
+  const _ReceiptTotalLine({required this.label, required this.value});
+
+  final String label;
+  final String value;
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      children: [
+        Expanded(
+          child: Text(
+            label,
+            style: const TextStyle(
+              color: AppColors.beige100,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+        ),
+        Text(
+          value,
+          style: const TextStyle(
+            color: AppColors.beige100,
+            fontWeight: FontWeight.w900,
+          ),
+        ),
+      ],
+    );
+  }
+}
+
 class _InfoRow extends StatelessWidget {
-  const _InfoRow({
-    required this.label,
-    required this.value,
-    this.color,
-  });
+  const _InfoRow({required this.label, required this.value, this.color});
 
   final String label;
   final String value;
@@ -283,10 +314,7 @@ class _InfoRow extends StatelessWidget {
           Expanded(
             child: Text(
               value,
-              style: TextStyle(
-                fontWeight: FontWeight.w900,
-                color: color,
-              ),
+              style: TextStyle(fontWeight: FontWeight.w900, color: color),
             ),
           ),
         ],

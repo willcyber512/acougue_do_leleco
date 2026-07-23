@@ -14,6 +14,7 @@ import '../../providers/shortcuts_provider.dart';
 import '../../services/local_backup_service.dart';
 import '../../widgets/system_about_card.dart';
 import '../../widgets/system_diagnostics_dialog.dart';
+import '../../widgets/easy_help_card.dart';
 
 class SettingsScreen extends StatefulWidget {
   const SettingsScreen({super.key});
@@ -42,6 +43,40 @@ class _SettingsScreenState extends State<SettingsScreen> {
     return ListView(
       children: [
         _HeaderCard(),
+        const SizedBox(height: 18),
+        const EasyHelpCard(
+          title: 'Ajustes fácil',
+          subtitle:
+              'Use para backup, restauração e conferência antes da entrega.',
+          icon: Icons.settings_rounded,
+          steps: [
+            EasyHelpStep(
+              title: 'Faça backup',
+              description:
+                  'Clique em gerar backup antes de mexer em dados importantes.',
+              icon: Icons.backup_rounded,
+            ),
+            EasyHelpStep(
+              title: 'Guarde o texto',
+              description: 'Copie o backup e salve em local seguro.',
+              icon: Icons.copy_rounded,
+            ),
+            EasyHelpStep(
+              title: 'Restaure com cuidado',
+              description:
+                  'Restaurar substitui os dados atuais pelos dados do backup.',
+              icon: Icons.restore_rounded,
+            ),
+            EasyHelpStep(
+              title: 'Confira o sistema',
+              description:
+                  'Use diagnósticos para revisar vendas, estoque, fiado e etiquetas.',
+              icon: Icons.health_and_safety_rounded,
+            ),
+          ],
+          footer:
+              'Dica: antes de entregar ou trocar de computador, gere um backup.',
+        ),
         const SizedBox(height: 18),
         const SystemAboutCard(),
         const SizedBox(height: 18),
@@ -83,9 +118,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
       exportController.text = backup;
 
-      await Clipboard.setData(
-        ClipboardData(text: backup),
-      );
+      await Clipboard.setData(ClipboardData(text: backup));
 
       _showMessage('Backup gerado e copiado.');
     } catch (_) {
@@ -105,9 +138,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
       return;
     }
 
-    await Clipboard.setData(
-      ClipboardData(text: text),
-    );
+    await Clipboard.setData(ClipboardData(text: text));
 
     _showMessage('Backup copiado.');
   }
@@ -196,9 +227,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
     ScaffoldMessenger.of(context)
       ..clearSnackBars()
-      ..showSnackBar(
-        SnackBar(content: Text(message)),
-      );
+      ..showSnackBar(SnackBar(content: Text(message)));
   }
 }
 
@@ -231,8 +260,8 @@ class _HeaderCard extends StatelessWidget {
                   Text(
                     'Backup e restauração local',
                     style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                          fontWeight: FontWeight.w900,
-                        ),
+                      fontWeight: FontWeight.w900,
+                    ),
                   ),
                   const SizedBox(height: 5),
                   const Text(
@@ -279,8 +308,8 @@ class _DiagnosticsCard extends StatelessWidget {
                   Text(
                     'Diagnóstico do sistema',
                     style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                          fontWeight: FontWeight.w900,
-                        ),
+                      fontWeight: FontWeight.w900,
+                    ),
                   ),
                   const SizedBox(height: 4),
                   const Text(
@@ -324,10 +353,7 @@ class _ExportBackupCard extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            _CardTitle(
-              icon: Icons.upload_file_rounded,
-              title: 'Gerar backup',
-            ),
+            _CardTitle(icon: Icons.upload_file_rounded, title: 'Gerar backup'),
             const SizedBox(height: 10),
             const Text(
               'Gera um texto com todos os dados salvos: estoque, vendas, caixa, fiado, perdas e histórico.',
@@ -399,10 +425,7 @@ class _ImportBackupCard extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            _CardTitle(
-              icon: Icons.download_rounded,
-              title: 'Restaurar backup',
-            ),
+            _CardTitle(icon: Icons.download_rounded, title: 'Restaurar backup'),
             const SizedBox(height: 10),
             Text(
               backupDate == null
@@ -451,10 +474,7 @@ class _ImportBackupCard extends StatelessWidget {
 }
 
 class _CardTitle extends StatelessWidget {
-  const _CardTitle({
-    required this.icon,
-    required this.title,
-  });
+  const _CardTitle({required this.icon, required this.title});
 
   final IconData icon;
   final String title;
@@ -467,9 +487,9 @@ class _CardTitle extends StatelessWidget {
         const SizedBox(width: 10),
         Text(
           title,
-          style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                fontWeight: FontWeight.w900,
-              ),
+          style: Theme.of(
+            context,
+          ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w900),
         ),
       ],
     );

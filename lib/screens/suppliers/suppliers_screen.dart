@@ -13,6 +13,7 @@ import '../../models/supplier_profile.dart';
 import '../../providers/cash_movement_provider.dart';
 import '../../providers/inventory_provider.dart';
 import '../../providers/suppliers_provider.dart';
+import '../../widgets/easy_help_card.dart';
 
 enum _SupplierPeriod { today, sevenDays, thirtyDays, all }
 
@@ -96,6 +97,41 @@ class _SuppliersScreenState extends State<SuppliersScreen> {
                   onPeriodChanged: (period) {
                     setState(() => selectedPeriod = period);
                   },
+                ),
+                const SizedBox(height: 14),
+                const EasyHelpCard(
+                  title: 'Fornecedores fácil',
+                  subtitle:
+                      'Use para controlar compras, pagamentos e gastos com fornecedores.',
+                  icon: Icons.local_shipping_rounded,
+                  steps: [
+                    EasyHelpStep(
+                      title: 'Cadastre a compra',
+                      description:
+                          'Clique em Nova compra e informe fornecedor, item e valor.',
+                      icon: Icons.add_shopping_cart_rounded,
+                    ),
+                    EasyHelpStep(
+                      title: 'Marque se foi paga',
+                      description:
+                          'Compra paga entra como saída no caixa automaticamente.',
+                      icon: Icons.payments_rounded,
+                    ),
+                    EasyHelpStep(
+                      title: 'Filtre em aberto',
+                      description:
+                          'Use o filtro para ver o que ainda precisa pagar.',
+                      icon: Icons.filter_alt_rounded,
+                    ),
+                    EasyHelpStep(
+                      title: 'Confira totais',
+                      description:
+                          'Veja quanto comprou, quanto pagou e quanto está em aberto.',
+                      icon: Icons.summarize_rounded,
+                    ),
+                  ],
+                  footer:
+                      'Dica: só marque como paga quando o dinheiro realmente sair do caixa.',
                 ),
                 const SizedBox(height: 14),
                 _SupplierSearchBar(

@@ -23,6 +23,7 @@ class QuickWeightSaleScreen extends StatefulWidget {
 class _QuickWeightSaleScreenState extends State<QuickWeightSaleScreen> {
   final _barcodeController = TextEditingController();
   final _weightController = TextEditingController(text: '0.000');
+  final _discountController = TextEditingController();
   final _barcodeFocusNode = FocusNode();
   final _parser = const ScaleBarcodeParser();
 
@@ -45,6 +46,7 @@ class _QuickWeightSaleScreenState extends State<QuickWeightSaleScreen> {
     _barcodeDebounce?.cancel();
     _barcodeController.dispose();
     _weightController.dispose();
+    _discountController.dispose();
     _barcodeFocusNode.dispose();
     super.dispose();
   }
@@ -63,6 +65,26 @@ class _QuickWeightSaleScreenState extends State<QuickWeightSaleScreen> {
 
   double get _pendingTotal {
     return _pendingItems.fold(0.0, (total, item) => total + item.total);
+  }
+
+  double get _discountAmount {
+    final text = _discountController.text
+        .trim()
+        .replaceAll('R\$', '')
+        .replaceAll(' ', '')
+        .replaceAll('.', '')
+        .replaceAll(',', '.');
+
+    final value = double.tryParse(text) ?? 0;
+
+    if (value <= 0) return 0;
+    if (value > _pendingTotal) return _pendingTotal;
+
+    return value;
+  }
+
+  double get _finalTotal {
+    return _pendingTotal - _discountAmount;
   }
 
   double _manualTotal(Product? product) {
@@ -382,6 +404,7 @@ class _QuickWeightSaleScreenState extends State<QuickWeightSaleScreen> {
       cartItems: cartItems,
       paymentMethod: sales.paymentMethod,
       createdAt: DateTime.now(),
+      discountAmount: _discountAmount,
     );
 
     final deducted = inventory.deductSaleRecord(sale);
@@ -411,6 +434,7 @@ class _QuickWeightSaleScreenState extends State<QuickWeightSaleScreen> {
       _pendingItems.clear();
       _barcodeController.clear();
       _weightController.text = '0.000';
+      _discountController.clear();
       _message = 'Venda #${sale.shortId} registrada com sucesso.';
     });
 
@@ -433,6 +457,7 @@ class _QuickWeightSaleScreenState extends State<QuickWeightSaleScreen> {
   void _clearPendingItems() {
     setState(() {
       _pendingItems.clear();
+      _discountController.clear();
       _message = 'Venda atual limpa.';
     });
 
@@ -756,7 +781,7 @@ class _QuickWeightSaleScreenState extends State<QuickWeightSaleScreen> {
                   onRemove: () => _removePendingItem(i),
                 ),
             const Divider(height: 28),
-            _TotalBigLine(total: _pendingTotal, formatMoney: _formatMoney),
+            _TotalBigLine(total: _finalTotal, formatMoney: _formatMoney),
             const SizedBox(height: 12),
             DropdownButtonFormField<PaymentMethod>(
               value: sales.paymentMethod,
@@ -971,6 +996,61 @@ class _MessageBox extends StatelessWidget {
           const SizedBox(width: 10),
           Expanded(child: Text(message)),
         ],
+      ),
+    );
+  }
+}
+
+class _DiscountField extends StatelessWidget {
+  const _DiscountField({
+    required this.controller,
+    required this.subtotal,
+    required this.discount,
+    required this.total,
+    required this.onChanged,
+    required this.formatMoney,
+  });
+
+  final TextEditingController controller;
+  final double subtotal;
+  final double discount;
+  final double total;
+  final ValueChanged<String> onChanged;
+  final String Function(double value) formatMoney;
+
+  @override
+  Widget build(BuildContext context) {
+    return Card(
+      elevation: 0,
+      child: Padding(
+        padding: const EdgeInsets.all(12),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text(
+              'Desconto',
+              style: TextStyle(fontWeight: FontWeight.w900),
+            ),
+            const SizedBox(height: 8),
+            TextField(
+              controller: controller,
+              keyboardType: TextInputType.number,
+              onChanged: onChanged,
+              decoration: const InputDecoration(
+                labelText: 'Desconto em R\$',
+                hintText: 'Ex: 5,00',
+                prefixText: 'R\$ ',
+              ),
+            ),
+            if (discount > 0) ...[
+              const SizedBox(height: 8),
+              Text(
+                'Subtotal R\$ ${formatMoney(subtotal)} • Desconto R\$ ${formatMoney(discount)} • Final R\$ ${formatMoney(total)}',
+                style: const TextStyle(fontWeight: FontWeight.w800),
+              ),
+            ],
+          ],
+        ),
       ),
     );
   }
