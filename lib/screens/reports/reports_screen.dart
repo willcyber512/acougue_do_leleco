@@ -48,6 +48,34 @@ class ReportsScreen extends StatefulWidget {
 class _ReportsScreenState extends State<ReportsScreen> {
   _ReportSection selectedSection = _ReportSection.overview;
   _ReportPeriod selectedPeriod = _ReportPeriod.today;
+  bool useCustomReportDate = false;
+  DateTime? selectedCustomReportDate;
+
+  Future<void> _pickCustomReportDate() async {
+    final now = DateTime.now();
+    final initialDate = selectedCustomReportDate ?? now;
+
+    final picked = await showDatePicker(
+      context: context,
+      initialDate: initialDate,
+      firstDate: DateTime(2020),
+      lastDate: DateTime(now.year + 5),
+      helpText: 'Escolher dia do relatório',
+      cancelText: 'Cancelar',
+      confirmText: 'Usar este dia',
+    );
+
+    if (picked == null || !mounted) return;
+
+    setState(() {
+      selectedCustomReportDate = DateTime(
+        picked.year,
+        picked.month,
+        picked.day,
+      );
+      useCustomReportDate = true;
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -59,12 +87,24 @@ class _ReportsScreenState extends State<ReportsScreen> {
       CashMovementProvider
     >(
       builder: (context, salesProvider, inventory, customers, suppliers, cashMovementsProvider, _) {
-        final sales = _filterSalesByPeriod(salesProvider.sales, selectedPeriod);
+        final selectedReportDay = useCustomReportDate
+            ? selectedCustomReportDate
+            : null;
 
-        final purchases = _filterPurchasesByPeriod(
-          suppliers.purchases,
-          selectedPeriod,
-        );
+        final periodLabel = selectedReportDay == null
+            ? _periodLabel(selectedPeriod)
+            : 'Dia ${_formatDate(selectedReportDay)}';
+
+        final sales = selectedReportDay == null
+            ? _filterSalesByPeriod(salesProvider.sales, selectedPeriod)
+            : _filterSalesByExactDay(salesProvider.sales, selectedReportDay);
+
+        final purchases = selectedReportDay == null
+            ? _filterPurchasesByPeriod(suppliers.purchases, selectedPeriod)
+            : _filterPurchasesByExactDay(
+                suppliers.purchases,
+                selectedReportDay,
+              );
 
         final revenue = _salesRevenue(sales);
         final discountTotal = _salesDiscountTotal(sales);
@@ -80,10 +120,15 @@ class _ReportsScreenState extends State<ReportsScreen> {
           (total, purchase) => total + purchase.totalCost,
         );
 
-        final cashMovements = _filterCashMovementsByPeriod(
-          cashMovementsProvider.movements,
-          selectedPeriod,
-        );
+        final cashMovements = selectedReportDay == null
+            ? _filterCashMovementsByPeriod(
+                cashMovementsProvider.movements,
+                selectedPeriod,
+              )
+            : _filterCashMovementsByExactDay(
+                cashMovementsProvider.movements,
+                selectedReportDay,
+              );
         final manualCashInputs = _cashMovementTotal(
           cashMovements,
           CashMovementType.input,
@@ -97,10 +142,12 @@ class _ReportsScreenState extends State<ReportsScreen> {
           cashMovements,
         );
 
-        final creditEntries = _filterCreditEntriesByPeriod(
-          customers.entries,
-          selectedPeriod,
-        );
+        final creditEntries = selectedReportDay == null
+            ? _filterCreditEntriesByPeriod(customers.entries, selectedPeriod)
+            : _filterCreditEntriesByExactDay(
+                customers.entries,
+                selectedReportDay,
+              );
 
         final creditPaymentsTotal = creditEntries
             .where((entry) => entry.type == CreditEntryType.payment)
@@ -118,10 +165,15 @@ class _ReportsScreenState extends State<ReportsScreen> {
         );
 
         final cashClosuresProvider = context.watch<CashClosureProvider>();
-        final cashClosures = _filterCashClosuresByPeriod(
-          cashClosuresProvider.closures,
-          selectedPeriod,
-        );
+        final cashClosures = selectedReportDay == null
+            ? _filterCashClosuresByPeriod(
+                cashClosuresProvider.closures,
+                selectedPeriod,
+              )
+            : _filterCashClosuresByExactDay(
+                cashClosuresProvider.closures,
+                selectedReportDay,
+              );
 
         final lowStock = inventory.products.where((product) {
           return !product.isDeleted && product.isLowStock;
@@ -136,9 +188,15 @@ class _ReportsScreenState extends State<ReportsScreen> {
               children: [
                 _ReportsHeader(
                   selectedPeriod: selectedPeriod,
-                  periodLabel: _periodLabel(selectedPeriod),
+                  periodLabel: periodLabel,
+                  useCustomDate: useCustomReportDate,
+                  customDate: selectedCustomReportDate,
+                  onCustomDateSelected: _pickCustomReportDate,
                   onPeriodChanged: (period) {
-                    setState(() => selectedPeriod = period);
+                    setState(() {
+                      selectedPeriod = period;
+                      useCustomReportDate = false;
+                    });
                   },
                 ),
                 const SizedBox(height: 14),
@@ -146,7 +204,8 @@ class _ReportsScreenState extends State<ReportsScreen> {
                   onPressed: () => _showReportsPdfOptionsDialog(
                     context: context,
                     selectedPeriod: selectedPeriod,
-                    periodLabel: _periodLabel(selectedPeriod),
+                    selectedDate: selectedReportDay,
+                    periodLabel: periodLabel,
                     sales: sales,
                     revenue: revenue,
                     averageTicket: averageTicket,
@@ -170,7 +229,7 @@ class _ReportsScreenState extends State<ReportsScreen> {
                     EasyHelpStep(
                       title: 'Escolha o período',
                       description:
-                          'Use Hoje, 7 dias, 30 dias ou Tudo no topo da tela.',
+                          'Use Hoje, 7 dias, 30 dias, Tudo ou Calendário no topo da tela.',
                       icon: Icons.date_range_rounded,
                     ),
                     EasyHelpStep(
@@ -215,7 +274,7 @@ class _ReportsScreenState extends State<ReportsScreen> {
                 _CashClosureReportPanel(closures: cashClosures),
                 const SizedBox(height: 14),
                 _ReportsQuickCheckPanel(
-                  periodLabel: _periodLabel(selectedPeriod),
+                  periodLabel: periodLabel,
                   cashInputs: manualCashInputs,
                   cashOutputs: manualCashOutputs,
                   cashBalance: manualCashBalance,
@@ -235,7 +294,7 @@ class _ReportsScreenState extends State<ReportsScreen> {
                 const SizedBox(height: 14),
                 _ReportBody(
                   section: selectedSection,
-                  periodLabel: _periodLabel(selectedPeriod),
+                  periodLabel: periodLabel,
                   sales: sales,
                   revenue: revenue,
                   averageTicket: averageTicket,
@@ -269,21 +328,31 @@ class _ReportsHeader extends StatelessWidget {
   const _ReportsHeader({
     required this.selectedPeriod,
     required this.periodLabel,
+    required this.useCustomDate,
+    required this.customDate,
     required this.onPeriodChanged,
+    required this.onCustomDateSelected,
   });
 
   final _ReportPeriod selectedPeriod;
   final String periodLabel;
+  final bool useCustomDate;
+  final DateTime? customDate;
   final ValueChanged<_ReportPeriod> onPeriodChanged;
+  final VoidCallback onCustomDateSelected;
 
   @override
   Widget build(BuildContext context) {
     final items = [
       (_ReportPeriod.today, 'Hoje', Icons.today_rounded),
       (_ReportPeriod.sevenDays, '7 dias', Icons.date_range_rounded),
-      (_ReportPeriod.thirtyDays, '30 dias', Icons.calendar_month_rounded),
+      (_ReportPeriod.thirtyDays, '30 dias', Icons.calendar_view_month_rounded),
       (_ReportPeriod.all, 'Tudo', Icons.all_inclusive_rounded),
     ];
+
+    final customLabel = customDate == null
+        ? 'Calendário'
+        : _formatDate(customDate!);
 
     return _LelecoPanel(
       padding: const EdgeInsets.all(20),
@@ -334,35 +403,63 @@ class _ReportsHeader extends StatelessWidget {
                   Wrap(
                     spacing: 8,
                     runSpacing: 8,
-                    children: items.map((item) {
-                      final active = selectedPeriod == item.$1;
+                    children: [
+                      ...items.map((item) {
+                        final active =
+                            !useCustomDate && selectedPeriod == item.$1;
 
-                      return ChoiceChip(
-                        selected: active,
+                        return ChoiceChip(
+                          selected: active,
+                          selectedColor: AppColors.wine900,
+                          backgroundColor: _chipBackground(context),
+                          side: BorderSide(
+                            color: active
+                                ? AppColors.wine900
+                                : _borderColor(context),
+                          ),
+                          avatar: Icon(
+                            item.$3,
+                            size: 18,
+                            color: active
+                                ? AppColors.beige100
+                                : AppColors.wine700,
+                          ),
+                          label: Text(item.$2),
+                          labelStyle: TextStyle(
+                            color: active
+                                ? AppColors.beige100
+                                : _titleColor(context),
+                            fontWeight: FontWeight.w900,
+                          ),
+                          onSelected: (_) => onPeriodChanged(item.$1),
+                        );
+                      }),
+                      ChoiceChip(
+                        selected: useCustomDate,
                         selectedColor: AppColors.wine900,
                         backgroundColor: _chipBackground(context),
                         side: BorderSide(
-                          color: active
+                          color: useCustomDate
                               ? AppColors.wine900
                               : _borderColor(context),
                         ),
                         avatar: Icon(
-                          item.$3,
+                          Icons.event_available_rounded,
                           size: 18,
-                          color: active
+                          color: useCustomDate
                               ? AppColors.beige100
                               : AppColors.wine700,
                         ),
-                        label: Text(item.$2),
+                        label: Text(customLabel),
                         labelStyle: TextStyle(
-                          color: active
+                          color: useCustomDate
                               ? AppColors.beige100
                               : _titleColor(context),
                           fontWeight: FontWeight.w900,
                         ),
-                        onSelected: (_) => onPeriodChanged(item.$1),
-                      );
-                    }).toList(),
+                        onSelected: (_) => onCustomDateSelected(),
+                      ),
+                    ],
                   ),
                 ],
               ),
@@ -2631,6 +2728,60 @@ String _reportsSafeDateTimeText(DateTime? value) {
   return '${_formatDate(value)} ${_formatTime(value)}';
 }
 
+bool _sameReportDay(DateTime? value, DateTime day) {
+  if (value == null) return false;
+
+  return value.year == day.year &&
+      value.month == day.month &&
+      value.day == day.day;
+}
+
+List<dynamic> _filterSalesByExactDay(List<dynamic> sales, DateTime day) {
+  return sales.where((sale) {
+    try {
+      return _sameReportDay(sale.createdAt as DateTime?, day);
+    } catch (_) {
+      return false;
+    }
+  }).toList();
+}
+
+List<SupplierPurchase> _filterPurchasesByExactDay(
+  List<SupplierPurchase> purchases,
+  DateTime day,
+) {
+  return purchases.where((purchase) {
+    return _sameReportDay(purchase.purchaseDate, day);
+  }).toList();
+}
+
+List<CreditEntry> _filterCreditEntriesByExactDay(
+  List<CreditEntry> entries,
+  DateTime day,
+) {
+  return entries.where((entry) {
+    return _sameReportDay(entry.createdAt, day);
+  }).toList();
+}
+
+List<CashMovement> _filterCashMovementsByExactDay(
+  List<CashMovement> movements,
+  DateTime day,
+) {
+  return movements.where((movement) {
+    return _sameReportDay(movement.createdAt, day);
+  }).toList();
+}
+
+List<CashClosure> _filterCashClosuresByExactDay(
+  List<CashClosure> closures,
+  DateTime day,
+) {
+  return closures.where((closure) {
+    return _sameReportDay(closure.createdAt, day);
+  }).toList();
+}
+
 List<dynamic> _filterSalesByPeriod(List<dynamic> sales, _ReportPeriod period) {
   final now = DateTime.now();
   final todayStart = DateTime(now.year, now.month, now.day);
@@ -3088,6 +3239,7 @@ class _PdfReportOptions {
 Future<void> _showReportsPdfOptionsDialog({
   required BuildContext context,
   required _ReportPeriod selectedPeriod,
+  required DateTime? selectedDate,
   required String periodLabel,
   required List sales,
   required double revenue,
@@ -3322,6 +3474,7 @@ Future<void> _showReportsPdfOptionsDialog({
   await _exportReportsPdf(
     context: context,
     selectedPeriod: selectedPeriod,
+    selectedDate: selectedDate,
     periodLabel: periodLabel,
     sales: sales,
     revenue: revenue,
@@ -3341,6 +3494,7 @@ Future<void> _showReportsPdfOptionsDialog({
 Future<void> _exportReportsPdf({
   required BuildContext context,
   required _ReportPeriod selectedPeriod,
+  required DateTime? selectedDate,
   required String periodLabel,
   required List sales,
   required double revenue,
@@ -3402,10 +3556,15 @@ Future<void> _exportReportsPdf({
       paymentRows.add([method.label, _formatMoney(value)]);
     }
 
-    final creditPdfEntries = _filterCreditEntriesByPeriod(
-      context.read<CustomersProvider>().entries,
-      selectedPeriod,
-    );
+    final creditPdfEntries = selectedDate == null
+        ? _filterCreditEntriesByPeriod(
+            context.read<CustomersProvider>().entries,
+            selectedPeriod,
+          )
+        : _filterCreditEntriesByExactDay(
+            context.read<CustomersProvider>().entries,
+            selectedDate,
+          );
 
     final creditPdfPurchases = creditPdfEntries
         .where((entry) => entry.type == CreditEntryType.purchase)
@@ -3468,10 +3627,15 @@ Future<void> _exportReportsPdf({
 
     // PDF_CAIXA_OK_DADOS_START
     final cashPdfProvider = context.read<CashMovementProvider>();
-    final cashPdfMovements = _filterCashMovementsByPeriod(
-      cashPdfProvider.movements,
-      selectedPeriod,
-    );
+    final cashPdfMovements = selectedDate == null
+        ? _filterCashMovementsByPeriod(
+            cashPdfProvider.movements,
+            selectedPeriod,
+          )
+        : _filterCashMovementsByExactDay(
+            cashPdfProvider.movements,
+            selectedDate,
+          );
     final cashPdfInputs = _cashMovementTotal(
       cashPdfMovements,
       CashMovementType.input,
@@ -3483,10 +3647,15 @@ Future<void> _exportReportsPdf({
     final cashPdfBalance = cashPdfInputs - cashPdfOutputs;
 
     final cashPdfClosureProvider = context.read<CashClosureProvider>();
-    final cashPdfClosures = _filterCashClosuresByPeriod(
-      cashPdfClosureProvider.closures,
-      selectedPeriod,
-    );
+    final cashPdfClosures = selectedDate == null
+        ? _filterCashClosuresByPeriod(
+            cashPdfClosureProvider.closures,
+            selectedPeriod,
+          )
+        : _filterCashClosuresByExactDay(
+            cashPdfClosureProvider.closures,
+            selectedDate,
+          );
     final CashClosure? cashPdfClosure = cashPdfClosures.isEmpty
         ? null
         : cashPdfClosures.first;
