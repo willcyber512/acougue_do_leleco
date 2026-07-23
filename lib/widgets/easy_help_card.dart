@@ -36,18 +36,20 @@ class EasyHelpCard extends StatelessWidget {
     return Card(
       elevation: 0,
       clipBehavior: Clip.antiAlias,
-      child: Container(
+      color: isDark
+          ? scheme.primaryContainer.withOpacity(0.18)
+          : scheme.primaryContainer.withOpacity(0.34),
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(18),
+        side: BorderSide(color: scheme.primary.withOpacity(0.14)),
+      ),
+      child: SizedBox(
         width: double.infinity,
-        decoration: BoxDecoration(
-          color: isDark
-              ? scheme.primaryContainer.withOpacity(0.18)
-              : scheme.primaryContainer.withOpacity(0.34),
-          borderRadius: BorderRadius.circular(18),
-          border: Border.all(color: scheme.primary.withOpacity(0.14)),
-        ),
         child: Theme(
           data: Theme.of(context).copyWith(dividerColor: Colors.transparent),
           child: ExpansionTile(
+            backgroundColor: Colors.transparent,
+            collapsedBackgroundColor: Colors.transparent,
             tilePadding: const EdgeInsets.symmetric(
               horizontal: 14,
               vertical: 4,
