@@ -1440,7 +1440,7 @@ class _CanceledSalesReportPanel extends StatelessWidget {
           _reportsSafeDate(() => sale.canceledAt) ??
               _reportsSafeDate(() => sale.createdAt),
         ),
-        _reportsSafeText(() => sale.paymentLabel),
+        _reportsSafeText(() => sale.paymentSummary),
         _reportsSafeText(() => sale.totalItems),
         _formatMoney(_reportsSafeDouble(() => sale.total)),
         _reportsSafeText(() => sale.cancelReason, 'Sem motivo informado'),
@@ -3839,7 +3839,7 @@ Future<void> _exportReportsPdf({
           }
           return date;
         }),
-        safeText(() => sale.paymentLabel),
+        safeText(() => sale.paymentSummary),
         safeText(() => sale.totalItems),
         _formatMoney(safeDouble(() => sale.discountAmount)),
         _formatMoney(safeDouble(() => sale.total)),
@@ -3862,7 +3862,7 @@ Future<void> _exportReportsPdf({
           _reportsSafeDate(() => sale.canceledAt) ??
               _reportsSafeDate(() => sale.createdAt),
         ),
-        _reportsSafeText(() => sale.paymentLabel),
+        _reportsSafeText(() => sale.paymentSummary),
         _formatMoney(_reportsSafeDouble(() => sale.total)),
         _reportsSafeText(() => sale.cancelReason, 'Sem motivo informado'),
       ]);

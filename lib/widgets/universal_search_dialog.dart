@@ -27,10 +27,7 @@ Future<void> showUniversalSearchDialog({
 }
 
 class UniversalSearchDialog extends StatefulWidget {
-  const UniversalSearchDialog({
-    super.key,
-    required this.onNavigate,
-  });
+  const UniversalSearchDialog({super.key, required this.onNavigate});
 
   final ValueChanged<int> onNavigate;
 
@@ -76,47 +73,52 @@ class _UniversalSearchDialogState extends State<UniversalSearchDialog> {
             ),
             const SizedBox(height: 16),
             Expanded(
-              child: Consumer4<InventoryProvider, CustomersProvider,
-                  SalesProvider, NotesProvider>(
-                builder: (context, inventory, customers, sales, notes, _) {
-                  final results = _buildResults(
-                    inventory: inventory,
-                    customers: customers,
-                    sales: sales,
-                    notes: notes,
-                    searchTerm: searchTerm,
-                  );
+              child:
+                  Consumer4<
+                    InventoryProvider,
+                    CustomersProvider,
+                    SalesProvider,
+                    NotesProvider
+                  >(
+                    builder: (context, inventory, customers, sales, notes, _) {
+                      final results = _buildResults(
+                        inventory: inventory,
+                        customers: customers,
+                        sales: sales,
+                        notes: notes,
+                        searchTerm: searchTerm,
+                      );
 
-                  if (searchTerm.trim().isEmpty) {
-                    return const _SearchEmptyState(
-                      text:
-                          'Digite algo para buscar em produtos, clientes, vendas e anotações.',
-                    );
-                  }
+                      if (searchTerm.trim().isEmpty) {
+                        return const _SearchEmptyState(
+                          text:
+                              'Digite algo para buscar em produtos, clientes, vendas e anotações.',
+                        );
+                      }
 
-                  if (results.isEmpty) {
-                    return const _SearchEmptyState(
-                      text: 'Nenhum resultado encontrado.',
-                    );
-                  }
+                      if (results.isEmpty) {
+                        return const _SearchEmptyState(
+                          text: 'Nenhum resultado encontrado.',
+                        );
+                      }
 
-                  return ListView.separated(
-                    itemCount: results.length,
-                    separatorBuilder: (_, __) => const SizedBox(height: 10),
-                    itemBuilder: (context, index) {
-                      final result = results[index];
+                      return ListView.separated(
+                        itemCount: results.length,
+                        separatorBuilder: (_, __) => const SizedBox(height: 10),
+                        itemBuilder: (context, index) {
+                          final result = results[index];
 
-                      return _SearchResultTile(
-                        result: result,
-                        onTap: () {
-                          Navigator.of(context).pop();
-                          widget.onNavigate(result.moduleIndex);
+                          return _SearchResultTile(
+                            result: result,
+                            onTap: () {
+                              Navigator.of(context).pop();
+                              widget.onNavigate(result.moduleIndex);
+                            },
+                          );
                         },
                       );
                     },
-                  );
-                },
-              ),
+                  ),
             ),
           ],
         ),
@@ -150,10 +152,7 @@ class _SearchResult {
 }
 
 class _SearchResultTile extends StatelessWidget {
-  const _SearchResultTile({
-    required this.result,
-    required this.onTap,
-  });
+  const _SearchResultTile({required this.result, required this.onTap});
 
   final _SearchResult result;
   final VoidCallback onTap;
@@ -274,14 +273,14 @@ List<_SearchResult> _buildResults({
       sale.id,
       sale.shortId,
       sale.customerName,
-      sale.paymentMethod.label,
+      sale.paymentSummary,
       _formatMoney(sale.total),
     ])) {
       results.add(
         _SearchResult(
           title: 'Venda #${sale.shortId}',
           subtitle:
-              '${_formatDateTime(sale.createdAt)} • ${sale.paymentMethod.label}${sale.customerName == null ? '' : ' • ${sale.customerName}'}',
+              '${_formatDateTime(sale.createdAt)} • ${sale.paymentSummary}${sale.customerName == null ? '' : ' • ${sale.customerName}'}',
           badge: sale.isCanceled ? 'Cancelada' : 'Caixa',
           icon: sale.isCanceled
               ? Icons.cancel_rounded

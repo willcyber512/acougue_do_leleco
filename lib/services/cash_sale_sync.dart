@@ -32,8 +32,9 @@ void syncSaleCashMovement(BuildContext context, SaleRecord sale) {
       amount: payment.amount,
       paymentMethod: payment.method,
       reason: 'Venda #${sale.shortId}',
-      description:
-          '${sale.totalItems} item(ns) • ${payment.method.label}${sale.isMixedPayment ? ' • Pagamento misto' : ''}',
+      description: sale.isMixedPayment
+          ? '${sale.totalItems} item(ns) • Pagamento misto • ${payment.method.label}: R\$ ${payment.amount.toStringAsFixed(2).replaceAll('.', ',')}'
+          : '${sale.totalItems} item(ns) • ${payment.method.label}',
       referenceId: referenceId,
       personName: sale.customerName,
       createdAt: sale.createdAt,

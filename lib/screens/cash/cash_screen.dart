@@ -358,7 +358,7 @@ class _SaleCard extends StatelessWidget {
                   ),
                   const SizedBox(height: 4),
                   Text(
-                    '${_formatDateTime(sale.createdAt)} • ${sale.paymentMethod.label}${sale.customerName == null ? '' : ' • ${sale.customerName}'}',
+                    '${_formatDateTime(sale.createdAt)} • ${sale.paymentSummary}${sale.customerName == null ? '' : ' • ${sale.customerName}'}',
                     maxLines: compact ? 2 : 1,
                     overflow: TextOverflow.ellipsis,
                   ),
@@ -487,10 +487,7 @@ Future<void> _openSaleDetails(BuildContext context, SaleRecord sale) async {
                     value: _formatDateTime(sale.createdAt),
                   ),
                   const SizedBox(width: 12),
-                  _DetailBox(
-                    title: 'Pagamento',
-                    value: sale.paymentMethod.label,
-                  ),
+                  _DetailBox(title: 'Pagamento', value: sale.paymentSummary),
                   const SizedBox(width: 12),
                   _DetailBox(title: 'Total', value: _formatMoney(sale.total)),
                 ],

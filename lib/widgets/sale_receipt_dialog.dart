@@ -144,7 +144,7 @@ class _ReceiptHeader extends StatelessWidget {
         ),
         const SizedBox(height: 18),
         _InfoRow(label: 'Data', value: _formatDateTime(sale.createdAt)),
-        _InfoRow(label: 'Pagamento', value: sale.paymentLabel),
+        _InfoRow(label: 'Pagamento', value: sale.paymentSummary),
         if (sale.customerName != null)
           _InfoRow(label: 'Cliente', value: sale.customerName!),
         _InfoRow(label: 'Status', value: statusText, color: statusColor),
@@ -330,7 +330,7 @@ String _buildReceiptText(SaleRecord sale) {
   buffer.writeln('COMPROVANTE DE VENDA');
   buffer.writeln('Venda #${sale.shortId}');
   buffer.writeln('Data: ${_formatDateTime(sale.createdAt)}');
-  buffer.writeln('Pagamento: ${sale.paymentLabel}');
+  buffer.writeln('Pagamento: ${sale.paymentSummary}');
   if (sale.isMixedPayment) {
     buffer.writeln('Detalhe: ${sale.paymentSummary}');
   }

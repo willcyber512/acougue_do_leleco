@@ -120,17 +120,23 @@ class SaleRecord {
 
   String get paymentSummary {
     final parts = effectivePaymentParts.where((payment) {
-      return payment.amount > 0.004;
+      return payment.amount > 0.004 &&
+          payment.method != PaymentMethod.fiado &&
+          payment.method != PaymentMethod.misto;
     }).toList();
 
     if (parts.isEmpty) return paymentLabel;
 
-    return parts
+    final detail = parts
         .map(
           (payment) =>
               '${payment.method.label}: R\$ ${payment.amount.toStringAsFixed(2).replaceAll('.', ',')}',
         )
         .join(' • ');
+
+    if (isMixedPayment) return 'Misto • $detail';
+
+    return detail;
   }
 
   String get shortId {
