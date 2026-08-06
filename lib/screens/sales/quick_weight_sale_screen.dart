@@ -1,11 +1,13 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import '../../widgets/mixed_payment_dialog.dart';
 import 'package:provider/provider.dart';
 
 import '../../models/product.dart';
 import '../../models/product_unit.dart';
 import '../../models/sale.dart';
+import '../../models/sale_payment.dart';
 import '../../models/sale_cart_item.dart';
 import '../../models/scale_barcode_data.dart';
 import '../../providers/inventory_provider.dart';
@@ -383,10 +385,10 @@ class _QuickWeightSaleScreenState extends State<QuickWeightSaleScreen> {
     }).toList();
   }
 
-  void _finishSale({
+  Future<void> _finishSale({
     required InventoryProvider inventory,
     required SalesProvider sales,
-  }) {
+  }) async {
     if (_pendingItems.isEmpty) {
       _showError('Adicione pelo menos uma etiqueta/item antes de finalizar.');
       return;
@@ -400,11 +402,26 @@ class _QuickWeightSaleScreenState extends State<QuickWeightSaleScreen> {
       return;
     }
 
+    List<SalePayment> paymentParts = const [];
+
+    if (sales.paymentMethod == PaymentMethod.misto) {
+      final parts = await showMixedPaymentDialog(
+        context: context,
+        total: _finalTotal,
+      );
+
+      if (!mounted) return;
+      if (parts == null) return;
+
+      paymentParts = parts;
+    }
+
     final sale = SaleRecord.fromCart(
       cartItems: cartItems,
       paymentMethod: sales.paymentMethod,
       createdAt: DateTime.now(),
       discountAmount: _discountAmount,
+      paymentParts: paymentParts,
     );
 
     final deducted = inventory.deductSaleRecord(sale);

@@ -7,6 +7,7 @@ import '../models/payment_method.dart';
 import '../models/product.dart';
 import '../models/sale.dart';
 import '../models/sale_cart_item.dart';
+import '../models/sale_payment.dart';
 
 export '../models/payment_method.dart';
 
@@ -207,7 +208,11 @@ class SalesProvider extends ChangeNotifier {
     notifyListeners();
   }
 
-  SaleRecord? createSaleRecord({String? customerId, String? customerName}) {
+  SaleRecord? createSaleRecord({
+    String? customerId,
+    String? customerName,
+    List<SalePayment> paymentParts = const [],
+  }) {
     if (_items.isEmpty) return null;
 
     return SaleRecord.fromCart(
@@ -215,6 +220,7 @@ class SalesProvider extends ChangeNotifier {
       paymentMethod: _paymentMethod,
       createdAt: DateTime.now(),
       discountAmount: discountAmount,
+      paymentParts: paymentParts,
       customerId: customerId,
       customerName: customerName,
     );

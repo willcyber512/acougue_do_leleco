@@ -4,6 +4,7 @@ import 'package:provider/provider.dart';
 import '../../core/constants/app_colors.dart';
 import '../../models/customer.dart';
 import '../../models/product.dart';
+import '../../models/sale_payment.dart';
 import '../../models/product_category.dart';
 import '../../models/product_unit.dart';
 import '../../models/sale_cart_item.dart';
@@ -18,6 +19,7 @@ import '../../widgets/quick_product_from_barcode_dialog.dart';
 import '../../models/ramuza_barcode_event.dart';
 import '../../services/cash_sale_sync.dart';
 import '../../widgets/easy_help_card.dart';
+import '../../widgets/mixed_payment_dialog.dart';
 
 class SalesScreen extends StatelessWidget {
   const SalesScreen({super.key});
@@ -563,9 +565,25 @@ class _CartPanel extends StatelessWidget {
                                   return;
                                 }
 
+                                List<SalePayment> paymentParts = const [];
+
+                                if (sales.paymentMethod ==
+                                    PaymentMethod.misto) {
+                                  final parts = await showMixedPaymentDialog(
+                                    context: context,
+                                    total: sales.total,
+                                  );
+
+                                  if (!context.mounted) return;
+                                  if (parts == null) return;
+
+                                  paymentParts = parts;
+                                }
+
                                 final sale = sales.createSaleRecord(
                                   customerId: selectedCustomer?.id,
                                   customerName: selectedCustomer?.name,
+                                  paymentParts: paymentParts,
                                 );
 
                                 if (sale == null) {

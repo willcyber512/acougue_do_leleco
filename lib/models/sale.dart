@@ -1,6 +1,7 @@
 import 'payment_method.dart';
 import 'product_unit.dart';
 import 'sale_cart_item.dart';
+import 'sale_payment.dart';
 
 class SaleRecordItem {
   const SaleRecordItem({
@@ -51,6 +52,7 @@ class SaleRecord {
     required this.paymentMethod,
     required this.total,
     this.discountAmount = 0,
+    this.paymentParts = const [],
     required this.createdAt,
     this.customerId,
     this.customerName,
@@ -63,6 +65,7 @@ class SaleRecord {
   final PaymentMethod paymentMethod;
   final double total;
   final double discountAmount;
+  final List<SalePayment> paymentParts;
   final DateTime createdAt;
   final String? customerId;
   final String? customerName;
@@ -81,6 +84,55 @@ class SaleRecord {
 
   bool get hasDiscount => safeDiscountAmount > 0.004;
 
+  List<SalePayment> get effectivePaymentParts {
+    if (paymentParts.isNotEmpty) return paymentParts;
+    if (total <= 0) return const [];
+
+    if (paymentMethod == PaymentMethod.fiado) {
+      return [SalePayment(method: PaymentMethod.fiado, amount: total)];
+    }
+
+    if (paymentMethod == PaymentMethod.misto) {
+      return const [];
+    }
+
+    return [SalePayment(method: paymentMethod, amount: total)];
+  }
+
+  bool get isMixedPayment {
+    final immediateParts = effectivePaymentParts.where((payment) {
+      return payment.amount > 0.004 &&
+          payment.method != PaymentMethod.fiado &&
+          payment.method != PaymentMethod.misto;
+    }).toList();
+
+    return paymentMethod == PaymentMethod.misto || immediateParts.length > 1;
+  }
+
+  String get paymentLabel {
+    if (isMixedPayment) return 'Misto';
+
+    final parts = effectivePaymentParts;
+    if (parts.length == 1) return parts.first.method.label;
+
+    return paymentMethod.label;
+  }
+
+  String get paymentSummary {
+    final parts = effectivePaymentParts.where((payment) {
+      return payment.amount > 0.004;
+    }).toList();
+
+    if (parts.isEmpty) return paymentLabel;
+
+    return parts
+        .map(
+          (payment) =>
+              '${payment.method.label}: R\$ ${payment.amount.toStringAsFixed(2).replaceAll('.', ',')}',
+        )
+        .join(' • ');
+  }
+
   String get shortId {
     if (id.length <= 6) return id;
     return id.substring(id.length - 6);
@@ -96,6 +148,7 @@ class SaleRecord {
     PaymentMethod? paymentMethod,
     double? total,
     double? discountAmount,
+    List<SalePayment>? paymentParts,
     DateTime? createdAt,
     String? customerId,
     String? customerName,
@@ -108,6 +161,7 @@ class SaleRecord {
       paymentMethod: paymentMethod ?? this.paymentMethod,
       total: total ?? this.total,
       discountAmount: discountAmount ?? this.discountAmount,
+      paymentParts: paymentParts ?? this.paymentParts,
       createdAt: createdAt ?? this.createdAt,
       customerId: customerId ?? this.customerId,
       customerName: customerName ?? this.customerName,
@@ -123,6 +177,9 @@ class SaleRecord {
       'paymentMethod': paymentMethod.name,
       'total': total,
       'discountAmount': discountAmount,
+      'paymentParts': effectivePaymentParts
+          .map((payment) => payment.toMap())
+          .toList(),
       'createdAt': createdAt.toIso8601String(),
       'customerId': customerId,
       'customerName': customerName,
@@ -133,6 +190,7 @@ class SaleRecord {
 
   factory SaleRecord.fromMap(Map<String, dynamic> map) {
     final rawItems = map['items'];
+    final rawPaymentParts = map['paymentParts'];
 
     return SaleRecord(
       id: map['id']?.toString() ?? '',
@@ -148,6 +206,15 @@ class SaleRecord {
       paymentMethod: paymentMethodFromName(map['paymentMethod']?.toString()),
       total: _toDouble(map['total']),
       discountAmount: _toDouble(map['discountAmount']),
+      paymentParts: rawPaymentParts is List
+          ? rawPaymentParts
+                .whereType<Map>()
+                .map(
+                  (item) =>
+                      SalePayment.fromMap(Map<String, dynamic>.from(item)),
+                )
+                .toList()
+          : const [],
       createdAt: _toDate(map['createdAt']),
       customerId: map['customerId']?.toString(),
       customerName: map['customerName']?.toString(),
@@ -161,6 +228,7 @@ class SaleRecord {
     required PaymentMethod paymentMethod,
     required DateTime createdAt,
     double discountAmount = 0,
+    List<SalePayment> paymentParts = const [],
     String? customerId,
     String? customerName,
   }) {
@@ -179,13 +247,21 @@ class SaleRecord {
 
     final safeDiscount = _clampDiscount(discountAmount, grossTotal);
     final total = grossTotal - safeDiscount;
+    final safePaymentParts = normalizeSalePayments(
+      payments: paymentParts,
+      fallbackMethod: paymentMethod,
+      total: total,
+    );
 
     return SaleRecord(
       id: createdAt.microsecondsSinceEpoch.toString(),
       items: items,
-      paymentMethod: paymentMethod,
+      paymentMethod: safePaymentParts.length > 1
+          ? PaymentMethod.misto
+          : paymentMethod,
       total: total,
       discountAmount: safeDiscount,
+      paymentParts: safePaymentParts,
       createdAt: createdAt,
       customerId: customerId,
       customerName: customerName,

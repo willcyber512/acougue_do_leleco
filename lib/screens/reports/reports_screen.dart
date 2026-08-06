@@ -1440,7 +1440,7 @@ class _CanceledSalesReportPanel extends StatelessWidget {
           _reportsSafeDate(() => sale.canceledAt) ??
               _reportsSafeDate(() => sale.createdAt),
         ),
-        _reportsSafeText(() => sale.paymentMethod.label),
+        _reportsSafeText(() => sale.paymentLabel),
         _reportsSafeText(() => sale.totalItems),
         _formatMoney(_reportsSafeDouble(() => sale.total)),
         _reportsSafeText(() => sale.cancelReason, 'Sem motivo informado'),
@@ -2870,8 +2870,30 @@ Map<PaymentMethod, double> _paymentTotals(List<dynamic> sales) {
   final totals = <PaymentMethod, double>{};
 
   for (final sale in sales) {
-    final method = sale.paymentMethod as PaymentMethod;
-    totals[method] = (totals[method] ?? 0) + (sale.total as double);
+    try {
+      final parts = sale.effectivePaymentParts as List<dynamic>;
+
+      if (parts.isNotEmpty) {
+        for (final part in parts) {
+          final method = part.method as PaymentMethod;
+          final amount = (part.amount as num).toDouble();
+
+          if (amount <= 0) continue;
+          if (method == PaymentMethod.misto) continue;
+
+          totals[method] = (totals[method] ?? 0) + amount;
+        }
+
+        continue;
+      }
+
+      final method = sale.paymentMethod as PaymentMethod;
+      final total = (sale.total as num).toDouble();
+
+      totals[method] = (totals[method] ?? 0) + total;
+    } catch (_) {
+      // Ignora registros antigos quebrados no relatório.
+    }
   }
 
   return totals;
@@ -3817,7 +3839,7 @@ Future<void> _exportReportsPdf({
           }
           return date;
         }),
-        safeText(() => sale.paymentMethod.label),
+        safeText(() => sale.paymentLabel),
         safeText(() => sale.totalItems),
         _formatMoney(safeDouble(() => sale.discountAmount)),
         _formatMoney(safeDouble(() => sale.total)),
@@ -3840,7 +3862,7 @@ Future<void> _exportReportsPdf({
           _reportsSafeDate(() => sale.canceledAt) ??
               _reportsSafeDate(() => sale.createdAt),
         ),
-        _reportsSafeText(() => sale.paymentMethod.label),
+        _reportsSafeText(() => sale.paymentLabel),
         _formatMoney(_reportsSafeDouble(() => sale.total)),
         _reportsSafeText(() => sale.cancelReason, 'Sem motivo informado'),
       ]);

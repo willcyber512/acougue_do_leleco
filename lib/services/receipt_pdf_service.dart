@@ -84,7 +84,7 @@ class ReceiptPdfService {
             _sectionTitle('Dados da venda', wine),
             pw.SizedBox(height: 8),
             _infoRow('Data', _formatDateTime(sale.createdAt)),
-            _infoRow('Pagamento', sale.paymentMethod.label),
+            _infoRow('Pagamento', sale.paymentLabel),
             if (sale.customerName != null)
               _infoRow('Cliente', sale.customerName!),
             _infoRow(

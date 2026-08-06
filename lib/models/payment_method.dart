@@ -1,10 +1,4 @@
-enum PaymentMethod {
-  dinheiro,
-  pix,
-  debito,
-  credito,
-  fiado,
-}
+enum PaymentMethod { dinheiro, pix, debito, credito, fiado, misto }
 
 extension PaymentMethodLabel on PaymentMethod {
   String get label {
@@ -19,6 +13,8 @@ extension PaymentMethodLabel on PaymentMethod {
         return 'Crédito';
       case PaymentMethod.fiado:
         return 'Fiado';
+      case PaymentMethod.misto:
+        return 'Misto';
     }
   }
 }
@@ -28,4 +24,13 @@ PaymentMethod paymentMethodFromName(String? value) {
     (method) => method.name == value,
     orElse: () => PaymentMethod.dinheiro,
   );
+}
+
+List<PaymentMethod> get immediatePaymentMethods {
+  return const [
+    PaymentMethod.dinheiro,
+    PaymentMethod.pix,
+    PaymentMethod.debito,
+    PaymentMethod.credito,
+  ];
 }

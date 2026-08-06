@@ -17,20 +17,28 @@ void syncSaleCashMovement(BuildContext context, SaleRecord sale) {
   cash.deleteMovementsByReferenceId(referenceId);
 
   if (sale.isCanceled) return;
-  if (sale.paymentMethod == PaymentMethod.fiado) return;
   if (sale.total <= 0) return;
 
-  cash.addMovement(
-    type: CashMovementType.input,
-    category: CashMovementCategory.sale,
-    amount: sale.total,
-    paymentMethod: sale.paymentMethod,
-    reason: 'Venda #${sale.shortId}',
-    description: '${sale.totalItems} item(ns) • ${sale.paymentMethod.label}',
-    referenceId: referenceId,
-    personName: sale.customerName,
-    createdAt: sale.createdAt,
-  );
+  final parts = sale.effectivePaymentParts.where((payment) {
+    return payment.isImmediate && payment.amount > 0.004;
+  }).toList();
+
+  if (parts.isEmpty) return;
+
+  for (final payment in parts) {
+    cash.addMovement(
+      type: CashMovementType.input,
+      category: CashMovementCategory.sale,
+      amount: payment.amount,
+      paymentMethod: payment.method,
+      reason: 'Venda #${sale.shortId}',
+      description:
+          '${sale.totalItems} item(ns) • ${payment.method.label}${sale.isMixedPayment ? ' • Pagamento misto' : ''}',
+      referenceId: referenceId,
+      personName: sale.customerName,
+      createdAt: sale.createdAt,
+    );
+  }
 }
 
 void removeSaleCashMovement(BuildContext context, SaleRecord sale) {
