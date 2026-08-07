@@ -80,7 +80,7 @@ class _MixedPaymentDialogState extends State<_MixedPaymentDialog> {
 
     if (cleanParts.length < 2) {
       setState(() {
-        errorText = 'Use pelo menos duas formas de pagamento.';
+        errorText = 'Preencha pelo menos duas formas de pagamento.';
       });
       return;
     }
@@ -173,7 +173,7 @@ class _MixedPaymentDialogState extends State<_MixedPaymentDialog> {
               ],
               const SizedBox(height: 6),
               Text(
-                'Fiado continua separado. Pagamento misto é só para dinheiro, Pix, débito e crédito.',
+                'Escolha duas ou mais formas de pagamento. Use o botão “Restante” para completar o valor certinho.',
                 style: Theme.of(context).textTheme.bodySmall?.copyWith(
                   fontWeight: FontWeight.w700,
                   color: scheme.onSurfaceVariant,
