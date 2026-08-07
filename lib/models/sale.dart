@@ -139,6 +139,21 @@ class SaleRecord {
     return detail;
   }
 
+  List<String> get paymentReceiptLines {
+    final parts = effectivePaymentParts.where((payment) {
+      return payment.amount > 0.004 &&
+          payment.method != PaymentMethod.fiado &&
+          payment.method != PaymentMethod.misto;
+    }).toList();
+
+    if (!isMixedPayment || parts.isEmpty) return const [];
+
+    return parts.map((payment) {
+      final value = payment.amount.toStringAsFixed(2).replaceAll('.', ',');
+      return '${payment.method.label}: R\$ $value';
+    }).toList();
+  }
+
   String get shortId {
     if (id.length <= 6) return id;
     return id.substring(id.length - 6);

@@ -330,9 +330,12 @@ String _buildReceiptText(SaleRecord sale) {
   buffer.writeln('COMPROVANTE DE VENDA');
   buffer.writeln('Venda #${sale.shortId}');
   buffer.writeln('Data: ${_formatDateTime(sale.createdAt)}');
-  buffer.writeln('Pagamento: ${sale.paymentSummary}');
-  if (sale.isMixedPayment) {
-    buffer.writeln('Detalhe: ${sale.paymentSummary}');
+  buffer.writeln('Pagamento: ${sale.paymentLabel}');
+  if (sale.isMixedPayment && sale.paymentReceiptLines.isNotEmpty) {
+    buffer.writeln('');
+    for (final line in sale.paymentReceiptLines) {
+      buffer.writeln(line);
+    }
   }
 
   if (sale.customerName != null) {
@@ -386,4 +389,46 @@ String _formatDateTime(DateTime value) {
 
 String _two(int value) {
   return value.toString().padLeft(2, '0');
+}
+
+class _MixedPaymentReceiptBlock extends StatelessWidget {
+  const _MixedPaymentReceiptBlock({required this.lines});
+
+  final List<String> lines;
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+
+    return Container(
+      width: double.infinity,
+      margin: const EdgeInsets.only(top: 8, bottom: 8),
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: scheme.surfaceContainerHighest,
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: scheme.outlineVariant),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            'Detalhamento do pagamento',
+            style: Theme.of(
+              context,
+            ).textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w900),
+          ),
+          const SizedBox(height: 8),
+          for (final line in lines)
+            Padding(
+              padding: const EdgeInsets.only(bottom: 4),
+              child: Text(
+                line,
+                style: const TextStyle(fontWeight: FontWeight.w800),
+              ),
+            ),
+        ],
+      ),
+    );
+  }
 }
