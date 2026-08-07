@@ -53,3 +53,5 @@ backups/
 /backups/
 /diagnostico_*.txt
 /diagnostico_*.py
+/runtime_*.log
+build/

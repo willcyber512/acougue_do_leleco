@@ -1,0 +1,43 @@
+AÇOUGUE DO LELECO - INSTRUÇÕES DE ENTREGA
+
+IMPORTANTE:
+Entregar a pasta inteira do sistema, não apenas o arquivo .exe.
+O .exe precisa ficar junto das DLLs e da pasta data.
+
+ANTES DE TROCAR A VERSÃO:
+1. Abrir o sistema antigo.
+2. Entrar em Ajustes.
+3. Gerar backup.
+4. Copiar e guardar o backup em um arquivo seguro.
+
+PARA USAR A NOVA VERSÃO:
+1. Extrair o arquivo .zip baixado do GitHub Actions.
+2. Abrir a pasta extraída.
+3. Executar o Acougue do Leleco.
+4. Conferir se os dados aparecem.
+5. Se os dados não aparecerem, ir em Ajustes e restaurar o backup.
+
+TESTE RÁPIDO:
+1. Cadastrar um produto no Estoque.
+2. Fazer uma venda simples.
+3. Fazer uma venda com desconto.
+4. Fazer uma venda com pagamento misto.
+5. Conferir se o Caixa recebeu as entradas.
+6. Gerar relatório PDF.
+7. Gerar backup em Ajustes.
+
+LEITOR USB:
+O leitor funciona como teclado.
+Ao ler a etiqueta, ele envia o código para o campo de busca/venda.
+A balança imprime a etiqueta; o sistema lê a etiqueta pelo leitor USB.
+
+PAGAMENTO MISTO:
+Use quando a cliente pagar parte em dinheiro, parte no Pix ou cartão.
+Exemplo:
+- Dinheiro: R$ 10,00
+- Pix: restante
+
+O caixa registra as entradas separadas por forma de pagamento.
+
+BACKUP:
+Fazer backup todos os dias no fim do expediente.
