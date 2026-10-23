@@ -5,168 +5,191 @@ import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
 import 'package:printing/printing.dart';
 
-import '../models/payment_method.dart';
 import '../models/sale.dart';
 
 class ReceiptPdfService {
   ReceiptPdfService._();
 
   static Future<void> openReceiptPdf(SaleRecord sale) async {
-    final pdfBytes = await buildReceiptPdf(sale);
+    final format = _receiptPageFormat(sale);
+    final bytes = await _buildReceiptPdf(sale, format);
 
     await Printing.layoutPdf(
       name: 'comprovante_${sale.shortId}.pdf',
-      onLayout: (_) async => pdfBytes,
+      format: format,
+      dynamicLayout: false,
+      onLayout: (_) async => bytes,
     );
   }
 
-  static Future<Uint8List> buildReceiptPdf(SaleRecord sale) async {
-    final document = pw.Document();
+  static Future<Uint8List> buildReceiptPdf(SaleRecord sale) {
+    return _buildReceiptPdf(sale, _receiptPageFormat(sale));
+  }
 
+  static PdfPageFormat _receiptPageFormat(SaleRecord sale) {
+    // Formato para bobina térmica de 80 mm.
+    double heightMm = 76.0;
+
+    for (final item in sale.items) {
+      final nameLength = item.productName.toString().length;
+      final lines = ((nameLength + 37) ~/ 38).clamp(1, 4).toInt();
+      heightMm += 14.0 + (lines - 1) * 3.5;
+    }
+
+    heightMm += sale.paymentReceiptLines.length * 4.5;
+
+    if (sale.hasDiscount) heightMm += 9.0;
+
+    if (sale.customerName?.trim().isNotEmpty ?? false) {
+      heightMm += 6.0;
+    }
+
+    if (sale.isCanceled) {
+      final reasonLength = (sale.cancelReason ?? '').length;
+      heightMm += 9.0 + ((reasonLength + 39) ~/ 40) * 3.5;
+    }
+
+    if (heightMm < 90.0) heightMm = 90.0;
+
+    return PdfPageFormat(80.0 * PdfPageFormat.mm, heightMm * PdfPageFormat.mm);
+  }
+
+  static Future<Uint8List> _buildReceiptPdf(
+    SaleRecord sale,
+    PdfPageFormat format,
+  ) async {
+    final document = pw.Document();
     final logo = await _loadLogo();
 
-    final wine = PdfColor.fromInt(0xFF561C24);
-    final beige = PdfColor.fromInt(0xFFE8D8C4);
-    final danger = PdfColor.fromInt(0xFFC62828);
-    final success = PdfColor.fromInt(0xFF2E7D32);
-
     document.addPage(
-      pw.MultiPage(
-        pageFormat: PdfPageFormat.a4.copyWith(
-          marginLeft: 28,
-          marginRight: 28,
-          marginTop: 28,
-          marginBottom: 28,
+      pw.Page(
+        pageFormat: format,
+        margin: pw.EdgeInsets.fromLTRB(
+          4 * PdfPageFormat.mm,
+          3 * PdfPageFormat.mm,
+          4 * PdfPageFormat.mm,
+          3 * PdfPageFormat.mm,
         ),
         build: (context) {
-          return [
-            pw.Center(
-              child: pw.Column(
-                children: [
-                  pw.Container(
-                    width: 70,
-                    height: 70,
-                    padding: const pw.EdgeInsets.all(8),
-                    decoration: pw.BoxDecoration(
-                      color: wine,
-                      borderRadius: pw.BorderRadius.circular(16),
-                    ),
-                    child: logo == null
-                        ? pw.Center(
-                            child: pw.Text(
-                              'AL',
-                              style: pw.TextStyle(
-                                color: beige,
-                                fontSize: 20,
-                                fontWeight: pw.FontWeight.bold,
-                              ),
-                            ),
-                          )
-                        : pw.Image(logo, fit: pw.BoxFit.contain),
+          return pw.Column(
+            crossAxisAlignment: pw.CrossAxisAlignment.stretch,
+            children: [
+              if (logo != null) ...[
+                pw.Center(
+                  child: pw.SizedBox(
+                    width: 24 * PdfPageFormat.mm,
+                    height: 13 * PdfPageFormat.mm,
+                    child: pw.Image(logo, fit: pw.BoxFit.contain),
                   ),
-                  pw.SizedBox(height: 10),
-                  pw.Text(
-                    'Açougue do Leleco',
-                    style: pw.TextStyle(
-                      fontSize: 22,
-                      fontWeight: pw.FontWeight.bold,
-                    ),
+                ),
+                pw.SizedBox(height: 2),
+              ],
+
+              pw.Center(
+                child: pw.Text(
+                  'ACOUgue DO LELECO'.toUpperCase(),
+                  style: pw.TextStyle(
+                    fontSize: 10,
+                    fontWeight: pw.FontWeight.bold,
                   ),
-                  pw.SizedBox(height: 4),
-                  pw.Text(
-                    'Comprovante de venda #${sale.shortId}',
-                    style: const pw.TextStyle(fontSize: 12),
+                ),
+              ),
+              pw.SizedBox(height: 2),
+              pw.Center(
+                child: pw.Text(
+                  'COMPROVANTE DE VENDA #${sale.shortId}',
+                  style: pw.TextStyle(
+                    fontSize: 8,
+                    fontWeight: pw.FontWeight.bold,
                   ),
-                ],
+                ),
               ),
-            ),
-            pw.SizedBox(height: 22),
-            _sectionTitle('Dados da venda', wine),
-            pw.SizedBox(height: 8),
-            _infoRow('Data', _formatDateTime(sale.createdAt)),
-            _infoRow('Pagamento', sale.paymentSummary),
-            if (sale.customerName != null)
-              _infoRow('Cliente', sale.customerName!),
-            _infoRow(
-              'Status',
-              sale.isCanceled ? 'Cancelada' : 'Finalizada',
-              valueColor: sale.isCanceled ? danger : success,
-            ),
-            if (sale.isCanceled) ...[
-              _infoRow(
-                'Cancelada em',
-                _formatDateTime(sale.canceledAt!),
-                valueColor: danger,
+              pw.Center(
+                child: pw.Text(
+                  _formatDateTime(sale.createdAt),
+                  style: const pw.TextStyle(fontSize: 7.5),
+                ),
               ),
-              _infoRow(
-                'Motivo',
-                sale.cancelReason ?? 'Cancelamento manual',
-                valueColor: danger,
-              ),
-            ],
-            pw.SizedBox(height: 18),
-            _sectionTitle('Itens', wine),
-            pw.SizedBox(height: 8),
-            _itemsTable(sale),
-            pw.SizedBox(height: 18),
-            pw.Container(
-              width: double.infinity,
-              padding: const pw.EdgeInsets.all(16),
-              decoration: pw.BoxDecoration(
-                color: wine,
-                borderRadius: pw.BorderRadius.circular(12),
-              ),
-              child: pw.Column(
-                crossAxisAlignment: pw.CrossAxisAlignment.start,
-                children: [
-                  if (sale.hasDiscount) ...[
-                    _pdfTotalLine(
-                      'Subtotal',
-                      _formatMoney(sale.grossTotal),
-                      beige,
-                    ),
-                    pw.SizedBox(height: 4),
-                    _pdfTotalLine(
-                      'Desconto',
-                      '- ${_formatMoney(sale.safeDiscountAmount)}',
-                      beige,
-                    ),
-                    pw.SizedBox(height: 8),
-                  ],
-                  pw.Text(
-                    'Total',
-                    style: pw.TextStyle(
-                      color: beige,
-                      fontSize: 12,
-                      fontWeight: pw.FontWeight.bold,
-                    ),
-                  ),
-                  pw.SizedBox(height: 6),
-                  pw.Text(
-                    _formatMoney(sale.total),
-                    style: pw.TextStyle(
-                      color: beige,
-                      fontSize: 26,
-                      fontWeight: pw.FontWeight.bold,
-                      decoration: sale.isCanceled
-                          ? pw.TextDecoration.lineThrough
-                          : null,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            pw.SizedBox(height: 20),
-            pw.Center(
-              child: pw.Text(
-                'Obrigado pela preferência.',
+
+              _separator(),
+
+              if (sale.customerName?.trim().isNotEmpty ?? false) ...[
+                pw.Text(
+                  'Cliente: ${sale.customerName!.trim()}',
+                  style: const pw.TextStyle(fontSize: 8),
+                ),
+                pw.SizedBox(height: 3),
+              ],
+
+              pw.Text(
+                'ITENS DA VENDA',
                 style: pw.TextStyle(
-                  fontSize: 11,
+                  fontSize: 8.5,
                   fontWeight: pw.FontWeight.bold,
                 ),
               ),
-            ),
-          ];
+              pw.SizedBox(height: 3),
+
+              ...sale.items.map(_itemWidget),
+
+              _separator(),
+
+              if (sale.hasDiscount) ...[
+                _pair('Subtotal', _formatMoney(sale.grossTotal)),
+                _pair('Desconto', '- ${_formatMoney(sale.safeDiscountAmount)}'),
+                pw.SizedBox(height: 2),
+              ],
+
+              _pair(
+                'TOTAL',
+                _formatMoney(sale.total),
+                bold: true,
+                fontSize: 11,
+              ),
+
+              _separator(),
+
+              _paymentWidget(sale),
+
+              if (sale.isCanceled) ...[
+                _separator(),
+                pw.Text(
+                  'STATUS: VENDA CANCELADA',
+                  style: pw.TextStyle(
+                    fontSize: 8,
+                    fontWeight: pw.FontWeight.bold,
+                  ),
+                ),
+                if (sale.canceledAt != null)
+                  pw.Text(
+                    'Cancelada em: ${_formatDateTime(sale.canceledAt!)}',
+                    style: const pw.TextStyle(fontSize: 7),
+                  ),
+                if (sale.cancelReason?.trim().isNotEmpty ?? false)
+                  pw.Text(
+                    'Motivo: ${sale.cancelReason!.trim()}',
+                    style: const pw.TextStyle(fontSize: 7),
+                  ),
+              ],
+
+              pw.SizedBox(height: 6),
+              pw.Center(
+                child: pw.Text(
+                  'Obrigado pela preferencia!',
+                  style: pw.TextStyle(
+                    fontSize: 8,
+                    fontWeight: pw.FontWeight.bold,
+                  ),
+                ),
+              ),
+              pw.Center(
+                child: pw.Text(
+                  'Acougue do Leleco',
+                  style: const pw.TextStyle(fontSize: 7),
+                ),
+              ),
+            ],
+          );
         },
       ),
     );
@@ -174,28 +197,117 @@ class ReceiptPdfService {
     return document.save();
   }
 
-  static pw.Widget _pdfTotalLine(String label, String value, PdfColor color) {
-    return pw.Row(
+  static pw.Widget _itemWidget(dynamic item) {
+    final name = item.productName.toString();
+    final code = item.productCode.toString();
+    final quantity = _formatNumber((item.quantity as num).toDouble());
+    final unitPrice = _formatMoney((item.unitPrice as num).toDouble());
+    final subtotal = _formatMoney((item.subtotal as num).toDouble());
+
+    return pw.Padding(
+      padding: const pw.EdgeInsets.only(bottom: 2),
+      child: pw.Column(
+        crossAxisAlignment: pw.CrossAxisAlignment.start,
+        children: [
+          pw.Text(
+            name,
+            style: pw.TextStyle(fontSize: 8.5, fontWeight: pw.FontWeight.bold),
+          ),
+          if (code.trim().isNotEmpty)
+            pw.Text('Codigo: $code', style: const pw.TextStyle(fontSize: 7)),
+          pw.SizedBox(height: 1),
+          pw.Row(
+            crossAxisAlignment: pw.CrossAxisAlignment.start,
+            children: [
+              pw.Expanded(
+                child: pw.Text(
+                  '$quantity ${item.unitLabel} x $unitPrice',
+                  style: const pw.TextStyle(fontSize: 7.5),
+                ),
+              ),
+              pw.SizedBox(width: 2),
+              pw.Text(
+                subtotal,
+                style: pw.TextStyle(
+                  fontSize: 8,
+                  fontWeight: pw.FontWeight.bold,
+                ),
+              ),
+            ],
+          ),
+          pw.SizedBox(height: 2),
+          _separator(),
+        ],
+      ),
+    );
+  }
+
+  static pw.Widget _paymentWidget(SaleRecord sale) {
+    final lines = sale.paymentReceiptLines
+        .map((line) => line.toString())
+        .where((line) => line.trim().isNotEmpty)
+        .toList();
+
+    return pw.Column(
+      crossAxisAlignment: pw.CrossAxisAlignment.start,
       children: [
-        pw.Expanded(
-          child: pw.Text(
-            label,
-            style: pw.TextStyle(
-              color: color,
-              fontSize: 10,
-              fontWeight: pw.FontWeight.bold,
-            ),
-          ),
-        ),
         pw.Text(
-          value,
-          style: pw.TextStyle(
-            color: color,
-            fontSize: 10,
-            fontWeight: pw.FontWeight.bold,
-          ),
+          'PAGAMENTO',
+          style: pw.TextStyle(fontSize: 8.5, fontWeight: pw.FontWeight.bold),
         ),
+        pw.SizedBox(height: 2),
+
+        if (sale.isMixedPayment) ...[
+          pw.Text('Forma: Misto', style: const pw.TextStyle(fontSize: 8)),
+          if (lines.isEmpty)
+            pw.Text(
+              'Detalhamento nao disponivel para esta venda.',
+              style: const pw.TextStyle(fontSize: 7),
+            )
+          else
+            ...lines.map(
+              (line) => pw.Padding(
+                padding: const pw.EdgeInsets.only(top: 1),
+                child: pw.Text(line, style: const pw.TextStyle(fontSize: 8)),
+              ),
+            ),
+        ] else
+          pw.Text(
+            'Forma: ${sale.paymentSummary}',
+            style: const pw.TextStyle(fontSize: 8),
+          ),
       ],
+    );
+  }
+
+  static pw.Widget _pair(
+    String label,
+    String value, {
+    bool bold = false,
+    double fontSize = 8,
+  }) {
+    final style = pw.TextStyle(
+      fontSize: fontSize,
+      fontWeight: bold ? pw.FontWeight.bold : pw.FontWeight.normal,
+    );
+
+    return pw.Padding(
+      padding: const pw.EdgeInsets.symmetric(vertical: 1),
+      child: pw.Row(
+        crossAxisAlignment: pw.CrossAxisAlignment.start,
+        children: [
+          pw.Expanded(child: pw.Text(label, style: style)),
+          pw.SizedBox(width: 3),
+          pw.Text(value, style: style),
+        ],
+      ),
+    );
+  }
+
+  static pw.Widget _separator() {
+    return pw.Padding(
+      padding: const pw.EdgeInsets.symmetric(vertical: 3),
+      child: pw.Divider(height: 1, thickness: 0.5, color: PdfColors.black),
     );
   }
 
@@ -208,118 +320,25 @@ class ReceiptPdfService {
     }
   }
 
-  static pw.Widget _sectionTitle(String title, PdfColor color) {
-    return pw.Text(
-      title,
-      style: pw.TextStyle(
-        color: color,
-        fontSize: 14,
-        fontWeight: pw.FontWeight.bold,
-      ),
-    );
-  }
-
-  static pw.Widget _infoRow(
-    String label,
-    String value, {
-    PdfColor? valueColor,
-  }) {
-    return pw.Padding(
-      padding: const pw.EdgeInsets.only(bottom: 6),
-      child: pw.Row(
-        crossAxisAlignment: pw.CrossAxisAlignment.start,
-        children: [
-          pw.SizedBox(
-            width: 95,
-            child: pw.Text(
-              label,
-              style: pw.TextStyle(fontWeight: pw.FontWeight.bold),
-            ),
-          ),
-          pw.Expanded(
-            child: pw.Text(
-              value,
-              style: pw.TextStyle(
-                fontWeight: pw.FontWeight.bold,
-                color: valueColor,
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  static pw.Widget _itemsTable(SaleRecord sale) {
-    return pw.Table(
-      border: pw.TableBorder.all(
-        color: PdfColor.fromInt(0xFFE0E0E0),
-        width: 0.6,
-      ),
-      columnWidths: const {
-        0: pw.FlexColumnWidth(3),
-        1: pw.FlexColumnWidth(1),
-        2: pw.FlexColumnWidth(1.2),
-        3: pw.FlexColumnWidth(1.2),
-      },
-      children: [
-        pw.TableRow(
-          decoration: pw.BoxDecoration(color: PdfColor.fromInt(0xFFF3E8DF)),
-          children: [
-            _tableCell('Produto', bold: true),
-            _tableCell('Qtd', bold: true),
-            _tableCell('Preço', bold: true),
-            _tableCell('Subtotal', bold: true),
-          ],
-        ),
-        ...sale.items.map((item) {
-          return pw.TableRow(
-            children: [
-              _tableCell('${item.productName}\nCódigo ${item.productCode}'),
-              _tableCell('${_formatNumber(item.quantity)} ${item.unitLabel}'),
-              _tableCell(_formatMoney(item.unitPrice)),
-              _tableCell(_formatMoney(item.subtotal), bold: true),
-            ],
-          );
-        }),
-      ],
-    );
-  }
-
-  static pw.Widget _tableCell(String text, {bool bold = false}) {
-    return pw.Padding(
-      padding: const pw.EdgeInsets.all(8),
-      child: pw.Text(
-        text,
-        style: pw.TextStyle(
-          fontSize: 10,
-          fontWeight: bold ? pw.FontWeight.bold : pw.FontWeight.normal,
-        ),
-      ),
-    );
-  }
-
   static String _formatMoney(double value) {
-    final fixed = value.toStringAsFixed(2).replaceAll('.', ',');
-    return 'R\$ $fixed';
+    return 'R\$ ${value.toStringAsFixed(2).replaceAll('.', ',')}';
   }
 
   static String _formatNumber(double value) {
-    if (value % 1 == 0) {
+    if (value == value.roundToDouble()) {
       return value.toStringAsFixed(0);
     }
 
-    return value.toStringAsFixed(3).replaceAll('.', ',');
+    return value
+        .toStringAsFixed(3)
+        .replaceFirst(RegExp(r'0+$'), '')
+        .replaceFirst(RegExp(r'\.$'), '')
+        .replaceAll('.', ',');
   }
 
   static String _formatDateTime(DateTime value) {
-    final day = _two(value.day);
-    final month = _two(value.month);
-    final year = value.year;
-    final hour = _two(value.hour);
-    final minute = _two(value.minute);
-
-    return '$day/$month/$year $hour:$minute';
+    return '${_two(value.day)}/${_two(value.month)}/${value.year} '
+        '${_two(value.hour)}:${_two(value.minute)}';
   }
 
   static String _two(int value) {
