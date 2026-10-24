@@ -296,9 +296,22 @@ class ReceiptPdfService {
       child: pw.Row(
         crossAxisAlignment: pw.CrossAxisAlignment.start,
         children: [
-          pw.Expanded(child: pw.Text(label, style: style)),
-          pw.SizedBox(width: 3),
-          pw.Text(value, style: style),
+          pw.Expanded(
+            child: pw.Text(label, style: style, maxLines: 1),
+          ),
+          pw.SizedBox(width: 2),
+          pw.Flexible(
+            fit: pw.FlexFit.loose,
+            child: pw.FittedBox(
+              fit: pw.BoxFit.scaleDown,
+              alignment: pw.Alignment.centerRight,
+              child: pw.Text(
+                value,
+                style: style,
+                maxLines: 1,
+              ),
+            ),
+          ),
         ],
       ),
     );
